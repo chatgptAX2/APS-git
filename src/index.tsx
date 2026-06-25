@@ -95,7 +95,21 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
     if (body.basisWeight && o.basisWeight !== Number(body.basisWeight)) return false
     return true
   })
-  return c.json({ success:true, data:synced, total:synced.length, message:`SAP RFC 조회 완료 — ${synced.length}건 동기화` })
+  // Mock: 전체 중 20%는 이미 DB에 존재, 10%는 실패 시뮬레이션
+  const total      = synced.length
+  const alreadyN   = Math.floor(total * 0.2)
+  const failN      = total > 5 ? Math.floor(total * 0.1) : 0
+  const successN   = total - alreadyN - failN
+  return c.json({
+    success: true,
+    data: synced,
+    total,
+    successCount : successN,
+    failCount    : failN,
+    alreadyCount : alreadyN,
+    openCount    : synced.filter(o => o.status === 'OPEN').length,
+    message      : `판매오더 불러오기 성공`
+  })
 })
 
 // ============================================================
@@ -790,7 +804,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
       <div style="display:flex;align-items:center;gap:10px;margin-top:16px;">
         <button class="btn btn-primary" onclick="runRfcSync()" id="btn-rfc">
-          <i class="fas fa-satellite-dish"></i> SAP RFC 조회 · 동기화
+          <i class="fas fa-cloud-download-alt"></i> 판매오더 불러오기
         </button>
         <button class="btn btn-ghost btn-sm" onclick="resetImportFilter()">
           <i class="fas fa-undo"></i> 초기화
@@ -804,13 +818,32 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
     <!-- RFC 결과 요약 -->
     <div id="rfc-summary" style="display:none;margin-bottom:14px;">
+      <!-- 결과 메시지 배너 -->
+      <div id="rs-banner" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:9px;margin-bottom:10px;font-size:13px;font-weight:700;">
+        <i id="rs-banner-icon" class="fas fa-check-circle"></i>
+        <span id="rs-msg"></span>
+      </div>
+      <!-- 스탯 카드 -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <div class="stat-mini"><div class="sv" style="color:#60a5fa;" id="rs-total">0</div><div class="sl">총 조회건수</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#4ade80;" id="rs-new">0</div><div class="sl">신규 등록</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#fb923c;" id="rs-updated">0</div><div class="sl">업데이트</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#f59e0b;" id="rs-open">0</div><div class="sl">OPEN 건수</div></div>
-        <div class="stat-mini" style="flex:1;min-width:200px;">
-          <div style="font-size:12px;color:#4ade80;" id="rs-msg"></div>
+        <div class="stat-mini">
+          <div class="sv" style="color:#60a5fa;" id="rs-total">0</div>
+          <div class="sl">총 조회건수</div>
+        </div>
+        <div class="stat-mini" id="rs-success-card">
+          <div class="sv" style="color:#4ade80;" id="rs-success">0</div>
+          <div class="sl">✅ 저장 성공</div>
+        </div>
+        <div class="stat-mini" id="rs-already-card">
+          <div class="sv" style="color:#f59e0b;" id="rs-already">0</div>
+          <div class="sl">🔁 이미 저장됨</div>
+        </div>
+        <div class="stat-mini" id="rs-fail-card">
+          <div class="sv" style="color:#f87171;" id="rs-fail">0</div>
+          <div class="sl">❌ 실패</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sv" style="color:#f59e0b;" id="rs-open">0</div>
+          <div class="sl">OPEN 건수</div>
         </div>
       </div>
     </div>
@@ -846,7 +879,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <tbody id="import-tbody">
             <tr><td colspan="17" class="empty-state">
               <i class="fas fa-satellite-dish empty-icon"></i>
-              조회 조건을 입력하고 <b style="color:#60a5fa;">SAP RFC 조회·동기화</b> 버튼을 클릭하세요.
+              조회 조건을 입력하고 <b style="color:#60a5fa;">판매오더 불러오기</b> 버튼을 클릭하세요.
             </td></tr>
           </tbody>
         </table>
@@ -1162,16 +1195,49 @@ async function runRfcSync() {
     })
     const d = await r.json()
     importResult = d.data || []
+
+    const successN = d.successCount ?? 0
+    const failN    = d.failCount    ?? 0
+    const alreadyN = d.alreadyCount ?? 0
+
+    // 배너 스타일
+    const banner     = document.getElementById('rs-banner')
+    const bannerIcon = document.getElementById('rs-banner-icon')
+    if (failN > 0) {
+      banner.style.background = 'var(--badge-cancel-bg)'
+      banner.style.color      = 'var(--badge-cancel-txt)'
+      banner.style.border     = '1px solid var(--badge-cancel-txt)'
+      bannerIcon.className    = 'fas fa-exclamation-triangle'
+    } else {
+      banner.style.background = 'var(--badge-assign-bg)'
+      banner.style.color      = 'var(--badge-assign-txt)'
+      banner.style.border     = '1px solid var(--badge-assign-txt)'
+      bannerIcon.className    = 'fas fa-check-circle'
+    }
+
     document.getElementById('rfc-summary').style.display = ''
+    document.getElementById('rs-msg').textContent     = d.message || '판매오더 불러오기 성공'
     document.getElementById('rs-total').textContent   = importResult.length
-    document.getElementById('rs-new').textContent     = Math.floor(importResult.length * 0.3)
-    document.getElementById('rs-updated').textContent = Math.ceil(importResult.length * 0.7)
+    document.getElementById('rs-success').textContent = successN
+    document.getElementById('rs-already').textContent = alreadyN
+    document.getElementById('rs-fail').textContent    = failN
     document.getElementById('rs-open').textContent    = importResult.filter(o => o.status === 'OPEN').length
-    document.getElementById('rs-msg').textContent     = d.message || 'RFC 조회 완료'
+
+    // 실패 카드 강조
+    const failCard = document.getElementById('rs-fail-card')
+    failCard.style.borderColor = failN > 0 ? '#f87171' : 'var(--border)'
+    failCard.style.background  = failN > 0 ? 'var(--badge-cancel-bg)' : 'var(--stat-bg)'
+
+    // 이미저장 카드 강조
+    const alreadyCard = document.getElementById('rs-already-card')
+    alreadyCard.style.borderColor = alreadyN > 0 ? '#f59e0b' : 'var(--border)'
+
     renderImportTable(importResult)
     document.getElementById('btn-save').disabled = false
     selectedImport.clear()
-    toast(\`RFC 조회 완료 — \${importResult.length}건\`, 'ok')
+    toast(failN > 0
+      ? \`판매오더 불러오기 성공 (실패 \${failN}건 포함)\`
+      : \`판매오더 불러오기 성공 — \${successN}건 저장\`, failN > 0 ? 'info' : 'ok')
   } catch(e) {
     toast('RFC 호출 실패: '+e.message, 'err')
   } finally {
