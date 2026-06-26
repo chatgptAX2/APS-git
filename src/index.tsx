@@ -1413,7 +1413,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             <input type="checkbox" id="chk-all-cancel" onchange="toggleAllCancel(this.checked)"> 전체선택
           </label>
           <button class="btn btn-danger btn-sm" id="btn-do-cancel" onclick="openCancelModal()" disabled>
-            <i class="fas fa-times-circle"></i> 선택 취소 처리
+            <i class="fas fa-times-circle"></i> 취소처리
           </button>
         </div>
       </div>
@@ -2119,8 +2119,8 @@ function updateCancelBtn() {
   if (!btn) return
   btn.disabled = selectedCancel.size === 0
   btn.innerHTML = selectedCancel.size > 0
-    ? '<i class="fas fa-times-circle"></i> 선택 취소 처리 (' + selectedCancel.size + '건)'
-    : '<i class="fas fa-times-circle"></i> 선택 취소 처리'
+    ? '<i class="fas fa-times-circle"></i> 취소처리 (' + selectedCancel.size + '건)'
+    : '<i class="fas fa-times-circle"></i> 취소처리'
 }
 
 function openCancelModal() {
