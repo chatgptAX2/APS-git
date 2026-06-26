@@ -31,9 +31,80 @@ const salesOrders = [
 ]
 
 // ============================================================
+// Mock 생산오더 데이터
+// ============================================================
+const prodOrders: any[] = [
+  { prodId:1,  prodOrderNo:'1000000101', sapOrderNo:'4500001001', sapItemNo:'000010', machineNo:'2', basisWeight:220, paperWidth:800,  orderQtyTon:8.500, orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'한솔제지㈜',    planStartDate:'2026-07-01', planEndDate:'2026-07-02', status:'CONFIRMED', cancelStatus:null, createdAt:'2026-06-25 09:10:00', createdBy:'홍길동' },
+  { prodId:2,  prodOrderNo:'1000000102', sapOrderNo:'4500001002', sapItemNo:'000010', machineNo:'2', basisWeight:220, paperWidth:620,  orderQtyTon:5.200, orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'무림페이퍼㈜',   planStartDate:'2026-07-02', planEndDate:'2026-07-02', status:'CONFIRMED', cancelStatus:null, createdAt:'2026-06-25 09:15:00', createdBy:'홍길동' },
+  { prodId:3,  prodOrderNo:'1000000103', sapOrderNo:'4500001003', sapItemNo:'000010', machineNo:'2', basisWeight:220, paperWidth:700,  orderQtyTon:12.000,orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'신호제지㈜',    planStartDate:'2026-07-03', planEndDate:'2026-07-04', status:'CONFIRMED', cancelStatus:null, createdAt:'2026-06-25 10:00:00', createdBy:'이순신' },
+  { prodId:4,  prodOrderNo:'1000000104', sapOrderNo:'4500001006', sapItemNo:'000010', machineNo:'3', basisWeight:300, paperWidth:900,  orderQtyTon:9.600, orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'동화지업㈜',    planStartDate:'2026-07-01', planEndDate:'2026-07-02', status:'CONFIRMED', cancelStatus:null, createdAt:'2026-06-25 10:30:00', createdBy:'홍길동' },
+  { prodId:5,  prodOrderNo:'1000000105', sapOrderNo:'4500001007', sapItemNo:'000010', machineNo:'3', basisWeight:300, paperWidth:780,  orderQtyTon:null,  orderQtyR:1200, orderQtySok:null, unit:'R',   customerName:'삼원특수지㈜',  planStartDate:'2026-07-02', planEndDate:'2026-07-03', status:'CONFIRMED', cancelStatus:null, createdAt:'2026-06-25 11:00:00', createdBy:'이순신' },
+  { prodId:6,  prodOrderNo:'1000000106', sapOrderNo:'4500001008', sapItemNo:'000010', machineNo:'3', basisWeight:300, paperWidth:1050, orderQtyTon:15.200,orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'대한제지㈜',    planStartDate:'2026-07-04', planEndDate:'2026-07-05', status:'IN_PROGRESS',cancelStatus:null, createdAt:'2026-06-25 11:30:00', createdBy:'강감찬' },
+  { prodId:7,  prodOrderNo:'1000000107', sapOrderNo:'4500001011', sapItemNo:'000010', machineNo:'2', basisWeight:220, paperWidth:760,  orderQtyTon:6.300, orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'오지제지㈜',    planStartDate:'2026-07-05', planEndDate:'2026-07-05', status:'CONFIRMED', cancelStatus:null, createdAt:'2026-06-25 13:00:00', createdBy:'강감찬' },
+  { prodId:8,  prodOrderNo:'1000000108', sapOrderNo:'4500001013', sapItemNo:'000020', machineNo:'2', basisWeight:220, paperWidth:920,  orderQtyTon:10.000,orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'한솔제지㈜',    planStartDate:'2026-07-06', planEndDate:'2026-07-07', status:'CONFIRMED', cancelStatus:null, createdAt:'2026-06-25 14:00:00', createdBy:'이순신' },
+  { prodId:9,  prodOrderNo:'1000000109', sapOrderNo:'4500001009', sapItemNo:'000010', machineNo:'3', basisWeight:500, paperWidth:820,  orderQtyTon:7.500, orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'태림포장㈜',    planStartDate:'2026-07-03', planEndDate:'2026-07-04', status:'COMPLETED',  cancelStatus:null, createdAt:'2026-06-24 09:00:00', createdBy:'홍길동' },
+  { prodId:10, prodOrderNo:'1000000110', sapOrderNo:'4500001004', sapItemNo:'000010', machineNo:'2', basisWeight:220, paperWidth:350,  orderQtyTon:3.000, orderQtyR:null, orderQtySok:null, unit:'TON', customerName:'JK페이퍼',      planStartDate:'2026-06-28', planEndDate:'2026-06-28', status:'CANCELLED',  cancelStatus:'RFC_SENT', createdAt:'2026-06-23 10:00:00', createdBy:'홍길동' },
+]
+
+// ============================================================
 // API
 // ============================================================
 app.get('/klean-aps-api/machines', (c) => c.json({ success:true, data:machines }))
+
+// 생산오더 목록
+app.get('/klean-aps-api/prod-orders', (c) => {
+  const prodOrderNo  = c.req.query('prodOrderNo')  || ''
+  const sapOrderNo   = c.req.query('sapOrderNo')   || ''
+  const machineNo    = c.req.query('machineNo')    || ''
+  const basisWeight  = c.req.query('basisWeight')  || ''
+  const status       = c.req.query('status')       || ''
+  const customerName = c.req.query('customerName') || ''
+  const planFrom     = c.req.query('planFrom')     || ''
+  const planTo       = c.req.query('planTo')       || ''
+
+  const list = prodOrders.filter(o => {
+    if (prodOrderNo  && !o.prodOrderNo.includes(prodOrderNo)) return false
+    if (sapOrderNo   && !o.sapOrderNo.includes(sapOrderNo))  return false
+    if (machineNo    && o.machineNo !== machineNo)            return false
+    if (basisWeight  && o.basisWeight !== Number(basisWeight))return false
+    if (status       && o.status !== status)                  return false
+    if (customerName && !o.customerName.includes(customerName)) return false
+    if (planFrom     && o.planStartDate < planFrom)           return false
+    if (planTo       && o.planStartDate > planTo)             return false
+    return true
+  })
+  return c.json({ success:true, data:list, total:list.length })
+})
+
+// 생산오더 단건 조회
+app.get('/klean-aps-api/prod-orders/:id', (c) => {
+  const id = Number(c.req.param('id'))
+  const o  = prodOrders.find(x => x.prodId === id)
+  if (!o) return c.json({ success:false, message:'생산오더 없음' }, 404)
+  return c.json({ success:true, data:o })
+})
+
+// 생산오더 취소 (RFC 전송 시뮬레이션)
+app.post('/klean-aps-api/prod-orders/:id/cancel', async (c) => {
+  const id   = Number(c.req.param('id'))
+  const body = await c.req.json()
+  const o    = prodOrders.find(x => x.prodId === id)
+  if (!o) return c.json({ success:false, message:'생산오더 없음' }, 404)
+  if (o.status === 'CANCELLED') return c.json({ success:false, message:'이미 취소된 오더입니다.' }, 400)
+  if (o.status === 'COMPLETED') return c.json({ success:false, message:'완료된 오더는 취소할 수 없습니다.' }, 400)
+  // RFC 전송 시뮬레이션 (600ms)
+  await new Promise(r => setTimeout(r, 600))
+  o.status       = 'CANCELLED'
+  o.cancelStatus = 'RFC_SENT'
+  ;(o as any).cancelReason   = body.reason
+  ;(o as any).cancelledAt    = new Date().toISOString().replace('T',' ').slice(0,19)
+  ;(o as any).cancelledBy    = body.cancelledBy || '시스템'
+  return c.json({
+    success: true, data: o,
+    rfcResult: { funcName:'Z_CANCEL_PROD_ORDER', sentAt: new Date().toISOString(), elapsed:'612ms', sapDoc: o.prodOrderNo },
+    message: `생산오더 ${o.prodOrderNo} 취소 완료 — SAP RFC 전송 성공`
+  })
+})
 
 app.get('/klean-aps-api/sales-orders', (c) => {
   const q           = c.req.query('q') || ''
@@ -712,6 +783,10 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     <div class="nav-item" id="nav-order-import" onclick="goPage('order-import')"><i class="fas fa-cloud-download-alt"></i>판매오더 불러오기</div>
     <div class="nav-item" id="nav-order-list"   onclick="goPage('order-list')">  <i class="fas fa-search"></i>판매오더 조회</div>
 
+    <div class="nav-group-title">생산오더 관리</div>
+    <div class="nav-item" id="nav-prod-list"   onclick="goPage('prod-list')">  <i class="fas fa-clipboard-list"></i>생산오더 조회</div>
+    <div class="nav-item" id="nav-prod-cancel" onclick="goPage('prod-cancel')"><i class="fas fa-times-circle"></i>생산오더 취소</div>
+
     <div class="nav-group-title">시뮬레이션</div>
     <div class="nav-item" id="nav-simulation"   onclick="goPage('simulation')">  <i class="fas fa-layer-group"></i>지폭조합 시뮬레이션</div>
 
@@ -1150,6 +1225,267 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   </div><!-- /page-scroll -->
 </div><!-- /page-rfc-log -->
 
+<!-- ════════════════════════════
+     생산오더 조회
+════════════════════════════ -->
+<div id="page-prod-list" style="display:none;height:100%;flex-direction:column;">
+  <div class="page-header">
+    <div class="page-title"><i class="fas fa-clipboard-list" style="color:#34d399;"></i>생산오더 조회</div>
+    <div class="page-sub">APS에서 생성된 생산오더 현황 조회</div>
+  </div>
+  <div class="page-scroll" style="padding-top:14px;">
+
+    <!-- 검색 조건 -->
+    <div class="section-card" style="padding:14px 18px;">
+      <div class="search-grid">
+        <div><label class="field-label">생산오더번호</label>
+          <input class="inp" id="pl-prodOrderNo" placeholder="1000000101" oninput="filterProdList()">
+        </div>
+        <div><label class="field-label">판매오더번호</label>
+          <input class="inp" id="pl-sapOrderNo" placeholder="4500001001" oninput="filterProdList()">
+        </div>
+        <div><label class="field-label">납품처</label>
+          <input class="inp" id="pl-customerName" placeholder="거래처명" oninput="filterProdList()">
+        </div>
+        <div><label class="field-label">호기</label>
+          <select class="inp" id="pl-machineNo" onchange="filterProdList()">
+            <option value="">전체</option>
+            <option value="2">2호기</option>
+            <option value="3">3호기</option>
+          </select>
+        </div>
+        <div><label class="field-label">평량 (g/m²)</label>
+          <select class="inp" id="pl-basisWeight" onchange="filterProdList()">
+            <option value="">전체</option>
+            <option value="220">220</option>
+            <option value="300">300</option>
+            <option value="500">500</option>
+            <option value="550">550</option>
+          </select>
+        </div>
+        <div><label class="field-label">상태</label>
+          <select class="inp" id="pl-status" onchange="filterProdList()">
+            <option value="">전체</option>
+            <option value="CONFIRMED">CONFIRMED (확정)</option>
+            <option value="IN_PROGRESS">IN_PROGRESS (진행중)</option>
+            <option value="COMPLETED">COMPLETED (완료)</option>
+            <option value="CANCELLED">CANCELLED (취소)</option>
+          </select>
+        </div>
+        <div><label class="field-label">계획시작일 From</label>
+          <input class="inp" id="pl-planFrom" type="date" onchange="filterProdList()">
+        </div>
+        <div><label class="field-label">계획시작일 To</label>
+          <input class="inp" id="pl-planTo" type="date" onchange="filterProdList()">
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="filterProdList()"><i class="fas fa-search"></i> 조회</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetProdListFilter()"><i class="fas fa-undo"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 요약 스탯 -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="stat-mini"><div class="sv" style="color:#60a5fa;" id="pls-total">-</div><div class="sl">전체</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#34d399;" id="pls-confirmed">-</div><div class="sl">CONFIRMED</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#f59e0b;" id="pls-inprogress">-</div><div class="sl">진행중</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#94a3b8;" id="pls-completed">-</div><div class="sl">완료</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#f87171;" id="pls-cancelled">-</div><div class="sl">취소</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#93c5fd;" id="pls-ton">-</div><div class="sl">합계 TON</div></div>
+    </div>
+
+    <!-- 결과 테이블 -->
+    <div class="section-card" style="overflow:hidden;">
+      <div class="card-header">
+        <div class="card-label">
+          <i class="fas fa-list-alt" style="color:#34d399;"></i>
+          조회 결과 <span class="count-badge" id="pl-count">0 건</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="goPage('prod-cancel')"><i class="fas fa-times-circle"></i> 생산오더 취소</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportProdCsv()"><i class="fas fa-file-csv"></i> CSV</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:calc(100vh - 400px);overflow-y:auto;">
+        <table class="data-table" id="prod-list-table">
+          <thead>
+            <tr>
+              <th class="center" style="width:36px;">#</th>
+              <th>생산오더번호</th>
+              <th>판매오더번호</th>
+              <th>납품처</th>
+              <th>호기</th>
+              <th class="num">평량(g)</th>
+              <th class="num">지폭(mm)</th>
+              <th class="num">수량(TON)</th>
+              <th class="num">수량(R)</th>
+              <th class="num">수량(SOK)</th>
+              <th>계획시작일</th>
+              <th>계획종료일</th>
+              <th>상태</th>
+              <th>취소상태</th>
+              <th>생성자</th>
+            </tr>
+          </thead>
+          <tbody id="prod-list-tbody">
+            <tr><td colspan="15" class="empty-state">조회 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /page-prod-list -->
+
+
+<!-- ════════════════════════════
+     생산오더 취소
+════════════════════════════ -->
+<div id="page-prod-cancel" style="display:none;height:100%;flex-direction:column;">
+  <div class="page-header">
+    <div class="page-title"><i class="fas fa-times-circle" style="color:#f87171;"></i>생산오더 취소</div>
+    <div class="page-sub">취소할 생산오더를 선택 후 SAP RFC (Z_CANCEL_PROD_ORDER) 전송</div>
+  </div>
+  <div class="page-scroll" style="padding-top:14px;">
+
+    <!-- 안내 배너 -->
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:var(--badge-excl-bg);border:1px solid var(--badge-excl-txt);border-radius:9px;margin-bottom:14px;font-size:12px;color:var(--badge-excl-txt);">
+      <i class="fas fa-exclamation-triangle" style="margin-top:1px;flex-shrink:0;"></i>
+      <div>
+        <b>취소 처리 안내</b><br>
+        생산오더 취소 시 SAP RFC <span style="font-family:monospace;">Z_CANCEL_PROD_ORDER</span>를 통해 SAP 생산오더가 <b>취소(CANCELLED)</b> 상태로 변경됩니다.<br>
+        <span style="color:var(--text-muted);">※ COMPLETED(완료) 상태의 오더는 취소가 불가합니다. ※ 취소 후 되돌리기 불가합니다.</span>
+      </div>
+    </div>
+
+    <!-- 검색 조건 -->
+    <div class="section-card" style="padding:14px 18px;">
+      <div class="search-grid">
+        <div><label class="field-label">생산오더번호</label>
+          <input class="inp" id="pc-prodOrderNo" placeholder="1000000101" oninput="filterCancelList()">
+        </div>
+        <div><label class="field-label">판매오더번호</label>
+          <input class="inp" id="pc-sapOrderNo" placeholder="4500001001" oninput="filterCancelList()">
+        </div>
+        <div><label class="field-label">납품처</label>
+          <input class="inp" id="pc-customerName" placeholder="거래처명" oninput="filterCancelList()">
+        </div>
+        <div><label class="field-label">호기</label>
+          <select class="inp" id="pc-machineNo" onchange="filterCancelList()">
+            <option value="">전체</option>
+            <option value="2">2호기</option>
+            <option value="3">3호기</option>
+          </select>
+        </div>
+        <div><label class="field-label">상태</label>
+          <select class="inp" id="pc-status" onchange="filterCancelList()">
+            <option value="">전체 (취소가능)</option>
+            <option value="CONFIRMED">CONFIRMED</option>
+            <option value="IN_PROGRESS">IN_PROGRESS</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="filterCancelList()"><i class="fas fa-search"></i> 조회</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetCancelFilter()"><i class="fas fa-undo"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RFC 전송 결과 배너 (초기 숨김) -->
+    <div id="cancel-rfc-result" style="display:none;margin-bottom:14px;">
+      <div id="cancel-rfc-banner" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:9px;font-size:13px;font-weight:700;">
+        <i id="cancel-rfc-icon" class="fas fa-check-circle"></i>
+        <span id="cancel-rfc-msg"></span>
+        <span id="cancel-rfc-detail" style="font-weight:400;font-size:12px;color:var(--text-muted);margin-left:4px;"></span>
+      </div>
+    </div>
+
+    <!-- 결과 테이블 -->
+    <div class="section-card" style="overflow:hidden;">
+      <div class="card-header">
+        <div class="card-label">
+          <i class="fas fa-times-circle" style="color:#f87171;"></i>
+          취소 가능 생산오더 <span class="count-badge" id="pc-count">0 건</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-subtle);cursor:pointer;">
+            <input type="checkbox" id="chk-all-cancel" onchange="toggleAllCancel(this.checked)"> 전체선택
+          </label>
+          <button class="btn btn-danger btn-sm" id="btn-do-cancel" onclick="openCancelModal()" disabled>
+            <i class="fas fa-times-circle"></i> 선택 취소 처리
+          </button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:calc(100vh - 440px);overflow-y:auto;">
+        <table class="data-table" id="cancel-list-table">
+          <thead>
+            <tr>
+              <th class="center" style="width:36px;"><input type="checkbox" id="chk-head-cancel" onchange="toggleAllCancel(this.checked)"></th>
+              <th>생산오더번호</th>
+              <th>판매오더번호</th>
+              <th>납품처</th>
+              <th>호기</th>
+              <th class="num">평량(g)</th>
+              <th class="num">지폭(mm)</th>
+              <th class="num">수량(TON)</th>
+              <th>계획시작일</th>
+              <th>계획종료일</th>
+              <th>상태</th>
+              <th>생성자</th>
+            </tr>
+          </thead>
+          <tbody id="cancel-list-tbody">
+            <tr><td colspan="12" class="empty-state">조회 조건을 입력하고 <b style="color:#60a5fa;">조회</b> 버튼을 클릭하세요.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /page-prod-cancel -->
+
+<!-- 취소 확인 모달 -->
+<div class="modal-bg" id="cancelModal">
+  <div class="modal">
+    <div class="modal-title"><i class="fas fa-times-circle" style="color:#ef4444;margin-right:8px;"></i>생산오더 취소 확인</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+      선택한 <b id="cancel-modal-count" style="color:#f87171;">0</b>건의 생산오더를 취소합니다.<br>
+      SAP RFC <span style="font-family:monospace;color:#38bdf8;">Z_CANCEL_PROD_ORDER</span>를 통해 SAP에 전송됩니다.
+    </div>
+    <div style="margin-bottom:16px;">
+      <label class="field-label">취소 사유 *</label>
+      <input class="inp" id="cancel-reason-input" placeholder="취소 사유를 입력하세요">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label class="field-label">처리자</label>
+      <input class="inp" id="cancel-by-input" placeholder="예: 홍길동" value="홍길동">
+    </div>
+    <!-- RFC 전송 중 표시 -->
+    <div class="rfc-loading" id="cancel-rfc-loading">
+      <span class="spin"><i class="fas fa-sync"></i></span>
+      SAP RFC 전송 중… (Z_CANCEL_PROD_ORDER)
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-ghost" id="btn-cancel-close" onclick="closeCancelModal()">닫기</button>
+      <button class="btn btn-danger" id="btn-cancel-confirm" onclick="doCancel()">
+        <i class="fas fa-paper-plane"></i> RFC 전송 · 취소 확정
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 취소 완료 결과 모달 -->
+<div class="modal-bg" id="cancelResultModal">
+  <div class="modal" style="width:520px;">
+    <div class="modal-title"><i class="fas fa-check-circle" style="color:#4ade80;margin-right:8px;"></i>취소 처리 완료</div>
+    <div id="cancel-result-body" style="font-size:13px;"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeCancelResultModal()">확인</button>
+    </div>
+  </div>
+</div>
+
 <!-- 시뮬레이션/설정/기계 (플레이스홀더) -->
 <div id="page-simulation" style="display:none;height:100%;flex-direction:column;">
   <div class="page-header"><div class="page-title"><i class="fas fa-layer-group" style="color:#a78bfa;"></i>지폭조합 시뮬레이션</div></div>
@@ -1199,6 +1535,8 @@ const PAGE_NAMES = {
   'dashboard'   : '대시보드',
   'order-import': '판매오더 불러오기',
   'order-list'  : '판매오더 조회',
+  'prod-list'   : '생산오더 조회',
+  'prod-cancel' : '생산오더 취소',
   'simulation'  : '지폭조합 시뮬레이션',
   'rfc-log'     : 'RFC 통신결과',
   'constraint'  : '제약조건 설정',
@@ -1259,7 +1597,7 @@ function toggleTheme() {
 /* ══════════════════════════════════════
    페이지 전환
 ══════════════════════════════════════ */
-const PAGES = ['dashboard','order-import','order-list','simulation','rfc-log','constraint','machine']
+const PAGES = ['dashboard','order-import','order-list','prod-list','prod-cancel','simulation','rfc-log','constraint','machine']
 
 function goPage(p) {
   PAGES.forEach(id => {
@@ -1272,8 +1610,10 @@ function goPage(p) {
   const nameEl = document.getElementById('topbar-page-name')
   if (nameEl) nameEl.textContent = PAGE_NAMES[p] || ''
 
-  if (p === 'dashboard')  loadDashboard()
-  if (p === 'order-list') loadOrderList()
+  if (p === 'dashboard')   loadDashboard()
+  if (p === 'order-list')  loadOrderList()
+  if (p === 'prod-list')   loadProdList()
+  if (p === 'prod-cancel') loadCancelList()
 }
 
 /* ══════════════════════════════════════
@@ -1564,6 +1904,314 @@ function exportCsv() {
   a.download = 'sales_orders_'+new Date().toISOString().slice(0,10)+'.csv'
   a.click()
   toast('CSV 다운로드 완료','ok')
+}
+
+/* ══════════════════════════════════════
+   생산오더 조회
+══════════════════════════════════════ */
+let allProdOrders = []
+
+async function loadProdList() {
+  const tbody = document.getElementById('prod-list-tbody')
+  if (tbody) tbody.innerHTML = '<tr><td colspan="15" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 불러오는 중...</td></tr>'
+  try {
+    const r = await fetch(API+'/klean-aps-api/prod-orders')
+    const d = await r.json()
+    allProdOrders = d.data || []
+    filterProdList()
+  } catch(e) {
+    toast('생산오더 조회 오류: '+e.message, 'err')
+    if (tbody) tbody.innerHTML = '<tr><td colspan="15" class="empty-state">오류가 발생했습니다.</td></tr>'
+  }
+}
+
+function resetProdListFilter() {
+  ;['pl-prodOrderNo','pl-sapOrderNo','pl-customerName','pl-machineNo',
+    'pl-basisWeight','pl-status','pl-planFrom','pl-planTo'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = ''
+  })
+  filterProdList()
+}
+
+function filterProdList() {
+  const prodOrderNo  = (document.getElementById('pl-prodOrderNo')||{}).value||''
+  const sapOrderNo   = (document.getElementById('pl-sapOrderNo')||{}).value||''
+  const customerName = (document.getElementById('pl-customerName')||{}).value||''
+  const machineNo    = (document.getElementById('pl-machineNo')||{}).value||''
+  const basisWeight  = (document.getElementById('pl-basisWeight')||{}).value||''
+  const status       = (document.getElementById('pl-status')||{}).value||''
+  const planFrom     = (document.getElementById('pl-planFrom')||{}).value||''
+  const planTo       = (document.getElementById('pl-planTo')||{}).value||''
+  const filtered = allProdOrders.filter(o => {
+    if (prodOrderNo.trim()  && !o.prodOrderNo.includes(prodOrderNo.trim()))   return false
+    if (sapOrderNo.trim()   && !o.sapOrderNo.includes(sapOrderNo.trim()))     return false
+    if (customerName.trim() && !o.customerName.includes(customerName.trim())) return false
+    if (machineNo           && o.machineNo !== machineNo)                     return false
+    if (basisWeight         && o.basisWeight !== Number(basisWeight))          return false
+    if (status              && o.status !== status)                           return false
+    if (planFrom            && o.planStartDate < planFrom)                    return false
+    if (planTo              && o.planStartDate > planTo)                      return false
+    return true
+  })
+  renderProdListTable(filtered)
+  updateProdStats(filtered)
+}
+
+function updateProdStats(list) {
+  const el = id => document.getElementById(id)
+  if (el('pls-total'))      el('pls-total').textContent      = list.length
+  if (el('pls-confirmed'))  el('pls-confirmed').textContent  = list.filter(o=>o.status==='CONFIRMED').length
+  if (el('pls-inprogress')) el('pls-inprogress').textContent = list.filter(o=>o.status==='IN_PROGRESS').length
+  if (el('pls-completed'))  el('pls-completed').textContent  = list.filter(o=>o.status==='COMPLETED').length
+  if (el('pls-cancelled'))  el('pls-cancelled').textContent  = list.filter(o=>o.status==='CANCELLED').length
+  if (el('pls-ton'))        el('pls-ton').textContent        = list.reduce((s,o)=>s+(o.orderQtyTon||0),0).toFixed(1)
+}
+
+function renderProdListTable(list) {
+  const tbody = document.getElementById('prod-list-tbody')
+  const cnt   = document.getElementById('pl-count')
+  if (cnt) cnt.textContent = list.length + ' 건'
+  if (!tbody) return
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="15" class="empty-state">조회된 생산오더가 없습니다.</td></tr>'
+    return
+  }
+  tbody.innerHTML = list.map((o,i) => '<tr>' +
+    '<td class="center" style="color:var(--text-faint);font-size:11px;">' + (i+1) + '</td>' +
+    '<td style="color:#34d399;font-weight:700;font-family:monospace;">' + o.prodOrderNo + '</td>' +
+    '<td style="color:#60a5fa;font-family:monospace;font-size:11px;">' + o.sapOrderNo + '</td>' +
+    '<td style="font-size:12px;">' + o.customerName + '</td>' +
+    '<td class="center"><span class="machine-badge">' + o.machineNo + '호기</span></td>' +
+    '<td class="num" style="font-weight:700;">' + o.basisWeight + '</td>' +
+    '<td class="num" style="font-weight:700;">' + o.paperWidth.toLocaleString() + '</td>' +
+    '<td class="num">' + (o.orderQtyTon != null ? '<span class="badge b-ton">' + o.orderQtyTon.toFixed(3) + '</span>' : '<span style="color:var(--border);">-</span>') + '</td>' +
+    '<td class="num">' + (o.orderQtyR != null ? '<span class="badge b-r">' + o.orderQtyR.toLocaleString() + '</span>' : '<span style="color:var(--border);">-</span>') + '</td>' +
+    '<td class="num">' + (o.orderQtySok != null ? '<span class="badge b-sok">' + o.orderQtySok.toLocaleString() + '</span>' : '<span style="color:var(--border);">-</span>') + '</td>' +
+    '<td style="font-size:11px;color:var(--text-muted);">' + o.planStartDate + '</td>' +
+    '<td style="font-size:11px;color:var(--text-muted);">' + o.planEndDate + '</td>' +
+    '<td>' + renderProdStatusBadge(o.status) + '</td>' +
+    '<td class="center">' + (o.cancelStatus === 'RFC_SENT' ? '<span class="badge b-excl" style="font-size:10px;"><i class="fas fa-paper-plane"></i> RFC전송</span>' : '') + '</td>' +
+    '<td style="font-size:12px;">' + o.createdBy + '</td>' +
+    '</tr>'
+  ).join('')
+}
+
+function renderProdStatusBadge(s) {
+  const m = {CONFIRMED:'b-open', IN_PROGRESS:'b-assigned', COMPLETED:'b-complete', CANCELLED:'b-cancel'}
+  const l = {CONFIRMED:'확정', IN_PROGRESS:'진행중', COMPLETED:'완료', CANCELLED:'취소'}
+  return '<span class="badge ' + (m[s]||'b-open') + '" style="font-size:10px;">' + (l[s]||s) + '</span>'
+}
+
+function exportProdCsv() {
+  const rows = [['생산오더번호','판매오더번호','납품처','호기','평량','지폭','수량TON','계획시작일','계획종료일','상태']]
+  allProdOrders.forEach(o => rows.push([
+    o.prodOrderNo, o.sapOrderNo, o.customerName, o.machineNo+'호기',
+    o.basisWeight, o.paperWidth, o.orderQtyTon||'', o.planStartDate, o.planEndDate, o.status
+  ]))
+  const csv = rows.map(r => r.join(',')).join('\\n')
+  const a = document.createElement('a')
+  a.href     = 'data:text/csv;charset=utf-8,\\uFEFF'+encodeURIComponent(csv)
+  a.download = 'prod_orders_'+new Date().toISOString().slice(0,10)+'.csv'
+  a.click()
+  toast('CSV 다운로드 완료','ok')
+}
+
+/* ══════════════════════════════════════
+   생산오더 취소
+══════════════════════════════════════ */
+let cancelOrders   = []
+let selectedCancel = new Set()
+
+async function loadCancelList() {
+  const tbody = document.getElementById('cancel-list-tbody')
+  if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 불러오는 중...</td></tr>'
+  try {
+    const r = await fetch(API+'/klean-aps-api/prod-orders')
+    const d = await r.json()
+    cancelOrders = (d.data||[]).filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED')
+    filterCancelList()
+  } catch(e) {
+    toast('생산오더 조회 오류: '+e.message, 'err')
+    if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="empty-state">오류가 발생했습니다.</td></tr>'
+  }
+}
+
+function resetCancelFilter() {
+  ;['pc-prodOrderNo','pc-sapOrderNo','pc-customerName','pc-machineNo','pc-status'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = ''
+  })
+  filterCancelList()
+}
+
+function filterCancelList() {
+  const prodOrderNo  = (document.getElementById('pc-prodOrderNo')||{}).value||''
+  const sapOrderNo   = (document.getElementById('pc-sapOrderNo')||{}).value||''
+  const customerName = (document.getElementById('pc-customerName')||{}).value||''
+  const machineNo    = (document.getElementById('pc-machineNo')||{}).value||''
+  const status       = (document.getElementById('pc-status')||{}).value||''
+  const base = cancelOrders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED')
+  const filtered = base.filter(o => {
+    if (prodOrderNo.trim()  && !o.prodOrderNo.includes(prodOrderNo.trim()))   return false
+    if (sapOrderNo.trim()   && !o.sapOrderNo.includes(sapOrderNo.trim()))     return false
+    if (customerName.trim() && !o.customerName.includes(customerName.trim())) return false
+    if (machineNo           && o.machineNo !== machineNo)                     return false
+    if (status              && o.status !== status)                           return false
+    return true
+  })
+  renderCancelTable(filtered)
+}
+
+function renderCancelTable(list) {
+  const tbody = document.getElementById('cancel-list-tbody')
+  const cnt   = document.getElementById('pc-count')
+  if (cnt) cnt.textContent = list.length + ' 건'
+  selectedCancel.clear()
+  updateCancelBtn()
+  if (!tbody) return
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">취소 가능한 생산오더가 없습니다.</td></tr>'
+    return
+  }
+  tbody.innerHTML = list.map(o =>
+    '<tr data-id="' + o.prodId + '">' +
+    '<td class="center"><input type="checkbox" class="chk-cancel" value="' + o.prodId + '" onchange="toggleSelectCancel(' + o.prodId + ',this.checked)"></td>' +
+    '<td style="color:#34d399;font-weight:700;font-family:monospace;">' + o.prodOrderNo + '</td>' +
+    '<td style="color:#60a5fa;font-family:monospace;font-size:11px;">' + o.sapOrderNo + '</td>' +
+    '<td style="font-size:12px;">' + o.customerName + '</td>' +
+    '<td class="center"><span class="machine-badge">' + o.machineNo + '호기</span></td>' +
+    '<td class="num" style="font-weight:700;">' + o.basisWeight + '</td>' +
+    '<td class="num">' + o.paperWidth.toLocaleString() + '</td>' +
+    '<td class="num">' + (o.orderQtyTon != null ? '<span class="badge b-ton">' + o.orderQtyTon.toFixed(3) + '</span>' : '-') + '</td>' +
+    '<td style="font-size:11px;color:var(--text-muted);">' + o.planStartDate + '</td>' +
+    '<td style="font-size:11px;color:var(--text-muted);">' + o.planEndDate + '</td>' +
+    '<td>' + renderProdStatusBadge(o.status) + '</td>' +
+    '<td style="font-size:12px;">' + o.createdBy + '</td>' +
+    '</tr>'
+  ).join('')
+}
+
+function toggleSelectCancel(id, checked) {
+  checked ? selectedCancel.add(id) : selectedCancel.delete(id)
+  const headChk = document.getElementById('chk-head-cancel')
+  const allChk  = document.getElementById('chk-all-cancel')
+  const allChks = document.querySelectorAll('.chk-cancel')
+  const allChecked = allChks.length > 0 && [...allChks].every(c => c.checked)
+  if (headChk) headChk.checked = allChecked
+  if (allChk)  allChk.checked  = allChecked
+  updateCancelBtn()
+}
+
+function toggleAllCancel(checked) {
+  document.querySelectorAll('.chk-cancel').forEach(c => {
+    c.checked = checked
+    const id = Number(c.value)
+    checked ? selectedCancel.add(id) : selectedCancel.delete(id)
+  })
+  const headChk = document.getElementById('chk-head-cancel')
+  const allChk  = document.getElementById('chk-all-cancel')
+  if (headChk) headChk.checked = checked
+  if (allChk)  allChk.checked  = checked
+  updateCancelBtn()
+}
+
+function updateCancelBtn() {
+  const btn = document.getElementById('btn-do-cancel')
+  if (!btn) return
+  btn.disabled = selectedCancel.size === 0
+  btn.innerHTML = selectedCancel.size > 0
+    ? '<i class="fas fa-times-circle"></i> 선택 취소 처리 (' + selectedCancel.size + '건)'
+    : '<i class="fas fa-times-circle"></i> 선택 취소 처리'
+}
+
+function openCancelModal() {
+  if (selectedCancel.size === 0) { toast('취소할 항목을 선택하세요.','info'); return }
+  const cnt = document.getElementById('cancel-modal-count')
+  if (cnt) cnt.textContent = selectedCancel.size
+  const reason = document.getElementById('cancel-reason-input')
+  if (reason) reason.value = ''
+  const by = document.getElementById('cancel-by-input')
+  if (by) by.value = '홍길동'
+  const loading = document.getElementById('cancel-rfc-loading')
+  if (loading) loading.classList.remove('show')
+  document.getElementById('cancelModal').classList.add('show')
+}
+
+function closeCancelModal() {
+  document.getElementById('cancelModal').classList.remove('show')
+  const loading = document.getElementById('cancel-rfc-loading')
+  if (loading) loading.classList.remove('show')
+}
+
+async function doCancel() {
+  const reasonEl = document.getElementById('cancel-reason-input')
+  const reason   = (reasonEl ? reasonEl.value : '').trim()
+  if (!reason) { toast('취소 사유를 입력하세요.','err'); return }
+  const byEl       = document.getElementById('cancel-by-input')
+  const cancelledBy = (byEl ? byEl.value : '').trim() || '시스템'
+  const ids    = [...selectedCancel]
+  const btn    = document.getElementById('btn-cancel-confirm')
+  const closeBtn = document.getElementById('btn-cancel-close')
+  const loading  = document.getElementById('cancel-rfc-loading')
+  if (btn)     btn.disabled     = true
+  if (closeBtn) closeBtn.disabled = true
+  if (loading)  loading.classList.add('show')
+  const results = []
+  try {
+    for (const id of ids) {
+      const r = await fetch(API+'/klean-aps-api/prod-orders/'+id+'/cancel', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ reason, cancelledBy })
+      })
+      const d = await r.json()
+      results.push({ id, success: d.success, data: d.data, rfcResult: d.rfcResult, message: d.message })
+    }
+    closeCancelModal()
+    // 결과 모달 구성
+    const successN = results.filter(r => r.success).length
+    const failN    = results.filter(r => !r.success).length
+    const bodyHtml =
+      '<div style="display:flex;gap:10px;margin-bottom:14px;">' +
+        '<div class="stat-mini"><div class="sv" style="color:#34d399;">' + successN + '</div><div class="sl">취소 성공</div></div>' +
+        '<div class="stat-mini"><div class="sv" style="color:#f87171;">' + failN    + '</div><div class="sl">실패</div></div>' +
+      '</div>' +
+      '<div class="section-card" style="overflow:hidden;">' +
+        '<table class="data-table" style="font-size:11px;">' +
+          '<thead><tr><th>생산오더번호</th><th>RFC 함수</th><th>처리시간</th><th>결과</th><th>메시지</th></tr></thead>' +
+          '<tbody>' + results.map(r =>
+            '<tr>' +
+            '<td style="font-family:monospace;color:#34d399;">' + (r.data && r.data.prodOrderNo ? r.data.prodOrderNo : '-') + '</td>' +
+            '<td style="font-family:monospace;color:#a78bfa;font-size:10px;">' + (r.rfcResult && r.rfcResult.funcName ? r.rfcResult.funcName : '-') + '</td>' +
+            '<td class="num">' + (r.rfcResult && r.rfcResult.elapsed ? r.rfcResult.elapsed : '-') + '</td>' +
+            '<td>' + (r.success ? '<span class="badge b-assigned" style="font-size:10px;">성공</span>' : '<span class="badge b-cancel" style="font-size:10px;">실패</span>') + '</td>' +
+            '<td style="font-size:11px;color:var(--text-muted);">' + (r.message||'') + '</td>' +
+            '</tr>'
+          ).join('') +
+          '</tbody>' +
+        '</table>' +
+      '</div>'
+    const resultBody = document.getElementById('cancel-result-body')
+    if (resultBody) resultBody.innerHTML = bodyHtml
+    document.getElementById('cancelResultModal').classList.add('show')
+    selectedCancel.clear()
+    updateCancelBtn()
+    toggleAllCancel(false)
+    loadCancelList()
+    // 생산오더 조회 페이지도 갱신
+    if (allProdOrders.length) loadProdList()
+    toast(failN > 0 ? '취소 처리 완료 (실패 '+failN+'건 포함)' : '취소 처리 완료 — '+successN+'건 RFC 전송 성공', failN > 0 ? 'info' : 'ok')
+  } catch(e) {
+    toast('취소 처리 중 오류: '+e.message, 'err')
+  } finally {
+    if (btn)      btn.disabled      = false
+    if (closeBtn) closeBtn.disabled = false
+    if (loading)  loading.classList.remove('show')
+  }
+}
+
+function closeCancelResultModal() {
+  const m = document.getElementById('cancelResultModal')
+  if (m) m.classList.remove('show')
 }
 
 /* ══════════════════════════════════════
