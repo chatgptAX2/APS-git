@@ -2597,26 +2597,27 @@ function renderImportTable(list) {
     tbody.innerHTML = '<tr><td colspan="17" class="empty-state">조회된 데이터가 없습니다.</td></tr>'
     return
   }
-  tbody.innerHTML = list.map(o => \`
-    <tr data-id="\${o.orderId}">
-      <td class="center"><input type="checkbox" class="chk-import" value="\${o.orderId}" onchange="toggleSelectImport(\${o.orderId},this.checked)"></td>
-      <td style="color:#60a5fa;font-weight:600;font-family:monospace;">\${o.sapOrderNo}</td>
-      <td style="color:var(--text-muted);">\${o.sapItemNo}</td>
-      <td>\${renderOrderTypeBadge(o.orderType)}</td>
-      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">\${o.customerName}</td>
-      <td class="center"><span class="machine-badge">\${o.machineNo}호기</span></td>
-      <td class="num" style="font-weight:700;">\${o.basisWeight}</td>
-      <td class="num" style="font-weight:700;">\${o.paperWidth.toLocaleString()}</td>
-      <td class="num">\${o.orderQtyTon!=null ? '<span class="badge b-ton">'+o.orderQtyTon.toFixed(3)+'</span>' : '<span style="color:var(--border);">-</span>'}</td>
-      <td class="num">\${o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>'}</td>
-      <td class="num">\${o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>'}</td>
-      <td><span class="badge b-\${o.unit==='TON'?'ton':o.unit==='R'?'r':'sok'}">\${o.unit}</span></td>
-      <td style="color:var(--text-muted);font-size:11px;">\${o.orderDate}</td>
-      <td style="color:var(--text-muted);font-size:11px;">\${o.createdBy}</td>
-      <td class="\${dueDateClass(o.dueDate)}" style="font-size:11px;font-weight:600;">\${o.dueDate}</td>
-      <td>\${renderStatusBadge(o.status)}</td>
-      <td class="center">\${o.isExcluded?'<span class="badge b-excl"><i class="fas fa-exclamation-triangle"></i> 예외</span>':''}</td>
-    </tr>\`).join('')
+  tbody.innerHTML = list.map(o =>
+    '<tr data-id="'+o.orderId+'">' +
+    '<td class="center"><input type="checkbox" class="chk-import" value="'+o.orderId+'" onchange="toggleSelectImport('+o.orderId+',this.checked)"></td>' +
+    '<td style="color:#60a5fa;font-weight:600;font-family:monospace;">'+o.sapOrderNo+'</td>' +
+    '<td style="color:var(--text-muted);">'+o.sapItemNo+'</td>' +
+    '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
+    '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">'+o.customerName+'</td>' +
+    '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>' +
+    '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
+    '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
+    '<td class="num">'+(o.orderQtyTon!=null ? '<span class="badge b-ton">'+o.orderQtyTon.toFixed(3)+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>' +
+    '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>' +
+    '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>' +
+    '<td><span class="badge b-'+(o.unit==='TON'?'ton':o.unit==='R'?'r':'sok')+'">'+o.unit+'</span></td>' +
+    '<td style="color:var(--text-muted);font-size:11px;">'+o.orderDate+'</td>' +
+    '<td style="color:var(--text-muted);font-size:11px;">'+o.createdBy+'</td>' +
+    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:11px;font-weight:600;">'+o.dueDate+'</td>' +
+    '<td>'+renderStatusBadge(o.status)+'</td>' +
+    '<td class="center">'+(o.isExcluded?'<span class="badge b-excl"><i class="fas fa-exclamation-triangle"></i> 예외</span>':'')+'</td>' +
+    '</tr>'
+  ).join('')
 }
 
 function toggleSelectImport(id, checked) {
@@ -2637,12 +2638,12 @@ function updateSaveBtn() {
   const btn = document.getElementById('btn-save')
   btn.disabled = selectedImport.size === 0
   btn.innerHTML = selectedImport.size > 0
-    ? \`<i class="fas fa-save"></i> 선택항목 DB저장 (\${selectedImport.size}건)\`
+    ? '<i class="fas fa-save"></i> 선택항목 DB저장 ('+selectedImport.size+'건)'
     : '<i class="fas fa-save"></i> 선택항목 DB저장'
 }
 async function saveSelected() {
   if (selectedImport.size === 0) return
-  toast(\`\${selectedImport.size}건 DB 저장 완료 (Mock)\`, 'ok')
+  toast(selectedImport.size+'건 DB 저장 완료 (Mock)', 'ok')
   selectedImport.clear()
   updateSaveBtn()
   toggleAllImport(false)
@@ -2707,29 +2708,28 @@ function renderListTable(list) {
     tbody.innerHTML = '<tr><td colspan="15" class="empty-state">조회된 오더가 없습니다.</td></tr>'
     return
   }
-  tbody.innerHTML = list.map((o,i) => \`
-    <tr style="\${o.isExcluded?'opacity:.5;':''}">
-      <td class="center" style="color:var(--text-faint);font-size:11px;">\${i+1}</td>
-      <td style="color:#60a5fa;font-weight:700;font-family:monospace;">\${o.sapOrderNo}</td>
-      <td style="color:var(--text-muted);font-size:11px;">\${o.sapItemNo}</td>
-      <td>\${renderOrderTypeBadge(o.orderType)}</td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:12px;">\${o.customerName}</td>
-      <td class="center"><span class="machine-badge">\${o.machineNo}호기</span></td>
-      <td class="num" style="font-weight:700;">\${o.basisWeight}</td>
-      <td class="num" style="font-weight:700;">\${o.paperWidth.toLocaleString()}</td>
-      <td class="num">\${o.orderQtyTon!=null ? '<span class="badge b-ton">'+o.orderQtyTon.toFixed(3)+'</span>' : '<span style="color:var(--border);">-</span>'}</td>
-      <td class="num">\${o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>'}</td>
-      <td class="num">\${o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>'}</td>
-      <td class="\${dueDateClass(o.dueDate)}" style="font-size:11px;font-weight:600;">\${o.dueDate}</td>
-      <td>\${renderStatusBadge(o.status)}</td>
-      <td class="center">\${o.isExcluded?'<span class="badge b-excl" style="font-size:10px;"><i class="fas fa-ban"></i> 예외</span>':''}</td>
-      <td class="center">
-        \${o.isExcluded
-          ? \`<button class="btn btn-ghost btn-xs" onclick="doInclude(\${o.orderId})"><i class="fas fa-check"></i> 해제</button>\`
-          : \`<button class="btn btn-danger btn-xs" onclick="openExclude(\${o.orderId})"><i class="fas fa-ban"></i></button>\`
-        }
-      </td>
-    </tr>\`).join('')
+  tbody.innerHTML = list.map((o,i) =>
+    '<tr style="'+(o.isExcluded?'opacity:.5;':'')+'">'+
+    '<td class="center" style="color:var(--text-faint);font-size:11px;">'+(i+1)+'</td>'+
+    '<td style="color:#60a5fa;font-weight:700;font-family:monospace;">'+o.sapOrderNo+'</td>'+
+    '<td style="color:var(--text-muted);font-size:11px;">'+o.sapItemNo+'</td>'+
+    '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
+    '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:12px;">'+o.customerName+'</td>'+
+    '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>'+
+    '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>'+
+    '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>'+
+    '<td class="num">'+(o.orderQtyTon!=null ? '<span class="badge b-ton">'+o.orderQtyTon.toFixed(3)+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
+    '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>'+
+    '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
+    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:11px;font-weight:600;">'+o.dueDate+'</td>'+
+    '<td>'+renderStatusBadge(o.status)+'</td>'+
+    '<td class="center">'+(o.isExcluded?'<span class="badge b-excl" style="font-size:10px;"><i class="fas fa-ban"></i> 예외</span>':'')+'</td>'+
+    '<td class="center">'+(o.isExcluded
+      ? '<button class="btn btn-ghost btn-xs" onclick="doInclude('+o.orderId+')"><i class="fas fa-check"></i> 해제</button>'
+      : '<button class="btn btn-danger btn-xs" onclick="openExclude('+o.orderId+')"><i class="fas fa-ban"></i></button>'
+    )+'</td>'+
+    '</tr>'
+  ).join('')
 }
 
 /* ══════════════════════════════════════
@@ -2745,7 +2745,7 @@ async function doExclude() {
   const id     = document.getElementById('excl-id').value
   const reason = document.getElementById('excl-reason').value.trim()
   if (!reason) { toast('제외 사유를 입력하세요.','err'); return }
-  const r = await fetch(API+\`/klean-aps-api/sales-orders/\${id}/exclude\`, {
+  const r = await fetch(API+'/klean-aps-api/sales-orders/'+id+'/exclude', {
     method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason})
   })
   const d = await r.json()
@@ -2753,7 +2753,7 @@ async function doExclude() {
   else toast(d.message||'오류', 'err')
 }
 async function doInclude(id) {
-  const r = await fetch(API+\`/klean-aps-api/sales-orders/\${id}/include\`, {method:'PATCH'})
+  const r = await fetch(API+'/klean-aps-api/sales-orders/'+id+'/include', {method:'PATCH'})
   const d = await r.json()
   if (d.success) { toast('예외 해제 완료'); loadOrderList() }
   else toast(d.message||'오류', 'err')
@@ -3095,12 +3095,12 @@ async function loadMachine() {
     if (!json.success) throw new Error(json.message || 'API 오류')
     renderMachineTable(json.data)
     toast('기계 마스터 정보를 불러왔습니다.', 'ok')
-  } catch(e:any) {
+  } catch(e) {
     toast('기계 데이터 로드 실패: ' + e.message, 'err')
   }
 }
 
-function renderMachineTable(data: any[]) {
+function renderMachineTable(data) {
   const wrap = document.getElementById('machine-table-wrap')
   const badge = document.getElementById('machine-count-badge')
   if (!wrap) return
@@ -3111,86 +3111,85 @@ function renderMachineTable(data: any[]) {
     return
   }
 
-  const rows = data.map((m: any) => {
+  const rows = data.map((m) => {
     const fourPok = m.fourPokMinWidth ? m.fourPokMinWidth.toLocaleString() + ' mm 이상' : '<span style="color:var(--text-faint);">조건 없음</span>'
     const bwExc   = m.bwExceptionList
       ? m.bwExceptionList + 'g/m² → 최대 ' + (m.bwExceptionMaxWidth ? m.bwExceptionMaxWidth.toLocaleString() + ' mm' : '-')
       : '<span style="color:var(--text-faint);">없음</span>'
     const noteHtml = m.note
-      ? \`<div style="display:flex;align-items:flex-start;gap:6px;margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;"><i class="fas fa-lightbulb" style="color:#f59e0b;flex-shrink:0;margin-top:1px;"></i>\${m.note}</div>\`
+      ? '<div style="display:flex;align-items:flex-start;gap:6px;margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;"><i class="fas fa-lightbulb" style="color:#f59e0b;flex-shrink:0;margin-top:1px;"></i>'+m.note+'</div>'
       : ''
 
-    return \`
-    <div class="machine-row-card" data-id="\${m.machineId}">
-      <!-- 헤더 -->
-      <div style="display:flex;align-items:center;gap:10px;padding:14px 18px 10px;border-bottom:1px solid var(--border);">
-        <span class="machine-badge" style="padding:3px 10px;font-size:12px;">\${m.machineName}</span>
-        <span style="font-size:13px;font-weight:600;color:var(--text-main);">Paper Machine #\${m.machineNo}</span>
-        \${m.description ? \`<span style="font-size:11px;color:var(--text-faint);margin-left:4px;">\${m.description}</span>\` : ''}
-        <div style="margin-left:auto;display:flex;gap:6px;">
-          <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="openMachineModal(\${m.machineId})">
-            <i class="fas fa-pencil-alt"></i> 수정
-          </button>
-          <button class="btn btn-sm" style="padding:4px 10px;font-size:11px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:7px;cursor:pointer;" onclick="openMachineDelModal(\${m.machineId})">
-            <i class="fas fa-trash"></i> 삭제
-          </button>
-        </div>
-      </div>
-      <!-- 스펙 그리드 -->
-      <div style="padding:12px 18px 14px;">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px;">
-          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최대 지폭</div>
-            <div style="font-size:14px;font-weight:700;color:#34d399;">\${m.maxWidth.toLocaleString()} mm</div>
-          </div>
-          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최소 지폭</div>
-            <div style="font-size:14px;font-weight:700;color:#f87171;">\${m.minWidth.toLocaleString()} mm</div>
-          </div>
-          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최대 폭수</div>
-            <div style="font-size:14px;font-weight:700;color:var(--text-main);">\${m.maxPok}폭</div>
-          </div>
-          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">배폭 미미</div>
-            <div style="font-size:14px;font-weight:700;color:#a78bfa;">\${m.mimi} mm</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">4폭 최소조건</div>
-            <div style="font-size:12px;font-weight:600;color:var(--text-muted);">\${fourPok}</div>
-          </div>
-          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">생산불가 한계</div>
-            <div style="font-size:12px;font-weight:600;color:#f87171;">\${m.noProdLimit} mm 이하</div>
-          </div>
-          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">평량 예외</div>
-            <div style="font-size:12px;font-weight:600;color:var(--text-muted);">\${bwExc}</div>
-          </div>
-        </div>
-        \${noteHtml}
-      </div>
-    </div>\`
+    return (
+    '<div class="machine-row-card" data-id="'+m.machineId+'">' +
+    '<div style="display:flex;align-items:center;gap:10px;padding:14px 18px 10px;border-bottom:1px solid var(--border);">' +
+      '<span class="machine-badge" style="padding:3px 10px;font-size:12px;">'+m.machineName+'</span>' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text-main);">Paper Machine #'+m.machineNo+'</span>' +
+      (m.description ? '<span style="font-size:11px;color:var(--text-faint);margin-left:4px;">'+m.description+'</span>' : '') +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+        '<button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="openMachineModal('+m.machineId+')">' +
+          '<i class="fas fa-pencil-alt"></i> 수정' +
+        '</button>' +
+        '<button class="btn btn-sm" style="padding:4px 10px;font-size:11px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:7px;cursor:pointer;" onclick="openMachineDelModal('+m.machineId+')">' +
+          '<i class="fas fa-trash"></i> 삭제' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+    '<div style="padding:12px 18px 14px;">' +
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px;">' +
+        '<div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">' +
+          '<div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최대 지폭</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#34d399;">'+m.maxWidth.toLocaleString()+' mm</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">' +
+          '<div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최소 지폭</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#f87171;">'+m.minWidth.toLocaleString()+' mm</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">' +
+          '<div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최대 폭수</div>' +
+          '<div style="font-size:14px;font-weight:700;color:var(--text-main);">'+m.maxPok+'폭</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">' +
+          '<div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">배폭 미미</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#a78bfa;">'+m.mimi+' mm</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
+        '<div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">' +
+          '<div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">4폭 최소조건</div>' +
+          '<div style="font-size:12px;font-weight:600;color:var(--text-muted);">'+fourPok+'</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">' +
+          '<div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">생산불가 한계</div>' +
+          '<div style="font-size:12px;font-weight:600;color:#f87171;">'+m.noProdLimit+' mm 이하</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">' +
+          '<div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">평량 예외</div>' +
+          '<div style="font-size:12px;font-weight:600;color:var(--text-muted);">'+bwExc+'</div>' +
+        '</div>' +
+      '</div>' +
+      noteHtml +
+    '</div>' +
+    '</div>'
+    )
   }).join('<div style="height:1px;background:var(--border);"></div>')
 
   wrap.innerHTML = rows
 }
 
 // ── 추가/수정 모달 ──
-let _machineEditId: number | null = null
+let _machineEditId = null
 
-async function openMachineModal(id: number | null) {
+async function openMachineModal(id) {
   _machineEditId = id
-  const title  = document.getElementById('machine-modal-title') as HTMLElement
-  const saveBtn = document.getElementById('machine-save-btn') as HTMLButtonElement
-  const modal  = document.getElementById('modal-machine') as HTMLElement
+  const title  = document.getElementById('machine-modal-title')
+  const saveBtn = document.getElementById('machine-save-btn')
+  const modal  = document.getElementById('modal-machine')
 
   const fields = ['id','machineNo','machineName','description','maxWidth','minWidth',
                   'maxPok','fourPokMinWidth','mimi','noProdLimit','bwExceptionList','bwExceptionMaxWidth','note']
   const clear = () => fields.forEach(f => {
-    const el = document.getElementById('mf-' + f) as HTMLInputElement
+    const el = document.getElementById('mf-' + f)
     if (el) el.value = ''
   })
 
@@ -3207,22 +3206,22 @@ async function openMachineModal(id: number | null) {
     try {
       const res  = await fetch('/klean-aps-api/machines')
       const json = await res.json()
-      const m    = json.data.find((x: any) => x.machineId === id)
+      const m    = json.data.find((x) => x.machineId === id)
       if (!m) return toast('기계 정보를 찾을 수 없습니다.', 'err')
-      ;(document.getElementById('mf-id') as HTMLInputElement).value = String(m.machineId)
-      ;(document.getElementById('mf-machineNo')          as HTMLInputElement).value = m.machineNo          || ''
-      ;(document.getElementById('mf-machineName')        as HTMLInputElement).value = m.machineName        || ''
-      ;(document.getElementById('mf-description')        as HTMLInputElement).value = m.description        || ''
-      ;(document.getElementById('mf-maxWidth')           as HTMLInputElement).value = m.maxWidth != null   ? String(m.maxWidth) : ''
-      ;(document.getElementById('mf-minWidth')           as HTMLInputElement).value = m.minWidth != null   ? String(m.minWidth) : ''
-      ;(document.getElementById('mf-maxPok')             as HTMLInputElement).value = m.maxPok   != null   ? String(m.maxPok) : ''
-      ;(document.getElementById('mf-fourPokMinWidth')    as HTMLInputElement).value = m.fourPokMinWidth != null ? String(m.fourPokMinWidth) : ''
-      ;(document.getElementById('mf-mimi')               as HTMLInputElement).value = m.mimi      != null   ? String(m.mimi) : ''
-      ;(document.getElementById('mf-noProdLimit')        as HTMLInputElement).value = m.noProdLimit != null ? String(m.noProdLimit) : ''
-      ;(document.getElementById('mf-bwExceptionList')    as HTMLInputElement).value = m.bwExceptionList    || ''
-      ;(document.getElementById('mf-bwExceptionMaxWidth')as HTMLInputElement).value = m.bwExceptionMaxWidth != null ? String(m.bwExceptionMaxWidth) : ''
-      ;(document.getElementById('mf-note')               as HTMLTextAreaElement).value = m.note            || ''
-    } catch(e:any) {
+      document.getElementById('mf-id').value                = String(m.machineId)
+      document.getElementById('mf-machineNo').value         = m.machineNo          || ''
+      document.getElementById('mf-machineName').value       = m.machineName        || ''
+      document.getElementById('mf-description').value       = m.description        || ''
+      document.getElementById('mf-maxWidth').value          = m.maxWidth != null   ? String(m.maxWidth) : ''
+      document.getElementById('mf-minWidth').value          = m.minWidth != null   ? String(m.minWidth) : ''
+      document.getElementById('mf-maxPok').value            = m.maxPok   != null   ? String(m.maxPok) : ''
+      document.getElementById('mf-fourPokMinWidth').value   = m.fourPokMinWidth != null ? String(m.fourPokMinWidth) : ''
+      document.getElementById('mf-mimi').value              = m.mimi      != null   ? String(m.mimi) : ''
+      document.getElementById('mf-noProdLimit').value       = m.noProdLimit != null ? String(m.noProdLimit) : ''
+      document.getElementById('mf-bwExceptionList').value   = m.bwExceptionList    || ''
+      document.getElementById('mf-bwExceptionMaxWidth').value = m.bwExceptionMaxWidth != null ? String(m.bwExceptionMaxWidth) : ''
+      document.getElementById('mf-note').value              = m.note               || ''
+    } catch(e) {
       return toast('기계 정보 로드 실패: ' + e.message, 'err')
     }
   }
@@ -3231,12 +3230,11 @@ async function openMachineModal(id: number | null) {
 }
 
 function closeMachineModal() {
-  const modal = document.getElementById('modal-machine') as HTMLElement
-  modal.style.display = 'none'
+  document.getElementById('modal-machine').style.display = 'none'
 }
 
 async function saveMachine() {
-  const g = (id: string) => (document.getElementById('mf-' + id) as HTMLInputElement).value.trim()
+  const g = (id) => document.getElementById('mf-' + id).value.trim()
 
   const machineNo   = g('machineNo')
   const machineName = g('machineName')
@@ -3245,7 +3243,7 @@ async function saveMachine() {
     return
   }
 
-  const payload: any = {
+  const payload = {
     machineNo,
     machineName,
     description:         g('description'),
@@ -3257,14 +3255,14 @@ async function saveMachine() {
     noProdLimit:         g('noProdLimit')         ? Number(g('noProdLimit'))         : 625,
     bwExceptionList:     g('bwExceptionList'),
     bwExceptionMaxWidth: g('bwExceptionMaxWidth') ? Number(g('bwExceptionMaxWidth')): null,
-    note:                (document.getElementById('mf-note') as HTMLTextAreaElement).value.trim(),
+    note:                document.getElementById('mf-note').value.trim(),
   }
 
-  const saveBtn = document.getElementById('machine-save-btn') as HTMLButtonElement
+  const saveBtn = document.getElementById('machine-save-btn')
   saveBtn.disabled = true
 
   try {
-    let res: Response
+    let res
     if (_machineEditId === null) {
       res = await fetch('/klean-aps-api/machines', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
     } else {
@@ -3275,7 +3273,7 @@ async function saveMachine() {
     closeMachineModal()
     await loadMachine()
     toast(_machineEditId === null ? '기계가 추가되었습니다.' : '기계 정보가 수정되었습니다.', 'ok')
-  } catch(e:any) {
+  } catch(e) {
     toast('저장 실패: ' + e.message, 'err')
   } finally {
     saveBtn.disabled = false
@@ -3283,31 +3281,29 @@ async function saveMachine() {
 }
 
 // ── 삭제 확인 모달 ──
-let _machineDelId: number | null = null
+let _machineDelId = null
 
-async function openMachineDelModal(id: number) {
+async function openMachineDelModal(id) {
   _machineDelId = id
   try {
     const res  = await fetch('/klean-aps-api/machines')
     const json = await res.json()
-    const m    = json.data.find((x: any) => x.machineId === id)
-    const msg  = document.getElementById('machine-del-msg') as HTMLElement
-    if (m) msg.innerHTML = \`<b>\${m.machineName}(\${m.machineNo}호기)</b> 를 삭제하시겠습니까?<br><span style="color:#f87171;font-size:11px;">삭제된 기계 정보는 복구할 수 없습니다.</span>\`
+    const m    = json.data.find((x) => x.machineId === id)
+    const msg  = document.getElementById('machine-del-msg')
+    if (m) msg.innerHTML = '<b>'+m.machineName+'('+m.machineNo+'호기)</b> 를 삭제하시겠습니까?<br><span style="color:#f87171;font-size:11px;">삭제된 기계 정보는 복구할 수 없습니다.</span>'
     else msg.textContent = '이 기계를 삭제하시겠습니까?'
-  } catch { /* ignore */ }
-  const modal = document.getElementById('modal-machine-del') as HTMLElement
-  modal.style.display = 'flex'
+  } catch(e) { /* ignore */ }
+  document.getElementById('modal-machine-del').style.display = 'flex'
 }
 
 function closeMachineDelModal() {
-  const modal = document.getElementById('modal-machine-del') as HTMLElement
-  modal.style.display = 'none'
+  document.getElementById('modal-machine-del').style.display = 'none'
   _machineDelId = null
 }
 
 async function confirmDeleteMachine() {
   if (_machineDelId === null) return
-  const btn = document.getElementById('machine-del-confirm-btn') as HTMLButtonElement
+  const btn = document.getElementById('machine-del-confirm-btn')
   btn.disabled = true
   try {
     const res  = await fetch('/klean-aps-api/machines/' + _machineDelId, { method:'DELETE' })
@@ -3316,7 +3312,7 @@ async function confirmDeleteMachine() {
     closeMachineDelModal()
     await loadMachine()
     toast('기계가 삭제되었습니다.', 'ok')
-  } catch(e:any) {
+  } catch(e) {
     toast('삭제 실패: ' + e.message, 'err')
   } finally {
     btn.disabled = false
@@ -3714,12 +3710,12 @@ async function simSendOrder() {
 ══════════════════════════════════════ */
 function renderOrderTypeBadge(t) {
   const m = {내수:'b-domestic',수출:'b-export',일본수출:'b-japan',특수지:'b-special'}
-  return \`<span class="badge \${m[t]||'b-domestic'}">\${t}</span>\`
+  return '<span class="badge '+(m[t]||'b-domestic')+'">'+t+'</span>'
 }
 function renderStatusBadge(s) {
   const m = {OPEN:'b-open',ASSIGNED:'b-assigned',COMPLETED:'b-complete',CANCELLED:'b-cancel'}
   const l = {OPEN:'OPEN',ASSIGNED:'배정완료',COMPLETED:'생산완료',CANCELLED:'취소'}
-  return \`<span class="badge \${m[s]||'b-open'}" style="font-size:10px;">\${l[s]||s}</span>\`
+  return '<span class="badge '+(m[s]||'b-open')+'" style="font-size:10px;">'+(l[s]||s)+'</span>'
 }
 function dueDateClass(d) {
   if (!d) return 'due-normal'
