@@ -95,10 +95,10 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
     if (body.basisWeight && o.basisWeight !== Number(body.basisWeight)) return false
     return true
   })
-  // Mock: 전체 중 20%는 이미 DB에 존재, 10%는 실패 시뮬레이션
+  // Mock: 전체 중 20%는 이미 DB에 존재, 실패 없음
   const total      = synced.length
   const alreadyN   = Math.floor(total * 0.2)
-  const failN      = total > 5 ? Math.floor(total * 0.1) : 0
+  const failN      = 0
   const successN   = total - alreadyN - failN
   return c.json({
     success: true,
@@ -589,6 +589,22 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   font-size:11px;font-weight:700;
 }
 
+/* ── RFC 통신결과 탭 버튼 ── */
+.rfc-tab-btn{
+  display:flex;align-items:center;gap:7px;
+  padding:12px 20px;
+  font-size:13px;font-weight:600;cursor:pointer;
+  color:var(--tab-text);
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:all .12s;
+}
+.rfc-tab-btn:hover{color:var(--tab-hover);}
+.rfc-tab-btn.active{
+  color:var(--tab-active);
+  border-bottom-color:var(--tab-active-bdr);
+}
+
 /* ── 사이드바 하단 정보 ── */
 .sidebar-footer{
   padding:10px 14px;
@@ -699,7 +715,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     <div class="nav-group-title">시뮬레이션</div>
     <div class="nav-item" id="nav-simulation"   onclick="goPage('simulation')">  <i class="fas fa-layer-group"></i>지폭조합 시뮬레이션</div>
 
-    <div class="nav-group-title">설정</div>
+    <div class="nav-group-title">관리자메뉴</div>
+    <div class="nav-item" id="nav-rfc-log"      onclick="goPage('rfc-log')">     <i class="fas fa-exchange-alt"></i>RFC 통신결과</div>
     <div class="nav-item" id="nav-constraint"   onclick="goPage('constraint')">  <i class="fas fa-sliders-h"></i>제약조건 설정</div>
     <div class="nav-item" id="nav-machine"      onclick="goPage('machine')">     <i class="fas fa-cog"></i>기계 마스터</div>
   </nav>
@@ -742,7 +759,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     <!-- RFC 조회 조건 카드 -->
     <div class="section-card" style="padding:18px 20px;">
       <div class="card-label" style="margin-bottom:14px;">
-        <i class="fas fa-filter" style="color:#3b82f6;"></i> SAP RFC 조회 조건
+        <i class="fas fa-filter" style="color:#3b82f6;"></i> 조회 조건
       </div>
 
       <div class="filter-grid fg-8" id="import-filter-grid">
@@ -819,9 +836,10 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     <!-- RFC 결과 요약 -->
     <div id="rfc-summary" style="display:none;margin-bottom:14px;">
       <!-- 결과 메시지 배너 -->
-      <div id="rs-banner" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:9px;margin-bottom:10px;font-size:13px;font-weight:700;">
-        <i id="rs-banner-icon" class="fas fa-check-circle"></i>
+      <div id="rs-banner" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:9px;margin-bottom:10px;font-size:13px;font-weight:700;background:transparent;border:none;">
+        <i id="rs-banner-icon" class="fas fa-info-circle" style="font-size:16px;"></i>
         <span id="rs-msg"></span>
+        <span id="rs-detail" style="font-weight:400;font-size:12px;margin-left:4px;"></span>
       </div>
       <!-- 스탯 카드 -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1022,6 +1040,116 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   </div>
 </div>
 
+<!-- ════════════════════════════
+     RFC 통신결과
+════════════════════════════ -->
+<div id="page-rfc-log" style="display:none;height:100%;flex-direction:column;">
+  <div class="page-header">
+    <div class="page-title"><i class="fas fa-exchange-alt" style="color:#38bdf8;"></i>RFC 통신결과</div>
+    <div class="page-sub">SAP RFC 호출 이력 및 통신 결과 조회</div>
+  </div>
+
+  <!-- 탭 바 -->
+  <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg-surface);padding:0 28px;flex-shrink:0;">
+    <div class="rfc-tab-btn active" id="rfc-tab-import" onclick="switchRfcTab('import')">
+      <i class="fas fa-cloud-download-alt"></i> 판매오더 불러오기 결과
+    </div>
+    <div class="rfc-tab-btn" id="rfc-tab-send" onclick="switchRfcTab('send')">
+      <i class="fas fa-paper-plane"></i> 생산오더 전송 결과
+    </div>
+  </div>
+
+  <!-- 탭 컨텐츠 -->
+  <div class="page-scroll" style="padding-top:16px;">
+
+    <!-- 판매오더 불러오기 결과 -->
+    <div id="rfc-panel-import">
+      <!-- 요약 스탯 -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="stat-mini"><div class="sv" style="color:#38bdf8;">24</div><div class="sl">총 호출 횟수</div></div>
+        <div class="stat-mini"><div class="sv" style="color:#4ade80;">22</div><div class="sl">성공</div></div>
+        <div class="stat-mini"><div class="sv" style="color:#f87171;">2</div><div class="sl">실패</div></div>
+        <div class="stat-mini"><div class="sv" style="color:#60a5fa;">348</div><div class="sl">총 수신 건수</div></div>
+      </div>
+      <!-- 이력 테이블 -->
+      <div class="section-card" style="overflow:hidden;">
+        <div class="card-header">
+          <div class="card-label"><i class="fas fa-history" style="color:#38bdf8;"></i>호출 이력</div>
+          <span class="count-badge">24 건</span>
+        </div>
+        <div style="overflow-x:auto;max-height:calc(100vh - 340px);overflow-y:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="center" style="width:40px;">#</th>
+                <th>호출일시</th>
+                <th>RFC 함수명</th>
+                <th>조회조건</th>
+                <th class="num">수신건수</th>
+                <th class="num">성공건수</th>
+                <th class="num">실패건수</th>
+                <th class="num">이미저장</th>
+                <th>결과</th>
+                <th>처리시간</th>
+                <th>실행자</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">1</td><td style="font-size:12px;">2026-06-26 09:15:32</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">오더유형: 내수</td><td class="num">15</td><td class="num" style="color:#4ade80;">12</td><td class="num" style="color:#f87171;">0</td><td class="num" style="color:#f59e0b;">3</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">823ms</td><td style="font-size:12px;">홍길동</td></tr>
+              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">2</td><td style="font-size:12px;">2026-06-26 10:22:14</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">호기: 2호기</td><td class="num">8</td><td class="num" style="color:#4ade80;">7</td><td class="num" style="color:#f87171;">0</td><td class="num" style="color:#f59e0b;">1</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">791ms</td><td style="font-size:12px;">이순신</td></tr>
+              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">3</td><td style="font-size:12px;">2026-06-26 11:45:08</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">전체 조회</td><td class="num">15</td><td class="num" style="color:#4ade80;">0</td><td class="num" style="color:#f87171;">1</td><td class="num" style="color:#f59e0b;">0</td><td><span class="badge b-cancel" style="font-size:10px;">실패</span></td><td style="font-size:11px;color:var(--text-muted);">3,201ms</td><td style="font-size:12px;">홍길동</td></tr>
+              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">4</td><td style="font-size:12px;">2026-06-26 14:03:55</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">평량: 220</td><td class="num">6</td><td class="num" style="color:#4ade80;">6</td><td class="num" style="color:#f87171;">0</td><td class="num" style="color:#f59e0b;">0</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">812ms</td><td style="font-size:12px;">강감찬</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 생산오더 전송 결과 -->
+    <div id="rfc-panel-send" style="display:none;">
+      <!-- 요약 스탯 -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="stat-mini"><div class="sv" style="color:#38bdf8;">18</div><div class="sl">총 전송 횟수</div></div>
+        <div class="stat-mini"><div class="sv" style="color:#4ade80;">17</div><div class="sl">성공</div></div>
+        <div class="stat-mini"><div class="sv" style="color:#f87171;">1</div><div class="sl">실패</div></div>
+        <div class="stat-mini"><div class="sv" style="color:#60a5fa;">142</div><div class="sl">총 전송 건수</div></div>
+      </div>
+      <!-- 이력 테이블 -->
+      <div class="section-card" style="overflow:hidden;">
+        <div class="card-header">
+          <div class="card-label"><i class="fas fa-paper-plane" style="color:#a78bfa;"></i>전송 이력</div>
+          <span class="count-badge">18 건</span>
+        </div>
+        <div style="overflow-x:auto;max-height:calc(100vh - 340px);overflow-y:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="center" style="width:40px;">#</th>
+                <th>전송일시</th>
+                <th>RFC 함수명</th>
+                <th>시뮬레이션 ID</th>
+                <th class="num">전송건수</th>
+                <th class="num">성공건수</th>
+                <th class="num">실패건수</th>
+                <th>결과</th>
+                <th>처리시간</th>
+                <th>실행자</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">1</td><td style="font-size:12px;">2026-06-26 09:30:00</td><td style="font-family:monospace;font-size:11px;color:#a78bfa;">Z_CREATE_PROD_ORDER</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">SIM-2026-001</td><td class="num">12</td><td class="num" style="color:#4ade80;">12</td><td class="num" style="color:#f87171;">0</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">1,245ms</td><td style="font-size:12px;">홍길동</td><td style="font-size:11px;color:var(--text-muted);">-</td></tr>
+              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">2</td><td style="font-size:12px;">2026-06-26 11:15:22</td><td style="font-family:monospace;font-size:11px;color:#a78bfa;">Z_CREATE_PROD_ORDER</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">SIM-2026-002</td><td class="num">8</td><td class="num" style="color:#4ade80;">7</td><td class="num" style="color:#f87171;">1</td><td><span class="badge b-cancel" style="font-size:10px;">일부실패</span></td><td style="font-size:11px;color:var(--text-muted);">2,108ms</td><td style="font-size:12px;">이순신</td><td style="font-size:11px;color:#f87171;">자재 부족</td></tr>
+              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">3</td><td style="font-size:12px;">2026-06-26 14:50:11</td><td style="font-family:monospace;font-size:11px;color:#a78bfa;">Z_CREATE_PROD_ORDER</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">SIM-2026-003</td><td class="num">15</td><td class="num" style="color:#4ade80;">15</td><td class="num" style="color:#f87171;">0</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">1,532ms</td><td style="font-size:12px;">강감찬</td><td style="font-size:11px;color:var(--text-muted);">-</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-scroll -->
+</div><!-- /page-rfc-log -->
+
 <!-- 시뮬레이션/설정/기계 (플레이스홀더) -->
 <div id="page-simulation" style="display:none;height:100%;flex-direction:column;">
   <div class="page-header"><div class="page-title"><i class="fas fa-layer-group" style="color:#a78bfa;"></i>지폭조합 시뮬레이션</div></div>
@@ -1072,8 +1200,20 @@ const PAGE_NAMES = {
   'order-import': '판매오더 불러오기',
   'order-list'  : '판매오더 조회',
   'simulation'  : '지폭조합 시뮬레이션',
+  'rfc-log'     : 'RFC 통신결과',
   'constraint'  : '제약조건 설정',
   'machine'     : '기계 마스터',
+}
+
+/* ══════════════════════════════════════
+   RFC 통신결과 탭 전환
+══════════════════════════════════════ */
+function switchRfcTab(tab) {
+  const panels = ['import','send']
+  panels.forEach(t => {
+    document.getElementById('rfc-panel-'+t).style.display = (t === tab) ? '' : 'none'
+    document.getElementById('rfc-tab-'+t).classList.toggle('active', t === tab)
+  })
 }
 
 function initTheme() {
@@ -1119,7 +1259,7 @@ function toggleTheme() {
 /* ══════════════════════════════════════
    페이지 전환
 ══════════════════════════════════════ */
-const PAGES = ['dashboard','order-import','order-list','simulation','constraint','machine']
+const PAGES = ['dashboard','order-import','order-list','simulation','rfc-log','constraint','machine']
 
 function goPage(p) {
   PAGES.forEach(id => {
@@ -1200,20 +1340,15 @@ async function runRfcSync() {
     const failN    = d.failCount    ?? 0
     const alreadyN = d.alreadyCount ?? 0
 
-    // 배너 스타일
+    // 배너 스타일 — 배경 투명, 텍스트 색상만 변경
     const banner     = document.getElementById('rs-banner')
     const bannerIcon = document.getElementById('rs-banner-icon')
-    if (failN > 0) {
-      banner.style.background = 'var(--badge-cancel-bg)'
-      banner.style.color      = 'var(--badge-cancel-txt)'
-      banner.style.border     = '1px solid var(--badge-cancel-txt)'
-      bannerIcon.className    = 'fas fa-exclamation-triangle'
-    } else {
-      banner.style.background = 'var(--badge-assign-bg)'
-      banner.style.color      = 'var(--badge-assign-txt)'
-      banner.style.border     = '1px solid var(--badge-assign-txt)'
-      bannerIcon.className    = 'fas fa-check-circle'
-    }
+    const detailEl   = document.getElementById('rs-detail')
+    // 성공/실패 여부와 무관하게 메시지 색은 항상 초록
+    banner.style.color   = failN > 0 ? '#f87171' : '#16a34a'
+    bannerIcon.className = failN > 0 ? 'fas fa-exclamation-circle' : 'fas fa-check-circle'
+    detailEl.textContent = '(성공 '+successN+'건 / 실패 '+failN+'건)'
+    detailEl.style.color = '#94a3b8'
 
     document.getElementById('rfc-summary').style.display = ''
     document.getElementById('rs-msg').textContent     = d.message || '판매오더 불러오기 성공'
@@ -1235,9 +1370,7 @@ async function runRfcSync() {
     renderImportTable(importResult)
     document.getElementById('btn-save').disabled = false
     selectedImport.clear()
-    toast(failN > 0
-      ? \`판매오더 불러오기 성공 (실패 \${failN}건 포함)\`
-      : \`판매오더 불러오기 성공 — \${successN}건 저장\`, failN > 0 ? 'info' : 'ok')
+    toast('\ud310\ub9e4\uc624\ub354 \ubd88\ub7ec\uc624\uae30 \uc131\uacf5 — \uc131\uacf5 '+successN+'\uac74 / \uc2e4\ud328 '+failN+'\uac74', 'ok')
   } catch(e) {
     toast('RFC 호출 실패: '+e.message, 'err')
   } finally {
