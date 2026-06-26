@@ -7,9 +7,24 @@ app.use('*', cors())
 // ============================================================
 // Mock 데이터
 // ============================================================
-const machines = [
-  { machineId: 1, machineNo: '2', machineName: '2호기' },
-  { machineId: 2, machineNo: '3', machineName: '3호기' },
+let machineSeq = 3
+const machines: any[] = [
+  {
+    machineId: 1, machineNo: '2', machineName: '2호기',
+    maxWidth: 2520, minWidth: 2400, maxPok: 4,
+    fourPokMinWidth: 630, mimi: 30, noProdLimit: 625,
+    bwExceptionList: '', bwExceptionMaxWidth: null,
+    description: '크라프트 / 골판지 원지',
+    note: '620×4폭 불가 / 620×3 + 640×1 가능',
+  },
+  {
+    machineId: 2, machineNo: '3', machineName: '3호기',
+    maxWidth: 3420, minWidth: 3300, maxPok: 4,
+    fourPokMinWidth: null, mimi: 30, noProdLimit: 625,
+    bwExceptionList: '300,500,550', bwExceptionMaxWidth: 3410,
+    description: '크라프트 / 중량지 / 특수지',
+    note: '300/500/550g/m² 평량은 최대지폭 3,410mm 적용',
+  },
 ]
 
 const salesOrders = [
@@ -50,6 +65,68 @@ const prodOrders: any[] = [
 // API
 // ============================================================
 app.get('/klean-aps-api/machines', (c) => c.json({ success:true, data:machines }))
+
+// 기계 추가
+app.post('/klean-aps-api/machines', async (c) => {
+  const body = await c.req.json()
+  if (!body.machineNo || !body.machineName) return c.json({ success:false, message:'machineNo, machineName 필수' }, 400)
+  if (machines.find(m => m.machineNo === body.machineNo)) return c.json({ success:false, message:'이미 존재하는 호기 번호입니다.' }, 409)
+  const newMachine = {
+    machineId: machineSeq++,
+    machineNo: String(body.machineNo),
+    machineName: String(body.machineName),
+    maxWidth: Number(body.maxWidth) || 0,
+    minWidth: Number(body.minWidth) || 0,
+    maxPok: Number(body.maxPok) || 4,
+    fourPokMinWidth: body.fourPokMinWidth ? Number(body.fourPokMinWidth) : null,
+    mimi: Number(body.mimi) || 30,
+    noProdLimit: Number(body.noProdLimit) || 625,
+    bwExceptionList: body.bwExceptionList || '',
+    bwExceptionMaxWidth: body.bwExceptionMaxWidth ? Number(body.bwExceptionMaxWidth) : null,
+    description: body.description || '',
+    note: body.note || '',
+  }
+  machines.push(newMachine)
+  return c.json({ success:true, data:newMachine })
+})
+
+// 기계 수정
+app.put('/klean-aps-api/machines/:id', async (c) => {
+  const id = Number(c.req.param('id'))
+  const idx = machines.findIndex(m => m.machineId === id)
+  if (idx === -1) return c.json({ success:false, message:'기계를 찾을 수 없습니다.' }, 404)
+  const body = await c.req.json()
+  // machineNo 중복 체크 (자신 제외)
+  if (body.machineNo && machines.find(m => m.machineNo === body.machineNo && m.machineId !== id)) {
+    return c.json({ success:false, message:'이미 존재하는 호기 번호입니다.' }, 409)
+  }
+  const updated = {
+    ...machines[idx],
+    machineNo:          body.machineNo          !== undefined ? String(body.machineNo)            : machines[idx].machineNo,
+    machineName:        body.machineName        !== undefined ? String(body.machineName)          : machines[idx].machineName,
+    maxWidth:           body.maxWidth           !== undefined ? Number(body.maxWidth)              : machines[idx].maxWidth,
+    minWidth:           body.minWidth           !== undefined ? Number(body.minWidth)              : machines[idx].minWidth,
+    maxPok:             body.maxPok             !== undefined ? Number(body.maxPok)                : machines[idx].maxPok,
+    fourPokMinWidth:    body.fourPokMinWidth     !== undefined ? (body.fourPokMinWidth ? Number(body.fourPokMinWidth) : null) : machines[idx].fourPokMinWidth,
+    mimi:               body.mimi               !== undefined ? Number(body.mimi)                  : machines[idx].mimi,
+    noProdLimit:        body.noProdLimit        !== undefined ? Number(body.noProdLimit)            : machines[idx].noProdLimit,
+    bwExceptionList:    body.bwExceptionList    !== undefined ? String(body.bwExceptionList)       : machines[idx].bwExceptionList,
+    bwExceptionMaxWidth:body.bwExceptionMaxWidth !== undefined ? (body.bwExceptionMaxWidth ? Number(body.bwExceptionMaxWidth) : null) : machines[idx].bwExceptionMaxWidth,
+    description:        body.description        !== undefined ? String(body.description)           : machines[idx].description,
+    note:               body.note               !== undefined ? String(body.note)                  : machines[idx].note,
+  }
+  machines[idx] = updated
+  return c.json({ success:true, data:updated })
+})
+
+// 기계 삭제
+app.delete('/klean-aps-api/machines/:id', (c) => {
+  const id = Number(c.req.param('id'))
+  const idx = machines.findIndex(m => m.machineId === id)
+  if (idx === -1) return c.json({ success:false, message:'기계를 찾을 수 없습니다.' }, 404)
+  machines.splice(idx, 1)
+  return c.json({ success:true })
+})
 
 // 생산오더 목록
 app.get('/klean-aps-api/prod-orders', (c) => {
@@ -960,6 +1037,15 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 }
 .excl-row:hover { border-color: var(--border); }
 
+/* ── 기계 마스터 카드 행 ── */
+.machine-row-card {
+  background: var(--bg-card);
+  transition: background .15s;
+}
+.machine-row-card:hover {
+  background: var(--bg-hover);
+}
+
 /* ── 대시보드 그리드 ── */
 .dash-grid{
   display:grid;
@@ -1708,65 +1794,32 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--border);">
     <div>
       <div class="page-title"><i class="fas fa-cog" style="color:#34d399;"></i>기계 마스터</div>
-      <div class="page-sub">생산 호기별 지폭 규정 및 운영 기준</div>
+      <div class="page-sub">생산 호기별 지폭 규정 및 운영 기준 — 추가·수정·삭제 가능</div>
     </div>
-    <button class="btn btn-sm btn-secondary" onclick="loadMachine()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm btn-secondary" onclick="loadMachine()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+      <button class="btn btn-sm btn-primary" onclick="openMachineModal(null)" style="background:#7c3aed;border-color:#7c3aed;">
+        <i class="fas fa-plus"></i> 기계 추가
+      </button>
+    </div>
   </div>
   <div class="page-scroll">
 
-    <!-- 기계 카드 2열 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-
-      <!-- 2호기 -->
-      <div class="section-card">
-        <div class="section-title">
-          <span class="machine-badge" style="padding:3px 10px;font-size:12px;">2호기</span>
-          <span>Paper Machine #2</span>
-          <span style="font-size:11px;font-weight:400;color:var(--text-faint);margin-left:auto;">크라프트 / 골판지 원지</span>
-        </div>
-        <div class="section-body">
-          <table class="spec-table">
-            <tr><td>최대 지폭</td><td style="color:#34d399;">2,520 mm</td></tr>
-            <tr><td>최소 지폭</td><td style="color:#f87171;">2,400 mm</td></tr>
-            <tr><td>최대 폭수</td><td>4폭</td></tr>
-            <tr><td>4폭 추가조건</td><td>1폭 반드시 <span style="color:#f59e0b;">630mm 이상</span></td></tr>
-            <tr><td>배폭 미미</td><td style="color:#a78bfa;">30 mm</td></tr>
-            <tr><td>생산 불가 조건</td><td style="color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
-            <tr><td>평량 예외</td><td style="color:var(--text-faint);">없음</td></tr>
-          </table>
-          <div style="margin-top:12px;padding:10px 12px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;">
-            <i class="fas fa-lightbulb" style="color:#f59e0b;margin-right:5px;"></i>
-            620×4폭 불가 &nbsp;/&nbsp; 620×3 + 640×1 가능
-          </div>
-        </div>
+    <!-- 기계 목록 카드 (동적 렌더링) -->
+    <div class="section-card" style="margin-bottom:14px;">
+      <div class="section-title">
+        <i class="fas fa-server" style="color:#34d399;"></i>
+        <span>호기 목록</span>
+        <span id="machine-count-badge" style="margin-left:auto;font-size:11px;font-weight:600;color:var(--text-faint);"></span>
       </div>
-
-      <!-- 3호기 -->
-      <div class="section-card">
-        <div class="section-title">
-          <span class="machine-badge" style="padding:3px 10px;font-size:12px;">3호기</span>
-          <span>Paper Machine #3</span>
-          <span style="font-size:11px;font-weight:400;color:var(--text-faint);margin-left:auto;">크라프트 / 중량지 / 특수지</span>
-        </div>
-        <div class="section-body">
-          <table class="spec-table">
-            <tr><td>최대 지폭</td><td style="color:#34d399;">3,420 mm</td></tr>
-            <tr><td>최소 지폭</td><td style="color:#f87171;">3,300 mm</td></tr>
-            <tr><td>최대 폭수</td><td>4폭</td></tr>
-            <tr><td>4폭 추가조건</td><td style="color:var(--text-faint);">해당 없음</td></tr>
-            <tr><td>배폭 미미</td><td style="color:#a78bfa;">30 mm</td></tr>
-            <tr><td>생산 불가 조건</td><td style="color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
-            <tr><td>평량 예외</td><td style="color:#f59e0b;">300/500/550g/m² → 최대 3,410mm</td></tr>
-          </table>
-          <div style="margin-top:12px;padding:10px 12px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;">
-            <i class="fas fa-lightbulb" style="color:#f59e0b;margin-right:5px;"></i>
-            300/500/550g/m² 평량은 최대지폭 <b>3,410mm</b> 적용
-          </div>
+      <div class="section-body" style="padding:0;">
+        <div id="machine-table-wrap">
+          <!-- renderMachineTable()로 채워짐 -->
         </div>
       </div>
     </div>
 
-    <!-- 공통 규정 + 자재코드 2열 -->
+    <!-- 공통 규정 + 자재코드 2열 (고정) -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
 
       <!-- 공통 규정 -->
@@ -1831,6 +1884,121 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     </div>
   </div>
 </div><!-- /page-machine -->
+
+<!-- ══════════════════════════════════════════
+     기계 추가/수정 모달
+══════════════════════════════════════════ -->
+<div id="modal-machine" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card);border-radius:14px;width:560px;max-width:95vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden;">
+
+    <!-- 모달 헤더 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);">
+      <div style="font-size:15px;font-weight:700;color:var(--text-main);" id="machine-modal-title">기계 추가</div>
+      <button onclick="closeMachineModal()" style="background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:18px;padding:2px 6px;border-radius:6px;">✕</button>
+    </div>
+
+    <!-- 모달 바디 (스크롤 가능) -->
+    <div style="overflow-y:auto;padding:20px 22px;flex:1;">
+      <input type="hidden" id="mf-id">
+
+      <!-- 기본 정보 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">기본 정보</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+        <div>
+          <label class="form-label">호기 번호 <span style="color:#f87171;">*</span></label>
+          <input id="mf-machineNo" class="form-input" type="text" placeholder="예: 4" maxlength="10">
+        </div>
+        <div>
+          <label class="form-label">호기 이름 <span style="color:#f87171;">*</span></label>
+          <input id="mf-machineName" class="form-input" type="text" placeholder="예: 4호기" maxlength="30">
+        </div>
+        <div style="grid-column:1/-1;">
+          <label class="form-label">설명 / 생산 품종</label>
+          <input id="mf-description" class="form-input" type="text" placeholder="예: 크라프트 / 골판지 원지" maxlength="60">
+        </div>
+      </div>
+
+      <!-- 지폭 규정 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">지폭 규정 (mm)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+        <div>
+          <label class="form-label">최대 지폭</label>
+          <input id="mf-maxWidth" class="form-input" type="number" placeholder="예: 2520" min="0">
+        </div>
+        <div>
+          <label class="form-label">최소 지폭</label>
+          <input id="mf-minWidth" class="form-input" type="number" placeholder="예: 2400" min="0">
+        </div>
+        <div>
+          <label class="form-label">최대 폭수 (폭)</label>
+          <input id="mf-maxPok" class="form-input" type="number" placeholder="예: 4" min="1" max="10">
+        </div>
+        <div>
+          <label class="form-label">4폭 최소조건 (mm)</label>
+          <input id="mf-fourPokMinWidth" class="form-input" type="number" placeholder="비어있으면 조건 없음" min="0">
+        </div>
+        <div>
+          <label class="form-label">배폭 미미 (mm)</label>
+          <input id="mf-mimi" class="form-input" type="number" placeholder="예: 30" min="0">
+        </div>
+        <div>
+          <label class="form-label">생산 불가 밀롤 한계 (mm)</label>
+          <input id="mf-noProdLimit" class="form-input" type="number" placeholder="예: 625" min="0">
+        </div>
+      </div>
+
+      <!-- 평량 예외 규정 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">평량 예외 규정</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+        <div>
+          <label class="form-label">예외 평량 목록 (쉼표 구분)</label>
+          <input id="mf-bwExceptionList" class="form-input" type="text" placeholder="예: 300,500,550 (없으면 빈칸)">
+        </div>
+        <div>
+          <label class="form-label">예외 평량 최대 지폭 (mm)</label>
+          <input id="mf-bwExceptionMaxWidth" class="form-input" type="number" placeholder="예: 3410 (없으면 빈칸)" min="0">
+        </div>
+      </div>
+
+      <!-- 메모 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">메모</div>
+      <div style="margin-bottom:4px;">
+        <label class="form-label">비고 / 특이사항</label>
+        <textarea id="mf-note" class="form-input" rows="2" placeholder="예: 620×4폭 불가 / 620×3 + 640×1 가능" style="resize:vertical;min-height:52px;"></textarea>
+      </div>
+    </div>
+
+    <!-- 모달 푸터 -->
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid var(--border);">
+      <button class="btn btn-sm btn-secondary" onclick="closeMachineModal()">취소</button>
+      <button class="btn btn-sm btn-primary" id="machine-save-btn" onclick="saveMachine()" style="background:#7c3aed;border-color:#7c3aed;">
+        <i class="fas fa-save"></i> 저장
+      </button>
+    </div>
+  </div>
+</div><!-- /modal-machine -->
+
+<!-- 기계 삭제 확인 모달 -->
+<div id="modal-machine-del" style="display:none;position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.55);align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card);border-radius:14px;width:360px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,.35);overflow:hidden;">
+    <div style="padding:22px 22px 0;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fas fa-trash" style="color:#ef4444;font-size:15px;"></i>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-main);">기계 삭제</div>
+      </div>
+      <div id="machine-del-msg" style="font-size:13px;color:var(--text-muted);line-height:1.6;padding-bottom:18px;"></div>
+    </div>
+    <div style="display:flex;gap:8px;padding:14px 22px;border-top:1px solid var(--border);justify-content:flex-end;">
+      <button class="btn btn-sm btn-secondary" onclick="closeMachineDelModal()">취소</button>
+      <button class="btn btn-sm" id="machine-del-confirm-btn" onclick="confirmDeleteMachine()"
+        style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;">
+        <i class="fas fa-trash"></i> 삭제
+      </button>
+    </div>
+  </div>
+</div><!-- /modal-machine-del -->
 
 <!-- ══════════════════════════════════════════
      제약조건 설정
@@ -2920,8 +3088,239 @@ function closeCancelResultModal() {
 /* ══════════════════════════════════════
    기계 마스터
 ══════════════════════════════════════ */
-function loadMachine() {
-  toast('기계 마스터 정보를 불러왔습니다.', 'ok')
+async function loadMachine() {
+  try {
+    const res = await fetch('/klean-aps-api/machines')
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+    renderMachineTable(json.data)
+    toast('기계 마스터 정보를 불러왔습니다.', 'ok')
+  } catch(e:any) {
+    toast('기계 데이터 로드 실패: ' + e.message, 'err')
+  }
+}
+
+function renderMachineTable(data: any[]) {
+  const wrap = document.getElementById('machine-table-wrap')
+  const badge = document.getElementById('machine-count-badge')
+  if (!wrap) return
+  if (badge) badge.textContent = '총 ' + data.length + '대'
+
+  if (data.length === 0) {
+    wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-faint);font-size:13px;"><i class="fas fa-cog" style="font-size:28px;margin-bottom:12px;display:block;opacity:.3;"></i>등록된 기계가 없습니다.<br><span style="font-size:11px;">상단 [기계 추가] 버튼으로 호기를 추가하세요.</span></div>'
+    return
+  }
+
+  const rows = data.map((m: any) => {
+    const fourPok = m.fourPokMinWidth ? m.fourPokMinWidth.toLocaleString() + ' mm 이상' : '<span style="color:var(--text-faint);">조건 없음</span>'
+    const bwExc   = m.bwExceptionList
+      ? m.bwExceptionList + 'g/m² → 최대 ' + (m.bwExceptionMaxWidth ? m.bwExceptionMaxWidth.toLocaleString() + ' mm' : '-')
+      : '<span style="color:var(--text-faint);">없음</span>'
+    const noteHtml = m.note
+      ? \`<div style="display:flex;align-items:flex-start;gap:6px;margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;"><i class="fas fa-lightbulb" style="color:#f59e0b;flex-shrink:0;margin-top:1px;"></i>\${m.note}</div>\`
+      : ''
+
+    return \`
+    <div class="machine-row-card" data-id="\${m.machineId}">
+      <!-- 헤더 -->
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 18px 10px;border-bottom:1px solid var(--border);">
+        <span class="machine-badge" style="padding:3px 10px;font-size:12px;">\${m.machineName}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text-main);">Paper Machine #\${m.machineNo}</span>
+        \${m.description ? \`<span style="font-size:11px;color:var(--text-faint);margin-left:4px;">\${m.description}</span>\` : ''}
+        <div style="margin-left:auto;display:flex;gap:6px;">
+          <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="openMachineModal(\${m.machineId})">
+            <i class="fas fa-pencil-alt"></i> 수정
+          </button>
+          <button class="btn btn-sm" style="padding:4px 10px;font-size:11px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:7px;cursor:pointer;" onclick="openMachineDelModal(\${m.machineId})">
+            <i class="fas fa-trash"></i> 삭제
+          </button>
+        </div>
+      </div>
+      <!-- 스펙 그리드 -->
+      <div style="padding:12px 18px 14px;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px;">
+          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
+            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최대 지폭</div>
+            <div style="font-size:14px;font-weight:700;color:#34d399;">\${m.maxWidth.toLocaleString()} mm</div>
+          </div>
+          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
+            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최소 지폭</div>
+            <div style="font-size:14px;font-weight:700;color:#f87171;">\${m.minWidth.toLocaleString()} mm</div>
+          </div>
+          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
+            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">최대 폭수</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text-main);">\${m.maxPok}폭</div>
+          </div>
+          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:10px 12px;">
+            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:4px;">배폭 미미</div>
+            <div style="font-size:14px;font-weight:700;color:#a78bfa;">\${m.mimi} mm</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">
+            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">4폭 최소조건</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);">\${fourPok}</div>
+          </div>
+          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">
+            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">생산불가 한계</div>
+            <div style="font-size:12px;font-weight:600;color:#f87171;">\${m.noProdLimit} mm 이하</div>
+          </div>
+          <div style="background:var(--bg-base);border-radius:8px;border:1px solid var(--border);padding:9px 12px;">
+            <div style="font-size:10px;font-weight:600;color:var(--text-faint);margin-bottom:3px;">평량 예외</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);">\${bwExc}</div>
+          </div>
+        </div>
+        \${noteHtml}
+      </div>
+    </div>\`
+  }).join('<div style="height:1px;background:var(--border);"></div>')
+
+  wrap.innerHTML = rows
+}
+
+// ── 추가/수정 모달 ──
+let _machineEditId: number | null = null
+
+async function openMachineModal(id: number | null) {
+  _machineEditId = id
+  const title  = document.getElementById('machine-modal-title') as HTMLElement
+  const saveBtn = document.getElementById('machine-save-btn') as HTMLButtonElement
+  const modal  = document.getElementById('modal-machine') as HTMLElement
+
+  const fields = ['id','machineNo','machineName','description','maxWidth','minWidth',
+                  'maxPok','fourPokMinWidth','mimi','noProdLimit','bwExceptionList','bwExceptionMaxWidth','note']
+  const clear = () => fields.forEach(f => {
+    const el = document.getElementById('mf-' + f) as HTMLInputElement
+    if (el) el.value = ''
+  })
+
+  if (id === null) {
+    // 추가 모드
+    title.textContent  = '기계 추가'
+    saveBtn.textContent = '저장'
+    clear()
+  } else {
+    // 수정 모드 — 기존 데이터 채우기
+    title.textContent  = '기계 수정'
+    saveBtn.innerHTML  = '<i class="fas fa-save"></i> 저장'
+    clear()
+    try {
+      const res  = await fetch('/klean-aps-api/machines')
+      const json = await res.json()
+      const m    = json.data.find((x: any) => x.machineId === id)
+      if (!m) return toast('기계 정보를 찾을 수 없습니다.', 'err')
+      ;(document.getElementById('mf-id') as HTMLInputElement).value = String(m.machineId)
+      ;(document.getElementById('mf-machineNo')          as HTMLInputElement).value = m.machineNo          || ''
+      ;(document.getElementById('mf-machineName')        as HTMLInputElement).value = m.machineName        || ''
+      ;(document.getElementById('mf-description')        as HTMLInputElement).value = m.description        || ''
+      ;(document.getElementById('mf-maxWidth')           as HTMLInputElement).value = m.maxWidth != null   ? String(m.maxWidth) : ''
+      ;(document.getElementById('mf-minWidth')           as HTMLInputElement).value = m.minWidth != null   ? String(m.minWidth) : ''
+      ;(document.getElementById('mf-maxPok')             as HTMLInputElement).value = m.maxPok   != null   ? String(m.maxPok) : ''
+      ;(document.getElementById('mf-fourPokMinWidth')    as HTMLInputElement).value = m.fourPokMinWidth != null ? String(m.fourPokMinWidth) : ''
+      ;(document.getElementById('mf-mimi')               as HTMLInputElement).value = m.mimi      != null   ? String(m.mimi) : ''
+      ;(document.getElementById('mf-noProdLimit')        as HTMLInputElement).value = m.noProdLimit != null ? String(m.noProdLimit) : ''
+      ;(document.getElementById('mf-bwExceptionList')    as HTMLInputElement).value = m.bwExceptionList    || ''
+      ;(document.getElementById('mf-bwExceptionMaxWidth')as HTMLInputElement).value = m.bwExceptionMaxWidth != null ? String(m.bwExceptionMaxWidth) : ''
+      ;(document.getElementById('mf-note')               as HTMLTextAreaElement).value = m.note            || ''
+    } catch(e:any) {
+      return toast('기계 정보 로드 실패: ' + e.message, 'err')
+    }
+  }
+
+  modal.style.display = 'flex'
+}
+
+function closeMachineModal() {
+  const modal = document.getElementById('modal-machine') as HTMLElement
+  modal.style.display = 'none'
+}
+
+async function saveMachine() {
+  const g = (id: string) => (document.getElementById('mf-' + id) as HTMLInputElement).value.trim()
+
+  const machineNo   = g('machineNo')
+  const machineName = g('machineName')
+  if (!machineNo || !machineName) {
+    toast('호기 번호와 이름은 필수입니다.', 'err')
+    return
+  }
+
+  const payload: any = {
+    machineNo,
+    machineName,
+    description:         g('description'),
+    maxWidth:            g('maxWidth')            ? Number(g('maxWidth'))            : 0,
+    minWidth:            g('minWidth')            ? Number(g('minWidth'))            : 0,
+    maxPok:              g('maxPok')              ? Number(g('maxPok'))              : 4,
+    fourPokMinWidth:     g('fourPokMinWidth')     ? Number(g('fourPokMinWidth'))     : null,
+    mimi:                g('mimi')                ? Number(g('mimi'))                : 30,
+    noProdLimit:         g('noProdLimit')         ? Number(g('noProdLimit'))         : 625,
+    bwExceptionList:     g('bwExceptionList'),
+    bwExceptionMaxWidth: g('bwExceptionMaxWidth') ? Number(g('bwExceptionMaxWidth')): null,
+    note:                (document.getElementById('mf-note') as HTMLTextAreaElement).value.trim(),
+  }
+
+  const saveBtn = document.getElementById('machine-save-btn') as HTMLButtonElement
+  saveBtn.disabled = true
+
+  try {
+    let res: Response
+    if (_machineEditId === null) {
+      res = await fetch('/klean-aps-api/machines', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+    } else {
+      res = await fetch('/klean-aps-api/machines/' + _machineEditId, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+    }
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+    closeMachineModal()
+    await loadMachine()
+    toast(_machineEditId === null ? '기계가 추가되었습니다.' : '기계 정보가 수정되었습니다.', 'ok')
+  } catch(e:any) {
+    toast('저장 실패: ' + e.message, 'err')
+  } finally {
+    saveBtn.disabled = false
+  }
+}
+
+// ── 삭제 확인 모달 ──
+let _machineDelId: number | null = null
+
+async function openMachineDelModal(id: number) {
+  _machineDelId = id
+  try {
+    const res  = await fetch('/klean-aps-api/machines')
+    const json = await res.json()
+    const m    = json.data.find((x: any) => x.machineId === id)
+    const msg  = document.getElementById('machine-del-msg') as HTMLElement
+    if (m) msg.innerHTML = \`<b>\${m.machineName}(\${m.machineNo}호기)</b> 를 삭제하시겠습니까?<br><span style="color:#f87171;font-size:11px;">삭제된 기계 정보는 복구할 수 없습니다.</span>\`
+    else msg.textContent = '이 기계를 삭제하시겠습니까?'
+  } catch { /* ignore */ }
+  const modal = document.getElementById('modal-machine-del') as HTMLElement
+  modal.style.display = 'flex'
+}
+
+function closeMachineDelModal() {
+  const modal = document.getElementById('modal-machine-del') as HTMLElement
+  modal.style.display = 'none'
+  _machineDelId = null
+}
+
+async function confirmDeleteMachine() {
+  if (_machineDelId === null) return
+  const btn = document.getElementById('machine-del-confirm-btn') as HTMLButtonElement
+  btn.disabled = true
+  try {
+    const res  = await fetch('/klean-aps-api/machines/' + _machineDelId, { method:'DELETE' })
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+    closeMachineDelModal()
+    await loadMachine()
+    toast('기계가 삭제되었습니다.', 'ok')
+  } catch(e:any) {
+    toast('삭제 실패: ' + e.message, 'err')
+  } finally {
+    btn.disabled = false
+  }
 }
 
 /* ══════════════════════════════════════
