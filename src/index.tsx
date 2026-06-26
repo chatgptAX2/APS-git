@@ -745,6 +745,221 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 @media(max-width:1200px){.search-grid{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:900px) {.search-grid{grid-template-columns:repeat(2,1fr);}}
 
+/* ════════════════════════════════
+   Toss 스타일 폼 컴포넌트
+════════════════════════════════ */
+
+/* 섹션 카드 패딩 표준화 */
+.section-card { padding: 0; overflow: hidden; }
+
+/* 섹션 타이틀 */
+.section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700;
+  color: var(--text-muted);
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  letter-spacing: -0.01em;
+}
+.section-title i { font-size: 12px; opacity: .8; }
+
+/* 섹션 바디 */
+.section-body { padding: 16px 20px 18px; }
+
+/* 폼 레이블 */
+.form-label {
+  display: block;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-subtle);
+  margin-bottom: 5px;
+  letter-spacing: -0.01em;
+}
+
+/* 폼 인풋 */
+.form-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+  outline: none;
+  transition: border-color .12s, box-shadow .12s, background .25s;
+  font-family: inherit;
+}
+.form-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+.form-input[type=number] { font-family: 'Courier New', monospace; }
+
+/* 폼 셀렉트 */
+.form-select {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+  outline: none;
+  cursor: pointer;
+  transition: border-color .12s, box-shadow .12s, background .25s;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.form-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+.form-select option { background: var(--bg-select-opt); }
+
+/* 폼 그룹 (레이블 + 인풋 묶음) */
+.form-group { display: flex; flex-direction: column; }
+
+/* 폼 힌트 텍스트 */
+.form-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* 보조 버튼 */
+.btn-secondary {
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+}
+.btn-secondary:hover {
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+/* ── 제약조건 설정 전용 스타일 ── */
+.constraint-machine-block {
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.constraint-machine-block:hover { border-color: var(--border-strong); }
+.constraint-machine-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.constraint-machine-header .machine-badge { font-size: 12px; padding: 3px 10px; }
+.constraint-machine-title { font-size: 13px; font-weight: 700; color: var(--text-main); }
+.constraint-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.constraint-field-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* ── 시뮬레이션 전용 스타일 ── */
+.sim-btn-group {
+  display: flex; gap: 6px; align-items: center;
+}
+.sim-action-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 8px;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; border: none;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.sim-action-btn:disabled { opacity: .35; cursor: not-allowed; }
+.sab-generate  { background: #7c3aed; color: #fff; }
+.sab-generate:hover:not(:disabled)  { background: #6d28d9; }
+.sab-confirm   { background: #059669; color: #fff; }
+.sab-confirm:hover:not(:disabled)   { background: #047857; }
+.sab-unconfirm { background: #d97706; color: #fff; }
+.sab-unconfirm:hover:not(:disabled) { background: #b45309; }
+.sab-order     { background: #2563eb; color: #fff; }
+.sab-order:hover:not(:disabled)     { background: #1d4ed8; }
+
+/* 조합 카드 */
+.combo-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  transition: border-color .12s;
+}
+.combo-card:hover { border-color: var(--border-strong); }
+.combo-card-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-input);
+  border-bottom: 1px solid var(--border);
+}
+.combo-card-body { padding: 12px 16px 0; }
+.combo-width-bar {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-bottom: 10px; align-items: center;
+}
+.combo-width-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 4px 10px;
+  background: var(--bg-raised);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px; font-weight: 700;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+}
+.combo-sep {
+  font-size: 10px; color: var(--border-strong);
+  font-weight: 400;
+}
+
+/* 기계 마스터 스펙 테이블 */
+.spec-table { width: 100%; border-collapse: collapse; }
+.spec-table tr { border-bottom: 1px solid var(--td-border); }
+.spec-table tr:last-child { border-bottom: none; }
+.spec-table td { padding: 9px 0; font-size: 13px; vertical-align: middle; }
+.spec-table td:first-child {
+  color: var(--text-subtle); font-size: 12px; width: 48%;
+}
+.spec-table td:last-child { font-weight: 600; color: var(--text-main); }
+
+/* 재고 우선순위 행 */
+.stock-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  transition: border-color .12s;
+}
+.stock-row:hover { border-color: var(--border); }
+.stock-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; flex-shrink: 0;
+  color: #000;
+}
+.stock-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); flex: 1; }
+
+/* 예외오더 분리 체크박스 행 */
+.excl-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  background: var(--bg-input);
+  border-radius: 7px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+  transition: border-color .12s, background .12s;
+  user-select: none;
+}
+.excl-row:hover { border-color: var(--border); }
+
 /* ── 대시보드 그리드 ── */
 .dash-grid{
   display:grid;
@@ -1490,126 +1705,126 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
      기계 마스터
 ══════════════════════════════════════════ -->
 <div id="page-machine" style="display:none;height:100%;flex-direction:column;">
-  <div class="page-header">
-    <div class="page-title"><i class="fas fa-cog" style="color:#34d399;"></i>기계 마스터</div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-sm btn-secondary" onclick="loadMachine()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--border);">
+    <div>
+      <div class="page-title"><i class="fas fa-cog" style="color:#34d399;"></i>기계 마스터</div>
+      <div class="page-sub">생산 호기별 지폭 규정 및 운영 기준</div>
     </div>
+    <button class="btn btn-sm btn-secondary" onclick="loadMachine()"><i class="fas fa-sync-alt"></i> 새로고침</button>
   </div>
   <div class="page-scroll">
-    <!-- 기계 카드 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+
+    <!-- 기계 카드 2열 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
 
       <!-- 2호기 -->
       <div class="section-card">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-          <span class="machine-badge" style="font-size:15px;padding:6px 14px;">2호기</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:var(--text-main);">2호기 (Paper Machine #2)</div>
-            <div style="font-size:12px;color:var(--text-muted);">크라프트 / 골판지 원지 생산</div>
-          </div>
+        <div class="section-title">
+          <span class="machine-badge" style="padding:3px 10px;font-size:12px;">2호기</span>
+          <span>Paper Machine #2</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text-faint);margin-left:auto;">크라프트 / 골판지 원지</span>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <colgroup><col style="width:45%"><col></colgroup>
-          <tbody>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 지폭</td><td style="font-weight:700;color:#34d399;">2,520 mm</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">최소 지폭</td><td style="font-weight:700;color:#f87171;">2,400 mm</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 폭수</td><td style="font-weight:700;">최대 4폭</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">4폭 추가조건</td><td style="font-size:12px;color:var(--text-main);">1폭은 반드시 <span style="color:#f59e0b;font-weight:700;">630mm 이상</span></td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">배폭 미미</td><td style="font-weight:700;color:#a78bfa;">30mm</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">생산 불가 조건</td><td style="font-size:12px;color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">평량 예외</td><td style="font-size:12px;color:var(--text-muted);">-</td></tr>
-          </tbody>
-        </table>
-        <div style="margin-top:14px;padding:10px;background:var(--bg-input);border-radius:6px;font-size:11px;color:var(--text-muted);">
-          <i class="fas fa-info-circle" style="color:#60a5fa;margin-right:4px;"></i>
-          620×4폭 불가 / 620×3 + 640×1 가능 (4폭 시 1폭 630mm 이상 필수)
+        <div class="section-body">
+          <table class="spec-table">
+            <tr><td>최대 지폭</td><td style="color:#34d399;">2,520 mm</td></tr>
+            <tr><td>최소 지폭</td><td style="color:#f87171;">2,400 mm</td></tr>
+            <tr><td>최대 폭수</td><td>4폭</td></tr>
+            <tr><td>4폭 추가조건</td><td>1폭 반드시 <span style="color:#f59e0b;">630mm 이상</span></td></tr>
+            <tr><td>배폭 미미</td><td style="color:#a78bfa;">30 mm</td></tr>
+            <tr><td>생산 불가 조건</td><td style="color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
+            <tr><td>평량 예외</td><td style="color:var(--text-faint);">없음</td></tr>
+          </table>
+          <div style="margin-top:12px;padding:10px 12px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;">
+            <i class="fas fa-lightbulb" style="color:#f59e0b;margin-right:5px;"></i>
+            620×4폭 불가 &nbsp;/&nbsp; 620×3 + 640×1 가능
+          </div>
         </div>
       </div>
 
       <!-- 3호기 -->
       <div class="section-card">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-          <span class="machine-badge" style="font-size:15px;padding:6px 14px;">3호기</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:var(--text-main);">3호기 (Paper Machine #3)</div>
-            <div style="font-size:12px;color:var(--text-muted);">크라프트 / 중량지 / 특수지 생산</div>
+        <div class="section-title">
+          <span class="machine-badge" style="padding:3px 10px;font-size:12px;">3호기</span>
+          <span>Paper Machine #3</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text-faint);margin-left:auto;">크라프트 / 중량지 / 특수지</span>
+        </div>
+        <div class="section-body">
+          <table class="spec-table">
+            <tr><td>최대 지폭</td><td style="color:#34d399;">3,420 mm</td></tr>
+            <tr><td>최소 지폭</td><td style="color:#f87171;">3,300 mm</td></tr>
+            <tr><td>최대 폭수</td><td>4폭</td></tr>
+            <tr><td>4폭 추가조건</td><td style="color:var(--text-faint);">해당 없음</td></tr>
+            <tr><td>배폭 미미</td><td style="color:#a78bfa;">30 mm</td></tr>
+            <tr><td>생산 불가 조건</td><td style="color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
+            <tr><td>평량 예외</td><td style="color:#f59e0b;">300/500/550g/m² → 최대 3,410mm</td></tr>
+          </table>
+          <div style="margin-top:12px;padding:10px 12px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;">
+            <i class="fas fa-lightbulb" style="color:#f59e0b;margin-right:5px;"></i>
+            300/500/550g/m² 평량은 최대지폭 <b>3,410mm</b> 적용
           </div>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <colgroup><col style="width:45%"><col></colgroup>
-          <tbody>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 지폭</td><td style="font-weight:700;color:#34d399;">3,420 mm</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">최소 지폭</td><td style="font-weight:700;color:#f87171;">3,300 mm</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 폭수</td><td style="font-weight:700;">최대 4폭</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">4폭 추가조건</td><td style="font-size:12px;color:var(--text-muted);">해당 없음</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">배폭 미미</td><td style="font-weight:700;color:#a78bfa;">30mm</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">생산 불가 조건</td><td style="font-size:12px;color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
-            <tr><td style="padding:6px 0;color:var(--text-muted);">평량 예외</td><td style="font-size:12px;color:#f59e0b;">300/500/550g㎡ → 최대 3,410mm</td></tr>
-          </tbody>
-        </table>
-        <div style="margin-top:14px;padding:10px;background:var(--bg-input);border-radius:6px;font-size:11px;color:var(--text-muted);">
-          <i class="fas fa-info-circle" style="color:#60a5fa;margin-right:4px;"></i>
-          300/500/550g/m² 평량은 최대지폭 3,410mm 적용 (3,420mm 아님)
-        </div>
       </div>
     </div>
 
-    <!-- 공통 규정 -->
-    <div class="section-card">
-      <div class="section-title"><i class="fas fa-book-open" style="color:#f59e0b;"></i>공통 규정</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
-        <div style="background:var(--bg-input);border-radius:8px;padding:14px;text-align:center;">
-          <div style="font-size:22px;font-weight:800;color:#34d399;">3 TON</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">MOQ (규격당 최소 주문)</div>
-        </div>
-        <div style="background:var(--bg-input);border-radius:8px;padding:14px;text-align:center;">
-          <div style="font-size:22px;font-weight:800;color:#a78bfa;">1.5 TON</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">동일규격·포장만 다를 시</div>
-        </div>
-        <div style="background:var(--bg-input);border-radius:8px;padding:14px;text-align:center;">
-          <div style="font-size:22px;font-weight:800;color:#60a5fa;">30 mm</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">배폭 생산 시 미미</div>
+    <!-- 공통 규정 + 자재코드 2열 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+      <!-- 공통 규정 -->
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-book-open" style="color:#f59e0b;"></i>공통 규정</div>
+        <div class="section-body" style="padding-bottom:0;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:20px;font-weight:800;color:#34d399;line-height:1;">3 TON</div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">규격당 MOQ</div>
+            </div>
+            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:20px;font-weight:800;color:#a78bfa;line-height:1;">1.5 TON</div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">동일규격 포장 다를 시</div>
+            </div>
+            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:20px;font-weight:800;color:#60a5fa;line-height:1;">30 mm</div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">배폭 생산 시 미미</div>
+            </div>
+          </div>
+          <table class="data-table" style="font-size:12px;margin-bottom:2px;">
+            <thead><tr><th>항목</th><th>기준</th><th>비고</th></tr></thead>
+            <tbody>
+              <tr><td>545mm 미만</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 불가</span></td><td style="color:var(--text-faint);">배폭 필수</td></tr>
+              <tr><td>889mm 초과</td><td><span class="badge b-cancel" style="font-size:10px;">2폭 불가</span></td><td style="color:var(--text-faint);">-</td></tr>
+              <tr><td>889mm 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭</td><td style="color:var(--text-faint);">-</td></tr>
+              <tr><td>원지 비중</td><td><span class="badge b-open" style="font-size:10px;">60% 이상</span></td><td style="color:var(--text-faint);">미만 시 외주 컷팅</td></tr>
+              <tr><td>두폭 비중</td><td><span class="badge b-assigned" style="font-size:10px;">30% 이상</span></td><td style="color:var(--text-faint);">조합 진행 가능</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
-      <table class="data-table" style="font-size:12px;">
-        <thead><tr><th>항목</th><th>기준</th><th>비고</th></tr></thead>
-        <tbody>
-          <tr><td>545mm 미만 폭</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 생산 불가</span></td><td style="color:var(--text-muted);">배폭 필수</td></tr>
-          <tr><td>889mm 초과 폭</td><td><span class="badge b-cancel" style="font-size:10px;">2폭 생산 불가</span></td><td style="color:var(--text-muted);">-</td></tr>
-          <tr><td>889mm 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭 가능</td><td style="color:var(--text-muted);">-</td></tr>
-          <tr><td>재고 우선순위</td><td style="font-size:11px;">밀롤창고 → 공장 시트 장기재고 → 신규 생산</td><td style="color:var(--text-muted);">신규 생산 최후 수단</td></tr>
-          <tr><td>동일 평량 원칙</td><td style="color:var(--text-muted);">상이 평량 혼합 불가</td><td style="color:var(--text-muted);">동일 조건 중심 조합</td></tr>
-          <tr><td>원지 비중</td><td><span class="badge b-open" style="font-size:10px;">60% 이상</span></td><td style="color:var(--text-muted);">미만 시 밀롤 생산 후 외주 컷팅</td></tr>
-          <tr><td>두폭 비중</td><td><span class="badge b-assigned" style="font-size:10px;">30% 이상</span></td><td style="color:var(--text-muted);">지폭조합 진행 가능</td></tr>
-        </tbody>
-      </table>
-    </div>
 
-    <!-- 자재코드 해독 규칙 -->
-    <div class="section-card">
-      <div class="section-title"><i class="fas fa-barcode" style="color:#60a5fa;"></i>자재코드 해독 규칙</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
-        <table class="data-table" style="font-size:12px;">
-          <thead><tr><th>위치</th><th>의미</th><th>값</th></tr></thead>
-          <tbody>
-            <tr><td style="font-family:monospace;color:#a78bfa;">LEFT(1)</td><td>품목유형</td><td><span style="color:#34d399;">F</span>=제품 / <span style="color:#f59e0b;">H</span>=반제품</td></tr>
-            <tr><td style="font-family:monospace;color:#a78bfa;">MID(2,1)</td><td>생산호기</td><td>1=1호기 / 2=2호기 / 3=3호기</td></tr>
-            <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=Sheet속포장 / B=Sheet벌크 / Null=Roll</td></tr>
-            <tr><td style="font-family:monospace;color:#a78bfa;">MID(6,3)</td><td>평량</td><td>g/m²</td></tr>
-            <tr><td style="font-family:monospace;color:#a78bfa;">MID(10,4)</td><td>지폭</td><td>mm</td></tr>
-            <tr><td style="font-family:monospace;color:#a78bfa;">MID(14,4)</td><td>지장</td><td>mm</td></tr>
-          </tbody>
-        </table>
-        <div style="background:var(--bg-input);border-radius:8px;padding:14px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-main);margin-bottom:10px;"><i class="fas fa-lightbulb" style="color:#f59e0b;"></i> 자재코드 예시</div>
-          <div style="font-family:monospace;font-size:13px;letter-spacing:1px;color:#60a5fa;margin-bottom:8px;">F2____220_0800____B</div>
-          <div style="font-size:11px;color:var(--text-muted);line-height:1.8;">
-            F → 제품<br>
-            2 → 2호기<br>
-            220 → 평량 220g/m²<br>
-            0800 → 지폭 800mm<br>
-            B → Sheet 벌크포장
+      <!-- 자재코드 해독 -->
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-barcode" style="color:#60a5fa;"></i>자재코드 해독 규칙</div>
+        <div class="section-body">
+          <table class="data-table" style="font-size:12px;margin-bottom:14px;">
+            <thead><tr><th>위치</th><th>의미</th><th>값</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:monospace;color:#a78bfa;">LEFT(1)</td><td>품목유형</td><td><span style="color:#34d399;">F</span>=제품 / <span style="color:#f59e0b;">H</span>=반제품</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(2,1)</td><td>생산호기</td><td>1=1호기 / 2=2호기 / 3=3호기</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=속포장 / B=벌크 / Null=Roll</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(6,3)</td><td>평량</td><td>g/m²</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(10,4)</td><td>지폭</td><td>mm</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(14,4)</td><td>지장</td><td>mm</td></tr>
+            </tbody>
+          </table>
+          <div style="padding:14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">예시</div>
+            <div style="font-family:monospace;font-size:14px;color:#60a5fa;letter-spacing:2px;margin-bottom:10px;">F2____220_0800____B</div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#34d399;font-family:monospace;min-width:28px;">F</span><span style="color:var(--text-muted);">제품</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#60a5fa;font-family:monospace;min-width:28px;">2</span><span style="color:var(--text-muted);">2호기</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#a78bfa;font-family:monospace;min-width:28px;">220</span><span style="color:var(--text-muted);">평량 220g/m²</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f59e0b;font-family:monospace;min-width:28px;">0800</span><span style="color:var(--text-muted);">지폭 800mm</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f87171;font-family:monospace;min-width:28px;">B</span><span style="color:var(--text-muted);">Sheet 벌크포장</span></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1621,8 +1836,11 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
      제약조건 설정
 ══════════════════════════════════════════ -->
 <div id="page-constraint" style="display:none;height:100%;flex-direction:column;">
-  <div class="page-header">
-    <div class="page-title"><i class="fas fa-sliders-h" style="color:#f59e0b;"></i>제약조건 설정</div>
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--border);">
+    <div>
+      <div class="page-title"><i class="fas fa-sliders-h" style="color:#f59e0b;"></i>제약조건 설정</div>
+      <div class="page-sub">지폭조합 시뮬레이션에 적용되는 기준값을 설정합니다</div>
+    </div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-sm btn-secondary" onclick="resetConstraints()"><i class="fas fa-undo"></i> 기본값 복원</button>
       <button class="btn btn-sm btn-primary" onclick="saveConstraints()"><i class="fas fa-save"></i> 저장</button>
@@ -1630,178 +1848,184 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   </div>
   <div class="page-scroll">
 
-    <!-- 저장 완료 배너 -->
-    <div id="constraint-save-banner" style="display:none;margin-bottom:12px;padding:10px 16px;border-radius:8px;background:transparent;border:1px solid #34d399;color:#16a34a;font-size:13px;">
+    <div id="constraint-save-banner" style="display:none;margin-bottom:12px;padding:10px 16px;border-radius:8px;border:1px solid #34d399;color:#16a34a;font-size:13px;align-items:center;gap:8px;">
       <i class="fas fa-check-circle"></i> 제약조건이 저장되었습니다.
     </div>
 
     <!-- 기계별 지폭 규정 -->
     <div class="section-card">
       <div class="section-title"><i class="fas fa-ruler-horizontal" style="color:#60a5fa;"></i>기계별 지폭 규정</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <!-- 2호기 -->
-        <div style="background:var(--bg-input);border-radius:8px;padding:14px;">
-          <div style="font-weight:700;color:var(--text-main);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-            <span class="machine-badge">2호기</span> 지폭 규정
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <label class="form-label">최대 지폭 (mm)</label>
-              <input type="number" class="form-input" id="c-m2-max" value="2520" min="0" max="9999">
+      <div class="section-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="constraint-machine-block">
+            <div class="constraint-machine-header">
+              <span class="machine-badge constraint-machine-badge">2호기</span>
+              <span class="constraint-machine-title">지폭 규정</span>
             </div>
-            <div>
-              <label class="form-label">최소 지폭 (mm)</label>
-              <input type="number" class="form-input" id="c-m2-min" value="2400" min="0" max="9999">
-            </div>
-            <div>
-              <label class="form-label">최대 폭수</label>
-              <input type="number" class="form-input" id="c-m2-maxpok" value="4" min="1" max="8">
-            </div>
-            <div>
-              <label class="form-label">4폭 최소 1폭 크기 (mm)</label>
-              <input type="number" class="form-input" id="c-m2-4pok-min" value="630" min="0" max="9999">
-            </div>
-          </div>
-        </div>
-        <!-- 3호기 -->
-        <div style="background:var(--bg-input);border-radius:8px;padding:14px;">
-          <div style="font-weight:700;color:var(--text-main);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-            <span class="machine-badge">3호기</span> 지폭 규정
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <label class="form-label">최대 지폭 (mm)</label>
-              <input type="number" class="form-input" id="c-m3-max" value="3420" min="0" max="9999">
-            </div>
-            <div>
-              <label class="form-label">최소 지폭 (mm)</label>
-              <input type="number" class="form-input" id="c-m3-min" value="3300" min="0" max="9999">
-            </div>
-            <div>
-              <label class="form-label">최대 폭수</label>
-              <input type="number" class="form-input" id="c-m3-maxpok" value="4" min="1" max="8">
-            </div>
-            <div>
-              <label class="form-label">평량 예외 최대지폭 (mm)</label>
-              <input type="number" class="form-input" id="c-m3-exc-max" value="3410" min="0" max="9999">
+            <div class="constraint-field-grid">
+              <div class="form-group">
+                <label class="form-label">최대 지폭 (mm)</label>
+                <input type="number" class="form-input" id="c-m2-max" value="2520" min="0" max="9999">
+              </div>
+              <div class="form-group">
+                <label class="form-label">최소 지폭 (mm)</label>
+                <input type="number" class="form-input" id="c-m2-min" value="2400" min="0" max="9999">
+              </div>
+              <div class="form-group">
+                <label class="form-label">최대 폭수</label>
+                <input type="number" class="form-input" id="c-m2-maxpok" value="4" min="1" max="8">
+              </div>
+              <div class="form-group">
+                <label class="form-label">4폭 시 최소 1폭 크기 (mm)</label>
+                <input type="number" class="form-input" id="c-m2-4pok-min" value="630" min="0" max="9999">
+              </div>
             </div>
           </div>
-          <div style="margin-top:10px;">
-            <label class="form-label">평량 예외 적용 평량 (쉼표 구분, g/m²)</label>
-            <input type="text" class="form-input" id="c-m3-exc-bw" value="300,500,550" placeholder="예: 300,500,550">
+          <div class="constraint-machine-block">
+            <div class="constraint-machine-header">
+              <span class="machine-badge constraint-machine-badge">3호기</span>
+              <span class="constraint-machine-title">지폭 규정</span>
+            </div>
+            <div class="constraint-field-grid">
+              <div class="form-group">
+                <label class="form-label">최대 지폭 (mm)</label>
+                <input type="number" class="form-input" id="c-m3-max" value="3420" min="0" max="9999">
+              </div>
+              <div class="form-group">
+                <label class="form-label">최소 지폭 (mm)</label>
+                <input type="number" class="form-input" id="c-m3-min" value="3300" min="0" max="9999">
+              </div>
+              <div class="form-group">
+                <label class="form-label">최대 폭수</label>
+                <input type="number" class="form-input" id="c-m3-maxpok" value="4" min="1" max="8">
+              </div>
+              <div class="form-group">
+                <label class="form-label">평량 예외 최대지폭 (mm)</label>
+                <input type="number" class="form-input" id="c-m3-exc-max" value="3410" min="0" max="9999">
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:12px;">
+              <label class="form-label">예외 적용 평량 (쉼표 구분, g/m²)</label>
+              <input type="text" class="form-input" id="c-m3-exc-bw" value="300,500,550" placeholder="예: 300,500,550">
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 배폭/폭수 규정 -->
-    <div class="section-card">
-      <div class="section-title"><i class="fas fa-expand-arrows-alt" style="color:#a78bfa;"></i>배폭 · 폭수 규정</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
-        <div>
-          <label class="form-label">배폭 미미 (mm)</label>
-          <input type="number" class="form-input" id="c-mimi" value="30" min="0" max="100">
+    <!-- 배폭·폭수 규정 + MOQ 나란히 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-expand-arrows-alt" style="color:#a78bfa;"></i>배폭 · 폭수 규정</div>
+        <div class="section-body">
+          <div class="constraint-field-grid" style="margin-bottom:12px;">
+            <div class="form-group">
+              <label class="form-label">배폭 미미 (mm)</label>
+              <input type="number" class="form-input" id="c-mimi" value="30" min="0" max="100">
+            </div>
+            <div class="form-group">
+              <label class="form-label">생산 불가 기준 (mm 이하)</label>
+              <input type="number" class="form-input" id="c-noprod-limit" value="625" min="0" max="9999">
+              <span class="form-hint">밀롤 크기가 이 값 이하만 있으면 생산 불가</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">545mm 미만 처리</label>
+              <select class="form-select" id="c-545-rule">
+                <option value="double">배폭 필수</option>
+                <option value="reject">생산 불가</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">889mm 초과 처리</label>
+              <select class="form-select" id="c-889-rule">
+                <option value="single">1폭만 가능</option>
+                <option value="reject">생산 불가</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">889mm 2폭 배폭 허용 기준 (TON 이하)</label>
+            <input type="number" class="form-input" id="c-889-double-limit" value="5" min="0" max="999" style="max-width:160px;">
+          </div>
         </div>
-        <div>
-          <label class="form-label">생산 불가 기준 (mm 이하)</label>
-          <input type="number" class="form-input" id="c-noprod-limit" value="625" min="0" max="9999">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">밀롤 크기가 이 값 이하만 있는 경우 생산 불가</div>
-        </div>
-        <div>
-          <label class="form-label">545mm 미만 처리</label>
-          <select class="form-select" id="c-545-rule">
-            <option value="double">배폭 필수</option>
-            <option value="reject">생산 불가</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">889mm 초과 처리</label>
-          <select class="form-select" id="c-889-rule">
-            <option value="single">1폭만 가능</option>
-            <option value="reject">생산 불가</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">889mm 2폭 배폭 허용 (TON 이하)</label>
-          <input type="number" class="form-input" id="c-889-double-limit" value="5" min="0" max="999">
+      </div>
+
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-boxes" style="color:#34d399;"></i>MOQ · 오더취합 규정</div>
+        <div class="section-body">
+          <div class="constraint-field-grid" style="margin-bottom:12px;">
+            <div class="form-group">
+              <label class="form-label">규격당 MOQ (TON)</label>
+              <input type="number" class="form-input" id="c-moq" value="3" min="0" step="0.5">
+            </div>
+            <div class="form-group">
+              <label class="form-label">동일규격 포장 다를 시 (TON)</label>
+              <input type="number" class="form-input" id="c-moq-same" value="1.5" min="0" step="0.5">
+            </div>
+            <div class="form-group">
+              <label class="form-label">원지 비중 최소 (%)</label>
+              <input type="number" class="form-input" id="c-wj-ratio" value="60" min="0" max="100">
+              <span class="form-hint">미만 시 밀롤 생산 후 외주 컷팅</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">두폭 비중 최소 (%)</label>
+              <input type="number" class="form-input" id="c-dpok-ratio" value="30" min="0" max="100">
+              <span class="form-hint">이상 시 지폭조합 진행 가능</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">원지 구분</label>
+            <select class="form-select" id="c-wj-separate" style="max-width:240px;">
+              <option value="yes">원지 / 시트 분리 조합</option>
+              <option value="no">혼합 허용</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- MOQ 및 오더취합 규정 -->
-    <div class="section-card">
-      <div class="section-title"><i class="fas fa-boxes" style="color:#34d399;"></i>MOQ · 오더취합 규정</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
-        <div>
-          <label class="form-label">규격당 MOQ (TON)</label>
-          <input type="number" class="form-input" id="c-moq" value="3" min="0" step="0.5">
-        </div>
-        <div>
-          <label class="form-label">동일규격 포장 다를 시 MOQ (TON)</label>
-          <input type="number" class="form-input" id="c-moq-same" value="1.5" min="0" step="0.5">
-        </div>
-        <div>
-          <label class="form-label">원지 비중 최소 (%)</label>
-          <input type="number" class="form-input" id="c-wj-ratio" value="60" min="0" max="100">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">미만 시 밀롤 생산 후 외주 컷팅</div>
-        </div>
-        <div>
-          <label class="form-label">두폭 비중 최소 (%)</label>
-          <input type="number" class="form-input" id="c-dpok-ratio" value="30" min="0" max="100">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">이상 시 지폭조합 진행 가능</div>
-        </div>
-        <div>
-          <label class="form-label">원지 구분</label>
-          <select class="form-select" id="c-wj-separate">
-            <option value="yes">원지/시트 분리 조합</option>
-            <option value="no">혼합 허용</option>
-          </select>
-        </div>
-      </div>
-    </div>
+    <!-- 예외 오더 + 재고 우선순위 나란히 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
 
-    <!-- 예외 오더 분리 규정 -->
-    <div class="section-card">
-      <div class="section-title"><i class="fas fa-exclamation-triangle" style="color:#f87171;"></i>예외 오더 분리 규정</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">시뮬레이션 시 아래 유형은 일반 오더와 자동 분리됩니다.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-          <input type="checkbox" id="c-exc-japan" checked> <span>일본 수출</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-          <input type="checkbox" id="c-exc-special" checked> <span>특수지</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-          <input type="checkbox" id="c-exc-flagged" checked> <span>예외처리 플래그 오더</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-          <input type="checkbox" id="c-exc-phil"> <span>필리핀 450G</span>
-        </label>
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-exclamation-triangle" style="color:#f87171;"></i>예외 오더 분리 규정</div>
+        <div class="section-body">
+          <div style="font-size:12px;color:var(--text-faint);margin-bottom:12px;">시뮬레이션 시 아래 유형은 일반 오더와 자동 분리됩니다.</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+            <label class="excl-row"><input type="checkbox" id="c-exc-japan" checked> 일본 수출</label>
+            <label class="excl-row"><input type="checkbox" id="c-exc-special" checked> 특수지</label>
+            <label class="excl-row"><input type="checkbox" id="c-exc-flagged" checked> 예외처리 플래그 오더</label>
+            <label class="excl-row"><input type="checkbox" id="c-exc-phil"> 필리핀 450G</label>
+          </div>
+          <div class="form-group">
+            <label class="form-label">추가 예외 거래처 코드 (쉼표 구분)</label>
+            <input type="text" class="form-input" id="c-exc-customers" placeholder="예: C005,C011">
+          </div>
+        </div>
       </div>
-      <div style="margin-top:12px;">
-        <label class="form-label">추가 예외 거래처 코드 (쉼표 구분)</label>
-        <input type="text" class="form-input" id="c-exc-customers" placeholder="예: C005,C011" style="max-width:400px;">
-      </div>
-    </div>
 
-    <!-- 재고 우선순위 -->
-    <div class="section-card">
-      <div class="section-title"><i class="fas fa-warehouse" style="color:#60a5fa;"></i>재고 우선순위</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:6px;">
-          <span style="background:#34d399;color:#000;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">1</span>
-          <span style="font-size:13px;">밀롤창고 재고 활용</span>
-          <input type="checkbox" id="c-stock-millroll" checked style="margin-left:auto;">
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:6px;">
-          <span style="background:#60a5fa;color:#000;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">2</span>
-          <span style="font-size:13px;">공장 시트 장기재고 재단</span>
-          <input type="checkbox" id="c-stock-sheet" checked style="margin-left:auto;">
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:6px;">
-          <span style="background:#a78bfa;color:#000;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">3</span>
-          <span style="font-size:13px;">신규 생산</span>
-          <input type="checkbox" id="c-stock-new" checked style="margin-left:auto;">
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-warehouse" style="color:#60a5fa;"></i>재고 우선순위</div>
+        <div class="section-body">
+          <div style="font-size:12px;color:var(--text-faint);margin-bottom:12px;">신규 생산 전 재고를 먼저 검토하는 순서입니다.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="stock-row">
+              <span class="stock-num" style="background:#34d399;">1</span>
+              <span class="stock-label">밀롤창고 재고 활용</span>
+              <input type="checkbox" id="c-stock-millroll" checked>
+            </div>
+            <div class="stock-row">
+              <span class="stock-num" style="background:#60a5fa;">2</span>
+              <span class="stock-label">공장 시트 장기재고 재단</span>
+              <input type="checkbox" id="c-stock-sheet" checked>
+            </div>
+            <div class="stock-row">
+              <span class="stock-num" style="background:#a78bfa;">3</span>
+              <span class="stock-label">신규 생산</span>
+              <input type="checkbox" id="c-stock-new" checked>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1813,44 +2037,47 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
      지폭조합 시뮬레이션
 ══════════════════════════════════════════ -->
 <div id="page-simulation" style="display:none;height:100%;flex-direction:column;">
-  <div class="page-header">
-    <div class="page-title"><i class="fas fa-layer-group" style="color:#a78bfa;"></i>지폭조합 시뮬레이션</div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-sm" id="btn-sim-generate" onclick="simGenerate()"
-        style="background:linear-gradient(135deg,#6d28d9,#a78bfa);color:#fff;border:none;">
-        <i class="fas fa-magic"></i> 생성
-      </button>
-      <button class="btn btn-sm" id="btn-sim-confirm" onclick="simConfirm()" disabled
-        style="background:linear-gradient(135deg,#065f46,#34d399);color:#fff;border:none;opacity:0.4;">
-        <i class="fas fa-check-double"></i> 확정
-      </button>
-      <button class="btn btn-sm" id="btn-sim-unconfirm" onclick="simUnconfirm()" disabled
-        style="background:linear-gradient(135deg,#92400e,#f59e0b);color:#fff;border:none;opacity:0.4;">
-        <i class="fas fa-undo-alt"></i> 확정취소
-      </button>
-      <button class="btn btn-sm" id="btn-sim-order" onclick="simSendOrder()" disabled
-        style="background:linear-gradient(135deg,#1e3a5f,#60a5fa);color:#fff;border:none;opacity:0.4;">
-        <i class="fas fa-paper-plane"></i> 오더생성
-      </button>
+  <!-- 헤더: 타이틀 + 4버튼 -->
+  <div class="page-header" style="padding-bottom:14px;border-bottom:1px solid var(--border);">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div class="page-title"><i class="fas fa-layer-group" style="color:#a78bfa;"></i>지폭조합 시뮬레이션</div>
+        <div class="page-sub">오더를 선택하여 지폭조합을 생성하고 SAP 생산오더로 전달합니다</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="sim-action-btn sab-generate" id="btn-sim-generate" onclick="simGenerate()">
+          <i class="fas fa-magic"></i> 생성
+        </button>
+        <div style="width:1px;height:24px;background:var(--border);margin:0 2px;"></div>
+        <button class="sim-action-btn sab-confirm"   id="btn-sim-confirm"   onclick="simConfirm()"   disabled>
+          <i class="fas fa-check-double"></i> 확정
+        </button>
+        <button class="sim-action-btn sab-unconfirm" id="btn-sim-unconfirm" onclick="simUnconfirm()" disabled>
+          <i class="fas fa-undo-alt"></i> 확정취소
+        </button>
+        <div style="width:1px;height:24px;background:var(--border);margin:0 2px;"></div>
+        <button class="sim-action-btn sab-order"     id="btn-sim-order"     onclick="simSendOrder()" disabled>
+          <i class="fas fa-paper-plane"></i> 오더생성
+        </button>
+      </div>
+    </div>
+    <!-- 상태 표시줄 -->
+    <div id="sim-status-banner" style="margin-top:10px;padding:8px 14px;border-radius:7px;background:var(--bg-input);border:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-info-circle" style="color:#60a5fa;flex-shrink:0;"></i>
+      <span id="sim-status-text" style="color:var(--text-muted);">조회 조건을 설정하고 <b>생성</b> 버튼을 눌러 시뮬레이션을 시작하세요.</span>
+      <span id="sim-state-badge" style="margin-left:auto;flex-shrink:0;"></span>
     </div>
   </div>
+
   <div class="page-scroll">
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start;">
 
-    <!-- 상태 배너 -->
-    <div id="sim-status-banner" style="margin-bottom:12px;padding:10px 16px;border-radius:8px;background:transparent;border:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px;">
-      <i class="fas fa-info-circle" style="color:#60a5fa;"></i>
-      <span id="sim-status-text" style="color:var(--text-muted);">조회 조건을 설정하고 <b>생성</b> 버튼을 눌러 시뮬레이션을 시작하세요.</span>
-      <span id="sim-state-badge" style="margin-left:auto;"></span>
-    </div>
-
-    <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;">
-
-      <!-- 좌: 조회 조건 -->
+      <!-- 좌: 조회 조건 패널 -->
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="section-card">
           <div class="section-title"><i class="fas fa-search" style="color:#60a5fa;"></i>조회 조건</div>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div>
+          <div class="section-body" style="display:flex;flex-direction:column;gap:10px;">
+            <div class="form-group">
               <label class="form-label">호기</label>
               <select class="form-select" id="sim-machineNo">
                 <option value="">전체</option>
@@ -1858,7 +2085,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                 <option value="3">3호기</option>
               </select>
             </div>
-            <div>
+            <div class="form-group">
               <label class="form-label">평량 (g/m²)</label>
               <select class="form-select" id="sim-basisWeight">
                 <option value="">전체</option>
@@ -1868,31 +2095,28 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                 <option value="550">550</option>
               </select>
             </div>
-            <div>
+            <div class="form-group">
               <label class="form-label">납기일 From</label>
               <input type="date" class="form-input" id="sim-dueFrom">
             </div>
-            <div>
+            <div class="form-group">
               <label class="form-label">납기일 To</label>
               <input type="date" class="form-input" id="sim-dueTo">
             </div>
-            <div>
+            <div class="form-group">
               <label class="form-label">오더 상태</label>
               <select class="form-select" id="sim-orderStatus">
                 <option value="OPEN">OPEN</option>
                 <option value="">전체</option>
               </select>
             </div>
-            <div style="padding-top:4px;border-top:1px solid var(--border);">
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:6px;">
-                <input type="checkbox" id="sim-exc-japan" checked> 일본수출 분리
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:6px;">
-                <input type="checkbox" id="sim-exc-special" checked> 특수지 분리
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="sim-exc-flagged" checked> 예외 플래그 분리
-              </label>
+            <div style="padding-top:10px;border-top:1px solid var(--border);">
+              <div style="font-size:11px;font-weight:700;color:var(--text-subtle);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">예외 분리</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <label class="excl-row" style="padding:7px 10px;"><input type="checkbox" id="sim-exc-japan" checked> 일본수출 분리</label>
+                <label class="excl-row" style="padding:7px 10px;"><input type="checkbox" id="sim-exc-special" checked> 특수지 분리</label>
+                <label class="excl-row" style="padding:7px 10px;"><input type="checkbox" id="sim-exc-flagged" checked> 예외 플래그 분리</label>
+              </div>
             </div>
           </div>
         </div>
@@ -1900,62 +2124,67 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         <!-- 적용 제약조건 요약 -->
         <div class="section-card">
           <div class="section-title" style="font-size:12px;"><i class="fas fa-lock" style="color:#f59e0b;"></i>적용 제약조건</div>
-          <div id="sim-constraint-summary" style="font-size:11px;color:var(--text-muted);line-height:1.8;">
-            <div>2호기: 2,400 ~ 2,520mm / 최대4폭</div>
-            <div>3호기: 3,300 ~ 3,420mm / 최대4폭</div>
-            <div>배폭 미미: 30mm</div>
-            <div>MOQ: 3TON / 배폭예외: 1.5TON</div>
-            <div>원지비중: 60% 이상</div>
+          <div class="section-body" style="padding-top:10px;">
+            <div id="sim-constraint-summary" style="font-size:12px;color:var(--text-muted);line-height:2;display:flex;flex-direction:column;gap:1px;">
+              <div>2호기: 2,400 ~ 2,520mm / 최대4폭</div>
+              <div>3호기: 3,300 ~ 3,420mm / 최대4폭</div>
+              <div>배폭 미미: 30mm</div>
+              <div>MOQ: 3T / 동일규격: 1.5T</div>
+              <div>원지비중: 60% 이상</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- 우: 시뮬레이션 결과 영역 -->
+      <!-- 우: 메인 콘텐츠 -->
       <div style="display:flex;flex-direction:column;gap:12px;">
 
-        <!-- 오더 목록 (생성 전) -->
+        <!-- 대상 오더 목록 -->
         <div class="section-card" id="sim-order-panel">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div class="section-title" style="margin-bottom:0;"><i class="fas fa-list-ul" style="color:#60a5fa;"></i>대상 오더 목록</div>
-            <span id="sim-order-count" style="font-size:12px;color:var(--text-muted);">-</span>
+          <div class="section-title">
+            <i class="fas fa-list-ul" style="color:#60a5fa;"></i>대상 오더 목록
+            <span id="sim-order-count" class="count-badge" style="margin-left:8px;">-</span>
+            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;cursor:pointer;">
+              <input type="checkbox" id="sim-chk-all" onchange="simToggleAll(this.checked)"> 전체선택
+            </label>
           </div>
           <div style="overflow-x:auto;">
             <table class="data-table" style="font-size:12px;">
               <thead>
                 <tr>
-                  <th style="width:32px;"><input type="checkbox" id="sim-chk-all" onchange="simToggleAll(this.checked)"></th>
+                  <th style="width:32px;"></th>
                   <th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>납기일</th><th>유형</th><th>예외</th>
                 </tr>
               </thead>
               <tbody id="sim-order-tbody">
-                <tr><td colspan="10" class="empty-state">조건 설정 후 생성 버튼을 눌러주세요.</td></tr>
+                <tr><td colspan="10" class="empty-state">조회 조건을 설정하고 생성 버튼을 눌러주세요.</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- 조합 결과 (생성 후) -->
+        <!-- 조합 결과 -->
         <div class="section-card" id="sim-result-panel" style="display:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div class="section-title" style="margin-bottom:0;"><i class="fas fa-th" style="color:#a78bfa;"></i>지폭조합 결과</div>
-            <div style="display:flex;gap:8px;">
-              <span id="sim-result-count" style="font-size:12px;color:var(--text-muted);"></span>
+          <div class="section-title">
+            <i class="fas fa-th" style="color:#a78bfa;"></i>지폭조합 결과
+            <span id="sim-result-count" class="count-badge" style="margin-left:8px;"></span>
+          </div>
+          <div class="section-body" style="padding-bottom:6px;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+              <div class="stat-mini"><div class="sv" id="sr-total"  style="color:#a78bfa;">-</div><div class="sl">조합 수</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-orders" style="color:#60a5fa;">-</div><div class="sl">포함 오더</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-ton"    style="color:#34d399;">-</div><div class="sl">합계 TON</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-loss"   style="color:#f87171;">-</div><div class="sl">평균 Loss</div></div>
             </div>
+            <div id="sim-combo-list"></div>
           </div>
-          <!-- 요약 스탯 -->
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
-            <div class="stat-mini"><div class="sv" id="sr-total" style="color:#a78bfa;">-</div><div class="sl">조합 수</div></div>
-            <div class="stat-mini"><div class="sv" id="sr-orders" style="color:#60a5fa;">-</div><div class="sl">포함 오더</div></div>
-            <div class="stat-mini"><div class="sv" id="sr-ton" style="color:#34d399;">-</div><div class="sl">합계 TON</div></div>
-            <div class="stat-mini"><div class="sv" id="sr-loss" style="color:#f87171;">-</div><div class="sl">Loss율</div></div>
-          </div>
-          <!-- 조합 카드 목록 -->
-          <div id="sim-combo-list"></div>
         </div>
 
-        <!-- 예외 오더 (생성 후) -->
+        <!-- 분리된 예외 오더 -->
         <div class="section-card" id="sim-excl-panel" style="display:none;">
-          <div class="section-title" style="color:#f87171;"><i class="fas fa-exclamation-triangle" style="color:#f87171;"></i>분리된 예외 오더</div>
+          <div class="section-title" style="color:#f87171;">
+            <i class="fas fa-exclamation-triangle" style="color:#f87171;"></i>분리된 예외 오더
+          </div>
           <div style="overflow-x:auto;">
             <table class="data-table" style="font-size:12px;">
               <thead>
@@ -2796,29 +3025,29 @@ function setSimState(state) {
   const badge      = document.getElementById('sim-state-badge')
   const statusText = document.getElementById('sim-status-text')
 
-  const setBtn = (btn, enabled, opacity) => { if(btn){btn.disabled=!enabled; btn.style.opacity=opacity} }
+  const setBtn = (btn, enabled) => { if(btn) btn.disabled = !enabled }
 
   if (state === 'idle') {
-    setBtn(genBtn,    true,  '1')
-    setBtn(confBtn,   false, '0.4')
-    setBtn(unconfBtn, false, '0.4')
-    setBtn(orderBtn,  false, '0.4')
+    setBtn(genBtn,    true)
+    setBtn(confBtn,   false)
+    setBtn(unconfBtn, false)
+    setBtn(orderBtn,  false)
     if(badge) badge.innerHTML=''
     if(statusText) statusText.innerHTML='조회 조건을 설정하고 <b>생성</b> 버튼을 눌러 시뮬레이션을 시작하세요.'
   } else if (state === 'generated') {
-    setBtn(genBtn,    true,  '1')
-    setBtn(confBtn,   true,  '1')
-    setBtn(unconfBtn, false, '0.4')
-    setBtn(orderBtn,  false, '0.4')
-    if(badge) badge.innerHTML='<span class="badge b-open" style="font-size:11px;"><i class="fas fa-edit"></i> 시뮬레이션 생성됨</span>'
+    setBtn(genBtn,    true)
+    setBtn(confBtn,   true)
+    setBtn(unconfBtn, false)
+    setBtn(orderBtn,  false)
+    if(badge) badge.innerHTML='<span class="badge b-open" style="font-size:11px;"><i class="fas fa-edit"></i> 생성됨</span>'
     if(statusText) statusText.innerHTML='조합 결과를 검토 후 <b>확정</b> 버튼을 눌러주세요.'
   } else if (state === 'confirmed') {
-    setBtn(genBtn,    false, '0.4')
-    setBtn(confBtn,   false, '0.4')
-    setBtn(unconfBtn, true,  '1')
-    setBtn(orderBtn,  true,  '1')
+    setBtn(genBtn,    false)
+    setBtn(confBtn,   false)
+    setBtn(unconfBtn, true)
+    setBtn(orderBtn,  true)
     if(badge) badge.innerHTML='<span class="badge b-assigned" style="font-size:11px;"><i class="fas fa-lock"></i> 확정됨</span>'
-    if(statusText) statusText.innerHTML='시뮬레이션이 <b>확정</b>되었습니다. <b>오더생성</b>으로 SAP에 생산오더를 전달하거나 <b>확정취소</b>로 재수정할 수 있습니다.'
+    if(statusText) statusText.innerHTML='시뮬레이션이 <b>확정</b>되었습니다. <b>오더생성</b>으로 SAP에 전달하거나 <b>확정취소</b>로 재수정할 수 있습니다.'
   }
 }
 
