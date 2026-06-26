@@ -1486,19 +1486,490 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   </div>
 </div>
 
-<!-- 시뮬레이션/설정/기계 (플레이스홀더) -->
-<div id="page-simulation" style="display:none;height:100%;flex-direction:column;">
-  <div class="page-header"><div class="page-title"><i class="fas fa-layer-group" style="color:#a78bfa;"></i>지폭조합 시뮬레이션</div></div>
-  <div class="page-scroll"><div class="section-card" style="padding:48px;text-align:center;color:var(--text-faint);"><i class="fas fa-tools" style="font-size:32px;display:block;margin-bottom:12px;"></i>준비 중입니다.</div></div>
-</div>
-<div id="page-constraint" style="display:none;height:100%;flex-direction:column;">
-  <div class="page-header"><div class="page-title"><i class="fas fa-sliders-h" style="color:#f59e0b;"></i>제약조건 설정</div></div>
-  <div class="page-scroll"><div class="section-card" style="padding:48px;text-align:center;color:var(--text-faint);">준비 중</div></div>
-</div>
+<!-- ══════════════════════════════════════════
+     기계 마스터
+══════════════════════════════════════════ -->
 <div id="page-machine" style="display:none;height:100%;flex-direction:column;">
-  <div class="page-header"><div class="page-title"><i class="fas fa-cog" style="color:#34d399;"></i>기계 마스터</div></div>
-  <div class="page-scroll"><div class="section-card" style="padding:48px;text-align:center;color:var(--text-faint);">준비 중</div></div>
-</div>
+  <div class="page-header">
+    <div class="page-title"><i class="fas fa-cog" style="color:#34d399;"></i>기계 마스터</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm btn-secondary" onclick="loadMachine()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+    </div>
+  </div>
+  <div class="page-scroll">
+    <!-- 기계 카드 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+
+      <!-- 2호기 -->
+      <div class="section-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <span class="machine-badge" style="font-size:15px;padding:6px 14px;">2호기</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:var(--text-main);">2호기 (Paper Machine #2)</div>
+            <div style="font-size:12px;color:var(--text-muted);">크라프트 / 골판지 원지 생산</div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <colgroup><col style="width:45%"><col></colgroup>
+          <tbody>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 지폭</td><td style="font-weight:700;color:#34d399;">2,520 mm</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">최소 지폭</td><td style="font-weight:700;color:#f87171;">2,400 mm</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 폭수</td><td style="font-weight:700;">최대 4폭</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">4폭 추가조건</td><td style="font-size:12px;color:var(--text-main);">1폭은 반드시 <span style="color:#f59e0b;font-weight:700;">630mm 이상</span></td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">배폭 미미</td><td style="font-weight:700;color:#a78bfa;">30mm</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">생산 불가 조건</td><td style="font-size:12px;color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">평량 예외</td><td style="font-size:12px;color:var(--text-muted);">-</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px;padding:10px;background:var(--bg-input);border-radius:6px;font-size:11px;color:var(--text-muted);">
+          <i class="fas fa-info-circle" style="color:#60a5fa;margin-right:4px;"></i>
+          620×4폭 불가 / 620×3 + 640×1 가능 (4폭 시 1폭 630mm 이상 필수)
+        </div>
+      </div>
+
+      <!-- 3호기 -->
+      <div class="section-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <span class="machine-badge" style="font-size:15px;padding:6px 14px;">3호기</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:var(--text-main);">3호기 (Paper Machine #3)</div>
+            <div style="font-size:12px;color:var(--text-muted);">크라프트 / 중량지 / 특수지 생산</div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <colgroup><col style="width:45%"><col></colgroup>
+          <tbody>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 지폭</td><td style="font-weight:700;color:#34d399;">3,420 mm</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">최소 지폭</td><td style="font-weight:700;color:#f87171;">3,300 mm</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">최대 폭수</td><td style="font-weight:700;">최대 4폭</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">4폭 추가조건</td><td style="font-size:12px;color:var(--text-muted);">해당 없음</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">배폭 미미</td><td style="font-weight:700;color:#a78bfa;">30mm</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">생산 불가 조건</td><td style="font-size:12px;color:#f87171;">밀롤 625mm 이하만 있는 경우</td></tr>
+            <tr><td style="padding:6px 0;color:var(--text-muted);">평량 예외</td><td style="font-size:12px;color:#f59e0b;">300/500/550g㎡ → 최대 3,410mm</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px;padding:10px;background:var(--bg-input);border-radius:6px;font-size:11px;color:var(--text-muted);">
+          <i class="fas fa-info-circle" style="color:#60a5fa;margin-right:4px;"></i>
+          300/500/550g/m² 평량은 최대지폭 3,410mm 적용 (3,420mm 아님)
+        </div>
+      </div>
+    </div>
+
+    <!-- 공통 규정 -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-book-open" style="color:#f59e0b;"></i>공통 규정</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+        <div style="background:var(--bg-input);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#34d399;">3 TON</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">MOQ (규격당 최소 주문)</div>
+        </div>
+        <div style="background:var(--bg-input);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#a78bfa;">1.5 TON</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">동일규격·포장만 다를 시</div>
+        </div>
+        <div style="background:var(--bg-input);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#60a5fa;">30 mm</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">배폭 생산 시 미미</div>
+        </div>
+      </div>
+      <table class="data-table" style="font-size:12px;">
+        <thead><tr><th>항목</th><th>기준</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>545mm 미만 폭</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 생산 불가</span></td><td style="color:var(--text-muted);">배폭 필수</td></tr>
+          <tr><td>889mm 초과 폭</td><td><span class="badge b-cancel" style="font-size:10px;">2폭 생산 불가</span></td><td style="color:var(--text-muted);">-</td></tr>
+          <tr><td>889mm 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭 가능</td><td style="color:var(--text-muted);">-</td></tr>
+          <tr><td>재고 우선순위</td><td style="font-size:11px;">밀롤창고 → 공장 시트 장기재고 → 신규 생산</td><td style="color:var(--text-muted);">신규 생산 최후 수단</td></tr>
+          <tr><td>동일 평량 원칙</td><td style="color:var(--text-muted);">상이 평량 혼합 불가</td><td style="color:var(--text-muted);">동일 조건 중심 조합</td></tr>
+          <tr><td>원지 비중</td><td><span class="badge b-open" style="font-size:10px;">60% 이상</span></td><td style="color:var(--text-muted);">미만 시 밀롤 생산 후 외주 컷팅</td></tr>
+          <tr><td>두폭 비중</td><td><span class="badge b-assigned" style="font-size:10px;">30% 이상</span></td><td style="color:var(--text-muted);">지폭조합 진행 가능</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 자재코드 해독 규칙 -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-barcode" style="color:#60a5fa;"></i>자재코드 해독 규칙</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+        <table class="data-table" style="font-size:12px;">
+          <thead><tr><th>위치</th><th>의미</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td style="font-family:monospace;color:#a78bfa;">LEFT(1)</td><td>품목유형</td><td><span style="color:#34d399;">F</span>=제품 / <span style="color:#f59e0b;">H</span>=반제품</td></tr>
+            <tr><td style="font-family:monospace;color:#a78bfa;">MID(2,1)</td><td>생산호기</td><td>1=1호기 / 2=2호기 / 3=3호기</td></tr>
+            <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=Sheet속포장 / B=Sheet벌크 / Null=Roll</td></tr>
+            <tr><td style="font-family:monospace;color:#a78bfa;">MID(6,3)</td><td>평량</td><td>g/m²</td></tr>
+            <tr><td style="font-family:monospace;color:#a78bfa;">MID(10,4)</td><td>지폭</td><td>mm</td></tr>
+            <tr><td style="font-family:monospace;color:#a78bfa;">MID(14,4)</td><td>지장</td><td>mm</td></tr>
+          </tbody>
+        </table>
+        <div style="background:var(--bg-input);border-radius:8px;padding:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-main);margin-bottom:10px;"><i class="fas fa-lightbulb" style="color:#f59e0b;"></i> 자재코드 예시</div>
+          <div style="font-family:monospace;font-size:13px;letter-spacing:1px;color:#60a5fa;margin-bottom:8px;">F2____220_0800____B</div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.8;">
+            F → 제품<br>
+            2 → 2호기<br>
+            220 → 평량 220g/m²<br>
+            0800 → 지폭 800mm<br>
+            B → Sheet 벌크포장
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-machine -->
+
+<!-- ══════════════════════════════════════════
+     제약조건 설정
+══════════════════════════════════════════ -->
+<div id="page-constraint" style="display:none;height:100%;flex-direction:column;">
+  <div class="page-header">
+    <div class="page-title"><i class="fas fa-sliders-h" style="color:#f59e0b;"></i>제약조건 설정</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm btn-secondary" onclick="resetConstraints()"><i class="fas fa-undo"></i> 기본값 복원</button>
+      <button class="btn btn-sm btn-primary" onclick="saveConstraints()"><i class="fas fa-save"></i> 저장</button>
+    </div>
+  </div>
+  <div class="page-scroll">
+
+    <!-- 저장 완료 배너 -->
+    <div id="constraint-save-banner" style="display:none;margin-bottom:12px;padding:10px 16px;border-radius:8px;background:transparent;border:1px solid #34d399;color:#16a34a;font-size:13px;">
+      <i class="fas fa-check-circle"></i> 제약조건이 저장되었습니다.
+    </div>
+
+    <!-- 기계별 지폭 규정 -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-ruler-horizontal" style="color:#60a5fa;"></i>기계별 지폭 규정</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <!-- 2호기 -->
+        <div style="background:var(--bg-input);border-radius:8px;padding:14px;">
+          <div style="font-weight:700;color:var(--text-main);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+            <span class="machine-badge">2호기</span> 지폭 규정
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label class="form-label">최대 지폭 (mm)</label>
+              <input type="number" class="form-input" id="c-m2-max" value="2520" min="0" max="9999">
+            </div>
+            <div>
+              <label class="form-label">최소 지폭 (mm)</label>
+              <input type="number" class="form-input" id="c-m2-min" value="2400" min="0" max="9999">
+            </div>
+            <div>
+              <label class="form-label">최대 폭수</label>
+              <input type="number" class="form-input" id="c-m2-maxpok" value="4" min="1" max="8">
+            </div>
+            <div>
+              <label class="form-label">4폭 최소 1폭 크기 (mm)</label>
+              <input type="number" class="form-input" id="c-m2-4pok-min" value="630" min="0" max="9999">
+            </div>
+          </div>
+        </div>
+        <!-- 3호기 -->
+        <div style="background:var(--bg-input);border-radius:8px;padding:14px;">
+          <div style="font-weight:700;color:var(--text-main);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+            <span class="machine-badge">3호기</span> 지폭 규정
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label class="form-label">최대 지폭 (mm)</label>
+              <input type="number" class="form-input" id="c-m3-max" value="3420" min="0" max="9999">
+            </div>
+            <div>
+              <label class="form-label">최소 지폭 (mm)</label>
+              <input type="number" class="form-input" id="c-m3-min" value="3300" min="0" max="9999">
+            </div>
+            <div>
+              <label class="form-label">최대 폭수</label>
+              <input type="number" class="form-input" id="c-m3-maxpok" value="4" min="1" max="8">
+            </div>
+            <div>
+              <label class="form-label">평량 예외 최대지폭 (mm)</label>
+              <input type="number" class="form-input" id="c-m3-exc-max" value="3410" min="0" max="9999">
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label class="form-label">평량 예외 적용 평량 (쉼표 구분, g/m²)</label>
+            <input type="text" class="form-input" id="c-m3-exc-bw" value="300,500,550" placeholder="예: 300,500,550">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 배폭/폭수 규정 -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-expand-arrows-alt" style="color:#a78bfa;"></i>배폭 · 폭수 규정</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div>
+          <label class="form-label">배폭 미미 (mm)</label>
+          <input type="number" class="form-input" id="c-mimi" value="30" min="0" max="100">
+        </div>
+        <div>
+          <label class="form-label">생산 불가 기준 (mm 이하)</label>
+          <input type="number" class="form-input" id="c-noprod-limit" value="625" min="0" max="9999">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">밀롤 크기가 이 값 이하만 있는 경우 생산 불가</div>
+        </div>
+        <div>
+          <label class="form-label">545mm 미만 처리</label>
+          <select class="form-select" id="c-545-rule">
+            <option value="double">배폭 필수</option>
+            <option value="reject">생산 불가</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">889mm 초과 처리</label>
+          <select class="form-select" id="c-889-rule">
+            <option value="single">1폭만 가능</option>
+            <option value="reject">생산 불가</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">889mm 2폭 배폭 허용 (TON 이하)</label>
+          <input type="number" class="form-input" id="c-889-double-limit" value="5" min="0" max="999">
+        </div>
+      </div>
+    </div>
+
+    <!-- MOQ 및 오더취합 규정 -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-boxes" style="color:#34d399;"></i>MOQ · 오더취합 규정</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div>
+          <label class="form-label">규격당 MOQ (TON)</label>
+          <input type="number" class="form-input" id="c-moq" value="3" min="0" step="0.5">
+        </div>
+        <div>
+          <label class="form-label">동일규격 포장 다를 시 MOQ (TON)</label>
+          <input type="number" class="form-input" id="c-moq-same" value="1.5" min="0" step="0.5">
+        </div>
+        <div>
+          <label class="form-label">원지 비중 최소 (%)</label>
+          <input type="number" class="form-input" id="c-wj-ratio" value="60" min="0" max="100">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">미만 시 밀롤 생산 후 외주 컷팅</div>
+        </div>
+        <div>
+          <label class="form-label">두폭 비중 최소 (%)</label>
+          <input type="number" class="form-input" id="c-dpok-ratio" value="30" min="0" max="100">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">이상 시 지폭조합 진행 가능</div>
+        </div>
+        <div>
+          <label class="form-label">원지 구분</label>
+          <select class="form-select" id="c-wj-separate">
+            <option value="yes">원지/시트 분리 조합</option>
+            <option value="no">혼합 허용</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 예외 오더 분리 규정 -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-exclamation-triangle" style="color:#f87171;"></i>예외 오더 분리 규정</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">시뮬레이션 시 아래 유형은 일반 오더와 자동 분리됩니다.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="c-exc-japan" checked> <span>일본 수출</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="c-exc-special" checked> <span>특수지</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="c-exc-flagged" checked> <span>예외처리 플래그 오더</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="c-exc-phil"> <span>필리핀 450G</span>
+        </label>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="form-label">추가 예외 거래처 코드 (쉼표 구분)</label>
+        <input type="text" class="form-input" id="c-exc-customers" placeholder="예: C005,C011" style="max-width:400px;">
+      </div>
+    </div>
+
+    <!-- 재고 우선순위 -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-warehouse" style="color:#60a5fa;"></i>재고 우선순위</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:6px;">
+          <span style="background:#34d399;color:#000;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">1</span>
+          <span style="font-size:13px;">밀롤창고 재고 활용</span>
+          <input type="checkbox" id="c-stock-millroll" checked style="margin-left:auto;">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:6px;">
+          <span style="background:#60a5fa;color:#000;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">2</span>
+          <span style="font-size:13px;">공장 시트 장기재고 재단</span>
+          <input type="checkbox" id="c-stock-sheet" checked style="margin-left:auto;">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-input);border-radius:6px;">
+          <span style="background:#a78bfa;color:#000;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">3</span>
+          <span style="font-size:13px;">신규 생산</span>
+          <input type="checkbox" id="c-stock-new" checked style="margin-left:auto;">
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /page-constraint -->
+
+<!-- ══════════════════════════════════════════
+     지폭조합 시뮬레이션
+══════════════════════════════════════════ -->
+<div id="page-simulation" style="display:none;height:100%;flex-direction:column;">
+  <div class="page-header">
+    <div class="page-title"><i class="fas fa-layer-group" style="color:#a78bfa;"></i>지폭조합 시뮬레이션</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm" id="btn-sim-generate" onclick="simGenerate()"
+        style="background:linear-gradient(135deg,#6d28d9,#a78bfa);color:#fff;border:none;">
+        <i class="fas fa-magic"></i> 생성
+      </button>
+      <button class="btn btn-sm" id="btn-sim-confirm" onclick="simConfirm()" disabled
+        style="background:linear-gradient(135deg,#065f46,#34d399);color:#fff;border:none;opacity:0.4;">
+        <i class="fas fa-check-double"></i> 확정
+      </button>
+      <button class="btn btn-sm" id="btn-sim-unconfirm" onclick="simUnconfirm()" disabled
+        style="background:linear-gradient(135deg,#92400e,#f59e0b);color:#fff;border:none;opacity:0.4;">
+        <i class="fas fa-undo-alt"></i> 확정취소
+      </button>
+      <button class="btn btn-sm" id="btn-sim-order" onclick="simSendOrder()" disabled
+        style="background:linear-gradient(135deg,#1e3a5f,#60a5fa);color:#fff;border:none;opacity:0.4;">
+        <i class="fas fa-paper-plane"></i> 오더생성
+      </button>
+    </div>
+  </div>
+  <div class="page-scroll">
+
+    <!-- 상태 배너 -->
+    <div id="sim-status-banner" style="margin-bottom:12px;padding:10px 16px;border-radius:8px;background:transparent;border:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-info-circle" style="color:#60a5fa;"></i>
+      <span id="sim-status-text" style="color:var(--text-muted);">조회 조건을 설정하고 <b>생성</b> 버튼을 눌러 시뮬레이션을 시작하세요.</span>
+      <span id="sim-state-badge" style="margin-left:auto;"></span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;">
+
+      <!-- 좌: 조회 조건 -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="section-card">
+          <div class="section-title"><i class="fas fa-search" style="color:#60a5fa;"></i>조회 조건</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <label class="form-label">호기</label>
+              <select class="form-select" id="sim-machineNo">
+                <option value="">전체</option>
+                <option value="2">2호기</option>
+                <option value="3">3호기</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">평량 (g/m²)</label>
+              <select class="form-select" id="sim-basisWeight">
+                <option value="">전체</option>
+                <option value="220">220</option>
+                <option value="300">300</option>
+                <option value="500">500</option>
+                <option value="550">550</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">납기일 From</label>
+              <input type="date" class="form-input" id="sim-dueFrom">
+            </div>
+            <div>
+              <label class="form-label">납기일 To</label>
+              <input type="date" class="form-input" id="sim-dueTo">
+            </div>
+            <div>
+              <label class="form-label">오더 상태</label>
+              <select class="form-select" id="sim-orderStatus">
+                <option value="OPEN">OPEN</option>
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div style="padding-top:4px;border-top:1px solid var(--border);">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:6px;">
+                <input type="checkbox" id="sim-exc-japan" checked> 일본수출 분리
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:6px;">
+                <input type="checkbox" id="sim-exc-special" checked> 특수지 분리
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="sim-exc-flagged" checked> 예외 플래그 분리
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 적용 제약조건 요약 -->
+        <div class="section-card">
+          <div class="section-title" style="font-size:12px;"><i class="fas fa-lock" style="color:#f59e0b;"></i>적용 제약조건</div>
+          <div id="sim-constraint-summary" style="font-size:11px;color:var(--text-muted);line-height:1.8;">
+            <div>2호기: 2,400 ~ 2,520mm / 최대4폭</div>
+            <div>3호기: 3,300 ~ 3,420mm / 최대4폭</div>
+            <div>배폭 미미: 30mm</div>
+            <div>MOQ: 3TON / 배폭예외: 1.5TON</div>
+            <div>원지비중: 60% 이상</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 우: 시뮬레이션 결과 영역 -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+
+        <!-- 오더 목록 (생성 전) -->
+        <div class="section-card" id="sim-order-panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div class="section-title" style="margin-bottom:0;"><i class="fas fa-list-ul" style="color:#60a5fa;"></i>대상 오더 목록</div>
+            <span id="sim-order-count" style="font-size:12px;color:var(--text-muted);">-</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="width:32px;"><input type="checkbox" id="sim-chk-all" onchange="simToggleAll(this.checked)"></th>
+                  <th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>납기일</th><th>유형</th><th>예외</th>
+                </tr>
+              </thead>
+              <tbody id="sim-order-tbody">
+                <tr><td colspan="10" class="empty-state">조건 설정 후 생성 버튼을 눌러주세요.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 조합 결과 (생성 후) -->
+        <div class="section-card" id="sim-result-panel" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div class="section-title" style="margin-bottom:0;"><i class="fas fa-th" style="color:#a78bfa;"></i>지폭조합 결과</div>
+            <div style="display:flex;gap:8px;">
+              <span id="sim-result-count" style="font-size:12px;color:var(--text-muted);"></span>
+            </div>
+          </div>
+          <!-- 요약 스탯 -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
+            <div class="stat-mini"><div class="sv" id="sr-total" style="color:#a78bfa;">-</div><div class="sl">조합 수</div></div>
+            <div class="stat-mini"><div class="sv" id="sr-orders" style="color:#60a5fa;">-</div><div class="sl">포함 오더</div></div>
+            <div class="stat-mini"><div class="sv" id="sr-ton" style="color:#34d399;">-</div><div class="sl">합계 TON</div></div>
+            <div class="stat-mini"><div class="sv" id="sr-loss" style="color:#f87171;">-</div><div class="sl">Loss율</div></div>
+          </div>
+          <!-- 조합 카드 목록 -->
+          <div id="sim-combo-list"></div>
+        </div>
+
+        <!-- 예외 오더 (생성 후) -->
+        <div class="section-card" id="sim-excl-panel" style="display:none;">
+          <div class="section-title" style="color:#f87171;"><i class="fas fa-exclamation-triangle" style="color:#f87171;"></i>분리된 예외 오더</div>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="font-size:12px;">
+              <thead>
+                <tr><th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>유형</th><th>분리사유</th></tr>
+              </thead>
+              <tbody id="sim-excl-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div><!-- /page-simulation -->
 
   </div><!-- /page-content-wrap -->
 </div><!-- /main-area -->
@@ -1614,6 +2085,9 @@ function goPage(p) {
   if (p === 'order-list')  loadOrderList()
   if (p === 'prod-list')   loadProdList()
   if (p === 'prod-cancel') loadCancelList()
+  if (p === 'simulation')  loadSimulation()
+  if (p === 'constraint')  loadConstraintValues()
+  if (p === 'machine')     loadMachine()
 }
 
 /* ══════════════════════════════════════
@@ -2212,6 +2686,399 @@ async function doCancel() {
 function closeCancelResultModal() {
   const m = document.getElementById('cancelResultModal')
   if (m) m.classList.remove('show')
+}
+
+/* ══════════════════════════════════════
+   기계 마스터
+══════════════════════════════════════ */
+function loadMachine() {
+  toast('기계 마스터 정보를 불러왔습니다.', 'ok')
+}
+
+/* ══════════════════════════════════════
+   제약조건 설정
+══════════════════════════════════════ */
+// 기본값 정의
+const CONSTRAINT_DEFAULTS = {
+  'm2-max':2520,'m2-min':2400,'m2-maxpok':4,'m2-4pok-min':630,
+  'm3-max':3420,'m3-min':3300,'m3-maxpok':4,'m3-exc-max':3410,'m3-exc-bw':'300,500,550',
+  'mimi':30,'noprod-limit':625,'545-rule':'double','889-rule':'single','889-double-limit':5,
+  'moq':3,'moq-same':1.5,'wj-ratio':60,'dpok-ratio':30,'wj-separate':'yes',
+  'exc-japan':true,'exc-special':true,'exc-flagged':true,'exc-phil':false,'exc-customers':'',
+  'stock-millroll':true,'stock-sheet':true,'stock-new':true
+}
+
+function loadConstraintValues() {
+  const saved = JSON.parse(localStorage.getItem('klean-aps-constraints')||'{}')
+  Object.entries(CONSTRAINT_DEFAULTS).forEach(([k,def]) => {
+    const el = document.getElementById('c-'+k)
+    if (!el) return
+    const val = saved[k] !== undefined ? saved[k] : def
+    if (el.type === 'checkbox') el.checked = val
+    else el.value = val
+  })
+}
+
+function saveConstraints() {
+  const data = {}
+  Object.keys(CONSTRAINT_DEFAULTS).forEach(k => {
+    const el = document.getElementById('c-'+k)
+    if (!el) return
+    data[k] = el.type === 'checkbox' ? el.checked
+              : el.type === 'number'   ? Number(el.value)
+              : el.value
+  })
+  localStorage.setItem('klean-aps-constraints', JSON.stringify(data))
+  const banner = document.getElementById('constraint-save-banner')
+  if (banner) { banner.style.display='flex'; setTimeout(()=>banner.style.display='none',2500) }
+  toast('제약조건이 저장되었습니다.','ok')
+  updateSimConstraintSummary()
+}
+
+function resetConstraints() {
+  localStorage.removeItem('klean-aps-constraints')
+  loadConstraintValues()
+  toast('기본값으로 복원되었습니다.','ok')
+}
+
+function getConstraints() {
+  const saved = JSON.parse(localStorage.getItem('klean-aps-constraints')||'{}')
+  const g = k => saved[k] !== undefined ? saved[k] : CONSTRAINT_DEFAULTS[k]
+  return {
+    m2Max:Number(g('m2-max')), m2Min:Number(g('m2-min')),
+    m2MaxPok:Number(g('m2-maxpok')), m2FourPokMin:Number(g('m2-4pok-min')),
+    m3Max:Number(g('m3-max')), m3Min:Number(g('m3-min')),
+    m3MaxPok:Number(g('m3-maxpok')), m3ExcMax:Number(g('m3-exc-max')),
+    m3ExcBw:(g('m3-exc-bw')+'').split(',').map(v=>Number(v.trim())),
+    mimi:Number(g('mimi')), noprodLimit:Number(g('noprod-limit')),
+    rule545:g('545-rule'), rule889:g('889-rule'),
+    limit889Double:Number(g('889-double-limit')),
+    moq:Number(g('moq')), moqSame:Number(g('moq-same')),
+    wjRatio:Number(g('wj-ratio')), dpokRatio:Number(g('dpok-ratio')),
+    excJapan:g('exc-japan'), excSpecial:g('exc-special'),
+    excFlagged:g('exc-flagged'), excPhil:g('exc-phil'),
+    excCustomers:(g('exc-customers')+'').split(',').map(s=>s.trim()).filter(Boolean)
+  }
+}
+
+function updateSimConstraintSummary() {
+  const c = getConstraints()
+  const el = document.getElementById('sim-constraint-summary')
+  if (!el) return
+  el.innerHTML =
+    '<div>2호기: '+c.m2Min.toLocaleString()+' ~ '+c.m2Max.toLocaleString()+'mm / 최대'+c.m2MaxPok+'폭</div>'+
+    '<div>3호기: '+c.m3Min.toLocaleString()+' ~ '+c.m3Max.toLocaleString()+'mm / 최대'+c.m3MaxPok+'폭</div>'+
+    '<div>배폭 미미: '+c.mimi+'mm</div>'+
+    '<div>MOQ: '+c.moq+'TON / 동일규격: '+c.moqSame+'TON</div>'+
+    '<div>원지비중: '+c.wjRatio+'% 이상</div>'
+}
+
+/* ══════════════════════════════════════
+   지폭조합 시뮬레이션
+══════════════════════════════════════ */
+// 시뮬레이션 상태: 'idle' | 'generated' | 'confirmed'
+let simState = 'idle'
+let simOrders = []      // 현재 시뮬레이션 대상 오더
+let simCombos = []      // 생성된 조합 결과
+let simExcluded = []    // 분리된 예외 오더
+
+function loadSimulation() {
+  updateSimConstraintSummary()
+  setSimState('idle')
+}
+
+function setSimState(state) {
+  simState = state
+  const genBtn     = document.getElementById('btn-sim-generate')
+  const confBtn    = document.getElementById('btn-sim-confirm')
+  const unconfBtn  = document.getElementById('btn-sim-unconfirm')
+  const orderBtn   = document.getElementById('btn-sim-order')
+  const badge      = document.getElementById('sim-state-badge')
+  const statusText = document.getElementById('sim-status-text')
+
+  const setBtn = (btn, enabled, opacity) => { if(btn){btn.disabled=!enabled; btn.style.opacity=opacity} }
+
+  if (state === 'idle') {
+    setBtn(genBtn,    true,  '1')
+    setBtn(confBtn,   false, '0.4')
+    setBtn(unconfBtn, false, '0.4')
+    setBtn(orderBtn,  false, '0.4')
+    if(badge) badge.innerHTML=''
+    if(statusText) statusText.innerHTML='조회 조건을 설정하고 <b>생성</b> 버튼을 눌러 시뮬레이션을 시작하세요.'
+  } else if (state === 'generated') {
+    setBtn(genBtn,    true,  '1')
+    setBtn(confBtn,   true,  '1')
+    setBtn(unconfBtn, false, '0.4')
+    setBtn(orderBtn,  false, '0.4')
+    if(badge) badge.innerHTML='<span class="badge b-open" style="font-size:11px;"><i class="fas fa-edit"></i> 시뮬레이션 생성됨</span>'
+    if(statusText) statusText.innerHTML='조합 결과를 검토 후 <b>확정</b> 버튼을 눌러주세요.'
+  } else if (state === 'confirmed') {
+    setBtn(genBtn,    false, '0.4')
+    setBtn(confBtn,   false, '0.4')
+    setBtn(unconfBtn, true,  '1')
+    setBtn(orderBtn,  true,  '1')
+    if(badge) badge.innerHTML='<span class="badge b-assigned" style="font-size:11px;"><i class="fas fa-lock"></i> 확정됨</span>'
+    if(statusText) statusText.innerHTML='시뮬레이션이 <b>확정</b>되었습니다. <b>오더생성</b>으로 SAP에 생산오더를 전달하거나 <b>확정취소</b>로 재수정할 수 있습니다.'
+  }
+}
+
+// 예외 오더 판별
+function isExcludedOrder(o) {
+  const excJapan   = (document.getElementById('sim-exc-japan')||{}).checked !== false
+  const excSpecial = (document.getElementById('sim-exc-special')||{}).checked !== false
+  const excFlagged = (document.getElementById('sim-exc-flagged')||{}).checked !== false
+  if (excJapan   && o.orderType === '일본수출') return '일본수출 분리'
+  if (excSpecial && o.orderType === '특수지')   return '특수지 분리'
+  if (excFlagged && o.isExcluded)               return '예외 플래그'
+  return null
+}
+
+// 지폭조합 로직 (Mock 시뮬레이션)
+function runCombinationAlgorithm(orders) {
+  const c = getConstraints()
+  const grouped = {}
+  orders.forEach(o => {
+    const key = o.machineNo + '_' + o.basisWeight
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(o)
+  })
+  const combos = []
+  let comboIdx = 1
+
+  Object.entries(grouped).forEach(([key, grpOrders]) => {
+    const [machineNo, bwStr] = key.split('_')
+    const bw = Number(bwStr)
+    const maxW = machineNo === '2'
+      ? c.m2Max
+      : (c.m3ExcBw.includes(bw) ? c.m3ExcMax : c.m3Max)
+    const minW = machineNo === '2' ? c.m2Min : c.m3Min
+    const maxPok = machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
+
+    // 지폭 합산이 범위 안에 들어오도록 그리디 조합
+    let bucket = []
+    let bucketWidth = 0
+
+    const flushBucket = () => {
+      if (!bucket.length) return
+      const totalW = bucketWidth + (bucket.length > 1 ? c.mimi * (bucket.length - 1) : 0)
+      const loss   = Math.max(0, maxW - totalW)
+      const lossRate = maxW > 0 ? (loss / maxW * 100) : 0
+      const totalTon = bucket.reduce((s,o) => s + (o.orderQtyTon || 0), 0)
+      combos.push({
+        comboId: comboIdx++,
+        machineNo, basisWeight: bw,
+        orders: [...bucket],
+        widthSum: totalW,
+        maxWidth: maxW,
+        loss, lossRate: lossRate.toFixed(1),
+        totalTon: totalTon.toFixed(3),
+        pokCount: bucket.length
+      })
+      bucket = []; bucketWidth = 0
+    }
+
+    grpOrders.forEach(o => {
+      const w = o.paperWidth
+      const tentativeW = bucketWidth + w + (bucket.length > 0 ? c.mimi : 0)
+      if (bucket.length >= maxPok || tentativeW > maxW) {
+        flushBucket()
+      }
+      bucket.push(o)
+      bucketWidth += w
+    })
+    flushBucket()
+  })
+  return combos
+}
+
+async function simGenerate() {
+  if (simState === 'confirmed') {
+    toast('확정된 시뮬레이션입니다. 확정취소 후 재생성하세요.','info'); return
+  }
+  const machineNo   = (document.getElementById('sim-machineNo')||{}).value||''
+  const basisWeight = (document.getElementById('sim-basisWeight')||{}).value||''
+  const dueFrom     = (document.getElementById('sim-dueFrom')||{}).value||''
+  const dueTo       = (document.getElementById('sim-dueTo')||{}).value||''
+  const orderStatus = (document.getElementById('sim-orderStatus')||{}).value||''
+
+  const tbody = document.getElementById('sim-order-tbody')
+  if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 오더 불러오는 중...</td></tr>'
+
+  let filtered = [...orders]
+  if (machineNo)   filtered = filtered.filter(o => o.machineNo   === machineNo)
+  if (basisWeight) filtered = filtered.filter(o => o.basisWeight === Number(basisWeight))
+  if (dueFrom)     filtered = filtered.filter(o => o.dueDate >= dueFrom)
+  if (dueTo)       filtered = filtered.filter(o => o.dueDate <= dueTo)
+  if (orderStatus) filtered = filtered.filter(o => o.status    === orderStatus)
+
+  // 예외 분리
+  simExcluded = []
+  simOrders   = filtered.filter(o => {
+    const reason = isExcludedOrder(o)
+    if (reason) { simExcluded.push({...o, _excludeReason: reason}); return false }
+    return true
+  })
+
+  // 오더 목록 렌더링
+  renderSimOrderTable(simOrders)
+
+  // 조합 실행
+  await new Promise(r => setTimeout(r, 400)) // UX 딜레이
+  simCombos = runCombinationAlgorithm(simOrders)
+  renderSimResult(simCombos)
+  renderSimExcluded(simExcluded)
+
+  document.getElementById('sim-result-panel').style.display = 'flex'
+  document.getElementById('sim-result-panel').style.flexDirection = 'column'
+  if (simExcluded.length) {
+    document.getElementById('sim-excl-panel').style.display = 'block'
+  } else {
+    document.getElementById('sim-excl-panel').style.display = 'none'
+  }
+  setSimState('generated')
+  toast('지폭조합 시뮬레이션이 생성되었습니다.','ok')
+}
+
+function renderSimOrderTable(list) {
+  const tbody = document.getElementById('sim-order-tbody')
+  const cnt   = document.getElementById('sim-order-count')
+  if (cnt) cnt.textContent = list.length + '건'
+  if (!tbody) return
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">조건에 맞는 오더가 없습니다.</td></tr>'; return
+  }
+  tbody.innerHTML = list.map(o => {
+    const qtyStr = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T'
+                 : o.orderQtyR   ? o.orderQtyR.toLocaleString()+'R'
+                 : o.orderQtySok ? o.orderQtySok.toLocaleString()+'SOK' : '-'
+    return '<tr>' +
+      '<td class="center"><input type="checkbox" class="sim-chk" value="'+o.orderId+'" checked></td>' +
+      '<td style="font-family:monospace;color:#60a5fa;font-size:11px;">'+o.sapOrderNo+'</td>' +
+      '<td style="font-size:12px;">'+o.customerName+'</td>' +
+      '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>' +
+      '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
+      '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
+      '<td class="num">'+qtyStr+'</td>' +
+      '<td style="font-size:11px;color:var(--text-muted);">'+o.dueDate+'</td>' +
+      '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
+      '<td class="center">'+(o.isExcluded ? '<i class="fas fa-flag" style="color:#f87171;"></i>' : '')+'</td>' +
+      '</tr>'
+  }).join('')
+}
+
+function simToggleAll(checked) {
+  document.querySelectorAll('.sim-chk').forEach(c => c.checked = checked)
+}
+
+function renderSimResult(combos) {
+  const totalTon  = combos.reduce((s,c) => s + Number(c.totalTon), 0)
+  const totalOrds = combos.reduce((s,c) => s + c.orders.length, 0)
+  const avgLoss   = combos.length ? (combos.reduce((s,c) => s + Number(c.lossRate), 0) / combos.length).toFixed(1) : '0.0'
+
+  const elTotal  = document.getElementById('sr-total')
+  const elOrders = document.getElementById('sr-orders')
+  const elTon    = document.getElementById('sr-ton')
+  const elLoss   = document.getElementById('sr-loss')
+  if (elTotal)  elTotal.textContent  = combos.length
+  if (elOrders) elOrders.textContent = totalOrds
+  if (elTon)    elTon.textContent    = totalTon.toFixed(3)
+  if (elLoss)   elLoss.textContent   = avgLoss + '%'
+
+  const cnt = document.getElementById('sim-result-count')
+  if (cnt) cnt.textContent = combos.length + '개 조합'
+
+  const list = document.getElementById('sim-combo-list')
+  if (!list) return
+  if (!combos.length) {
+    list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-faint);">조합 결과가 없습니다.</div>'; return
+  }
+  list.innerHTML = combos.map(combo => {
+    const lossColor = Number(combo.lossRate) === 0 ? '#34d399'
+                    : Number(combo.lossRate) < 2   ? '#f59e0b' : '#f87171'
+    const widthBars = combo.orders.map(o =>
+      '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
+      o.paperWidth+'mm</span>'
+    ).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
+
+    return '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--bg-input);">'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'+
+        '<span style="font-weight:800;font-size:14px;color:#a78bfa;">#'+combo.comboId+'</span>'+
+        '<span class="machine-badge">'+combo.machineNo+'호기</span>'+
+        '<span style="font-size:12px;color:var(--text-muted);">평량 '+combo.basisWeight+'g/m²</span>'+
+        '<span style="font-size:12px;">'+combo.pokCount+'폭</span>'+
+        '<div style="margin-left:auto;display:flex;gap:8px;align-items:center;">'+
+          '<span style="font-size:12px;color:var(--text-muted);">합계 지폭: <b style="color:var(--text-main);">'+combo.widthSum.toLocaleString()+'mm</b> / '+combo.maxWidth.toLocaleString()+'mm</span>'+
+          '<span style="font-size:12px;color:'+lossColor+';font-weight:700;">Loss '+combo.lossRate+'%</span>'+
+          '<span style="font-size:12px;color:#34d399;font-weight:700;">'+combo.totalTon+'T</span>'+
+        '</div>'+
+      '</div>'+
+      '<div style="margin-bottom:8px;">'+widthBars+'</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:11px;">'+
+        '<thead style="background:var(--bg-card);">'+
+          '<tr><th style="padding:4px 6px;text-align:left;color:var(--text-muted);">오더번호</th>'+
+          '<th style="padding:4px 6px;text-align:left;color:var(--text-muted);">납품처</th>'+
+          '<th style="padding:4px 6px;text-align:right;color:var(--text-muted);">지폭</th>'+
+          '<th style="padding:4px 6px;text-align:right;color:var(--text-muted);">수량</th>'+
+          '<th style="padding:4px 6px;text-align:left;color:var(--text-muted);">납기일</th></tr>'+
+        '</thead>'+
+        '<tbody>'+
+          combo.orders.map(o => {
+            const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
+            return '<tr>'+
+              '<td style="padding:4px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
+              '<td style="padding:4px 6px;">'+o.customerName+'</td>'+
+              '<td style="padding:4px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm</td>'+
+              '<td style="padding:4px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
+              '<td style="padding:4px 6px;color:var(--text-muted);">'+o.dueDate+'</td>'+
+              '</tr>'
+          }).join('')+
+        '</tbody>'+
+      '</table>'+
+    '</div>'
+  }).join('')
+}
+
+function renderSimExcluded(list) {
+  const tbody = document.getElementById('sim-excl-tbody')
+  if (!tbody) return
+  tbody.innerHTML = list.map(o => {
+    const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
+    return '<tr>'+
+      '<td style="font-family:monospace;color:#60a5fa;font-size:11px;">'+o.sapOrderNo+'</td>'+
+      '<td style="font-size:12px;">'+o.customerName+'</td>'+
+      '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>'+
+      '<td class="num">'+o.basisWeight+'</td>'+
+      '<td class="num">'+o.paperWidth.toLocaleString()+'</td>'+
+      '<td class="num">'+q+'</td>'+
+      '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
+      '<td><span class="badge b-cancel" style="font-size:10px;">'+o._excludeReason+'</span></td>'+
+      '</tr>'
+  }).join('')
+}
+
+function simConfirm() {
+  if (simState !== 'generated') return
+  if (!simCombos.length) { toast('조합 결과가 없습니다.','info'); return }
+  setSimState('confirmed')
+  toast('시뮬레이션이 확정되었습니다. 오더생성 버튼으로 SAP에 전달하세요.','ok')
+}
+
+function simUnconfirm() {
+  if (simState !== 'confirmed') return
+  setSimState('generated')
+  toast('확정이 취소되었습니다. 시뮬레이션을 재생성하거나 수정할 수 있습니다.','ok')
+}
+
+async function simSendOrder() {
+  if (simState !== 'confirmed') return
+  if (!simCombos.length) { toast('전송할 조합이 없습니다.','info'); return }
+  const btn = document.getElementById('btn-sim-order')
+  if (btn) btn.disabled = true
+  toast('SAP으로 생산오더 전송 중...','ok')
+  await new Promise(r => setTimeout(r, 900))
+  const n = simCombos.length
+  toast('생산오더 '+n+'건이 SAP RFC(Z_CREATE_PROD_ORDER)로 전송되었습니다.','ok')
+  if (btn) btn.disabled = false
 }
 
 /* ══════════════════════════════════════
