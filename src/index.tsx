@@ -323,6 +323,23 @@ const mainHtml = `<!DOCTYPE html>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
 <style>
 /* ═══════════════════════════════════════════════
+   커스텀 폰트
+═══════════════════════════════════════════════ */
+@font-face {
+  font-family: 'Jalnan';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_four@1.2/JalnanOTF00.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'SBAggroB';
+  src: url('https://cdn.jsdelivr.net/npm/@noonnu/sb-aggro-b@0.1.0/fonts/sbaggrob-normal.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* ═══════════════════════════════════════════════
    CSS 변수 — 다크 테마 (기본)
 ═══════════════════════════════════════════════ */
 :root,
@@ -541,7 +558,7 @@ const mainHtml = `<!DOCTYPE html>
 ═══════════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
-  font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  font-family:'SBAggroB','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
   background:var(--bg-base);
   color:var(--text-secondary);
   overflow:hidden;
@@ -560,6 +577,7 @@ body{
   font-size:10px;font-weight:700;
   color:var(--nav-group-txt);
   letter-spacing:.1em;padding:14px 16px 5px;
+  font-family:'SBAggroB','Malgun Gothic',sans-serif;
 }
 .nav-item{
   display:flex;align-items:center;gap:9px;
@@ -567,6 +585,7 @@ body{
   color:var(--nav-text);
   transition:all .12s;
   border-left:3px solid transparent;margin:1px 0;
+  font-family:'Jalnan','Malgun Gothic',sans-serif;
 }
 .nav-item:hover{background:var(--nav-hover-bg);color:var(--nav-hover-txt);}
 .nav-item.active{
@@ -859,8 +878,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   color:var(--logo-txt);
   flex-shrink:0;
 }
-.logo-name{font-weight:800;font-size:14px;color:var(--text-primary);}
-.logo-desc{font-size:10px;color:var(--text-muted);}
+.logo-name{font-weight:800;font-size:14px;color:var(--text-primary);font-family:'Jalnan','Malgun Gothic',sans-serif;}
+.logo-desc{font-size:10px;color:var(--text-muted);font-family:'SBAggroB','Malgun Gothic',sans-serif;}
 
 /* ── 조회 검색바 ── */
 .search-grid{
