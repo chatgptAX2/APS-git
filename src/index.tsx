@@ -1454,13 +1454,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           </select>
         </div>
         <div><label class="field-label">평량 (g/m²)</label>
-          <select class="inp" id="fi-basisWeight">
-            <option value="">전체</option>
-            <option value="220">220</option>
-            <option value="300">300</option>
-            <option value="500">500</option>
-            <option value="550">550</option>
-          </select>
+          <input class="inp" id="fi-basisWeight" type="number" placeholder="예) 350" min="1" list="bw-list-import" style="width:100%;">
+          <datalist id="bw-list-import"></datalist>
         </div>
         <div><label class="field-label">생성일 From</label>
           <input class="inp" id="fi-dateFrom" type="date">
@@ -1619,13 +1614,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           </select>
         </div>
         <div><label class="field-label">평량 (g/m²)</label>
-          <select class="inp" id="lq-basisWeight" onchange="filterOrderList()">
-            <option value="">전체</option>
-            <option value="220">220</option>
-            <option value="300">300</option>
-            <option value="500">500</option>
-            <option value="550">550</option>
-          </select>
+          <input class="inp" id="lq-basisWeight" type="number" placeholder="예) 350" min="1" list="bw-list-order" oninput="filterOrderList()" style="width:100%;">
+          <datalist id="bw-list-order"></datalist>
         </div>
         <div><label class="field-label">상태</label>
           <select class="inp" id="lq-status" onchange="filterOrderList()">
@@ -1856,13 +1846,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           </select>
         </div>
         <div><label class="field-label">평량 (g/m²)</label>
-          <select class="inp" id="pl-basisWeight" onchange="filterProdList()">
-            <option value="">전체</option>
-            <option value="220">220</option>
-            <option value="300">300</option>
-            <option value="500">500</option>
-            <option value="550">550</option>
-          </select>
+          <input class="inp" id="pl-basisWeight" type="number" placeholder="예) 350" min="1" list="bw-list-prod" oninput="filterProdList()" style="width:100%;">
+          <datalist id="bw-list-prod"></datalist>
         </div>
         <div><label class="field-label">상태</label>
           <select class="inp" id="pl-status" onchange="filterProdList()">
@@ -3007,6 +2992,7 @@ async function runRfcSync() {
     })
     const d = await r.json()
     importResult = d.data || []
+    updateBwDatalist(importResult)  // datalist 실제 데이터로 갱신
 
     const successN = d.successCount ?? 0
     const failN    = d.failCount    ?? 0
@@ -3113,10 +3099,22 @@ async function saveSelected() {
 /* ══════════════════════════════════════
    판매오더 조회
 ══════════════════════════════════════ */
+// 평량 datalist 동적 업데이트 (실제 데이터에서 추출)
+function updateBwDatalist(orders) {
+  const bws = [...new Set(orders.map(o => o.basisWeight).filter(Boolean))].sort((a,b)=>a-b)
+  const ids = ['bw-list-import','bw-list-order','bw-list-prod']
+  ids.forEach(id => {
+    const dl = document.getElementById(id)
+    if (!dl) return
+    dl.innerHTML = bws.map(bw => '<option value="'+bw+'">'+bw+' g/m²</option>').join('')
+  })
+}
+
 async function loadOrderList() {
   const r = await fetch(API+'/klean-aps-api/sales-orders')
   const d = await r.json()
   allOrders = d.data || []
+  updateBwDatalist(allOrders)
   filterOrderList()
 }
 
