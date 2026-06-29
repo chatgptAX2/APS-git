@@ -1132,13 +1132,13 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     <div class="nav-item" id="nav-order-import" onclick="goPage('order-import')"><i class="fas fa-cloud-download-alt"></i>판매오더 불러오기</div>
     <div class="nav-item" id="nav-order-list"   onclick="goPage('order-list')">  <i class="fas fa-search"></i>판매오더 조회</div>
 
-    <div class="nav-group-title">생산오더 관리</div>
-    <div class="nav-item" id="nav-prod-list"   onclick="goPage('prod-list')">  <i class="fas fa-clipboard-list"></i>생산오더 조회</div>
-    <div class="nav-item" id="nav-prod-cancel" onclick="goPage('prod-cancel')"><i class="fas fa-times-circle"></i>생산오더 취소</div>
-
     <div class="nav-group-title">시뮬레이션</div>
     <div class="nav-item" id="nav-simulation"   onclick="goPage('simulation')">  <i class="fas fa-layer-group"></i>지폭조합 시뮬레이션</div>
     <div class="nav-item" id="nav-jumbo-list"   onclick="goPage('jumbo-list')">  <i class="fas fa-scroll"></i>점보롤 생산오더</div>
+
+    <div class="nav-group-title">생산오더 관리</div>
+    <div class="nav-item" id="nav-prod-list"   onclick="goPage('prod-list')">  <i class="fas fa-clipboard-list"></i>생산오더 조회</div>
+    <div class="nav-item" id="nav-prod-cancel" onclick="goPage('prod-cancel')"><i class="fas fa-times-circle"></i>생산오더 취소</div>
 
     <div class="nav-group-title">관리자메뉴</div>
     <div class="nav-item" id="nav-rfc-log"      onclick="goPage('rfc-log')">     <i class="fas fa-exchange-alt"></i>RFC 통신결과</div>
