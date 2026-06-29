@@ -1541,21 +1541,87 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           RFC 조회 결과
           <span class="count-badge" id="import-count">0 건</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <!-- 평량 필터 (결과 로드 후 활성화) -->
-          <div style="display:flex;align-items:center;gap:6px;">
-            <label style="font-size:12px;color:var(--text-subtle);white-space:nowrap;">평량</label>
-            <input type="number" id="fi-basisWeight" class="inp" placeholder="전체" min="1"
-              list="bw-list-import" oninput="applyImportFilter()"
-              style="width:90px;padding:4px 8px;font-size:12px;height:30px;">
-            <datalist id="bw-list-import"></datalist>
-          </div>
-          <div style="width:1px;height:20px;background:var(--border);"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-subtle);cursor:pointer;">
             <input type="checkbox" id="chk-all-import" onchange="toggleAllImport(this.checked)"> 전체선택
           </label>
           <button class="btn btn-success btn-sm" onclick="saveSelected()" id="btn-save" disabled>
             <i class="fas fa-save"></i> 선택항목 DB저장
+          </button>
+        </div>
+      </div>
+      <!-- RFC 결과 필터 바 -->
+      <div id="import-filter-bar" style="display:none;padding:10px 16px 10px;border-bottom:1px solid var(--border);background:var(--bg-input);">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">판매문서번호</label>
+            <input class="inp" id="rf-sapOrderNo" placeholder="50137471" oninput="applyImportFilter()"
+              style="width:110px;height:28px;padding:3px 8px;font-size:12px;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">오더유형</label>
+            <select class="inp" id="rf-orderType" onchange="applyImportFilter()"
+              style="width:90px;height:28px;padding:3px 8px;font-size:12px;">
+              <option value="">전체</option>
+              <option>내수</option><option>수출</option><option>일본수출</option><option>특수지</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">납품승입처</label>
+            <input class="inp" id="rf-customerName" placeholder="거래체명" oninput="applyImportFilter()"
+              style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">호기</label>
+            <select class="inp" id="rf-machineNo" onchange="applyImportFilter()"
+              style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
+              <option value="">전체</option>
+              <option value="2">2호기</option><option value="3">3호기</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">평량(g/m²)</label>
+            <input type="number" class="inp" id="fi-basisWeight" placeholder="전체" min="1"
+              list="bw-list-import" oninput="applyImportFilter()"
+              style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
+            <datalist id="bw-list-import"></datalist>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">생성일 From</label>
+            <input type="date" class="inp" id="rf-dateFrom" onchange="applyImportFilter()"
+              style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">생성일 To</label>
+            <input type="date" class="inp" id="rf-dateTo" onchange="applyImportFilter()"
+              style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">납품요청일 From</label>
+            <input type="date" class="inp" id="rf-dueFrom" onchange="applyImportFilter()"
+              style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">납품요청일 To</label>
+            <input type="date" class="inp" id="rf-dueTo" onchange="applyImportFilter()"
+              style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">생성자</label>
+            <input class="inp" id="rf-createdBy" placeholder="SAP" oninput="applyImportFilter()"
+              style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">비고</label>
+            <select class="inp" id="rf-excluded" onchange="applyImportFilter()"
+              style="width:100px;height:28px;padding:3px 8px;font-size:12px;">
+              <option value="">전체</option>
+              <option value="0">정상</option>
+              <option value="1">예외(거부)</option>
+            </select>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="resetImportResultFilter()" style="height:28px;padding:3px 10px;font-size:12px;margin-bottom:1px;">
+            <i class="fas fa-undo"></i> 초기화
           </button>
         </div>
       </div>
@@ -2951,11 +3017,45 @@ function resetImportFilter() {
   })
 }
 
-// RFC 조회 결과 테이블 평량 필터
+// RFC 조회 결과 테이블 필터
 function applyImportFilter() {
-  const bw = Number(document.getElementById('fi-basisWeight').value) || 0
-  const filtered = bw ? importResult.filter(o => o.basisWeight === bw) : importResult
+  const sapOrderNo   = (document.getElementById('rf-sapOrderNo')?.value   || '').trim()
+  const orderType    = (document.getElementById('rf-orderType')?.value    || '')
+  const customerName = (document.getElementById('rf-customerName')?.value || '').trim()
+  const machineNo    = (document.getElementById('rf-machineNo')?.value    || '')
+  const bw           = Number(document.getElementById('fi-basisWeight')?.value) || 0
+  const dateFrom     = (document.getElementById('rf-dateFrom')?.value     || '')
+  const dateTo       = (document.getElementById('rf-dateTo')?.value       || '')
+  const dueFrom      = (document.getElementById('rf-dueFrom')?.value      || '')
+  const dueTo        = (document.getElementById('rf-dueTo')?.value        || '')
+  const createdBy    = (document.getElementById('rf-createdBy')?.value    || '').trim()
+  const excluded     = (document.getElementById('rf-excluded')?.value     || '')
+
+  const filtered = importResult.filter(o => {
+    if (sapOrderNo   && !o.sapOrderNo.includes(sapOrderNo))     return false
+    if (orderType    && o.orderType !== orderType)              return false
+    if (customerName && !o.customerName.includes(customerName)) return false
+    if (machineNo    && o.machineNo !== machineNo)              return false
+    if (bw           && o.basisWeight !== bw)                  return false
+    if (dateFrom     && o.orderDate < dateFrom)                return false
+    if (dateTo       && o.orderDate > dateTo)                  return false
+    if (dueFrom      && o.dueDate < dueFrom)                   return false
+    if (dueTo        && o.dueDate > dueTo)                     return false
+    if (createdBy    && !o.createdBy.includes(createdBy))      return false
+    if (excluded === '1' && !o.isExcluded)                     return false
+    if (excluded === '0' &&  o.isExcluded)                     return false
+    return true
+  })
   renderImportTable(filtered)
+}
+
+function resetImportResultFilter() {
+  ['rf-sapOrderNo','rf-orderType','rf-customerName','rf-machineNo',
+   'fi-basisWeight','rf-dateFrom','rf-dateTo','rf-dueFrom','rf-dueTo',
+   'rf-createdBy','rf-excluded'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = ''
+  })
+  renderImportTable(importResult)
 }
 
 async function confirmResetAllData() {
@@ -3036,10 +3136,9 @@ async function runRfcSync() {
     const alreadyCard = document.getElementById('rs-already-card')
     alreadyCard.style.borderColor = alreadyN > 0 ? '#f59e0b' : 'var(--border)'
 
-    // 평량 필터 초기화 후 전체 렌더
-    const bwEl = document.getElementById('fi-basisWeight')
-    if (bwEl) bwEl.value = ''
-    renderImportTable(importResult)
+    // 결과 필터 바 표시 + 필터 초기화 후 전체 렌더
+    document.getElementById('import-filter-bar').style.display = ''
+    resetImportResultFilter()
     document.getElementById('btn-save').disabled = false
     selectedImport.clear()
     toast('\ud310\ub9e4\uc624\ub354 \ubd88\ub7ec\uc624\uae30 \uc131\uacf5 — \uc131\uacf5 '+successN+'\uac74 / \uc2e4\ud328 '+failN+'\uac74', 'ok')
