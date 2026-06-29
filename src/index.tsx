@@ -600,7 +600,7 @@ body{
   transition:all .12s;
   border-left:3px solid transparent;margin:1px 0;
   font-family:'Jalnan','Malgun Gothic',sans-serif;
-  font-size:24px;
+  font-size:14px;
   letter-spacing:0.12em;
   -webkit-text-stroke: 0px;
   text-shadow: none;
