@@ -601,7 +601,7 @@ body{
   border-left:3px solid transparent;margin:1px 0;
   font-family:'Jalnan','Malgun Gothic',sans-serif;
   font-size:12px;
-  letter-spacing:0.03em;
+  letter-spacing:0.12em;
   -webkit-text-stroke: 0px;
   text-shadow: none;
   opacity: 0.92;
