@@ -62,9 +62,57 @@ const prodOrders: any[] = [
 ]
 
 // ============================================================
+// 점보롤 생산오더 (지폭조합 결과로 생성)
+// ============================================================
+let jumboSeq = 1
+const jumboOrders: any[] = []
+
+// ============================================================
 // API
 // ============================================================
 app.get('/klean-aps-api/machines', (c) => c.json({ success:true, data:machines }))
+
+// 점보롤 오더 목록
+app.get('/klean-aps-api/jumbo-orders', (c) => c.json({ success:true, data:jumboOrders }))
+
+// 점보롤 오더 생성 (시뮬레이션 확정 후 오더생성 시 호출)
+app.post('/klean-aps-api/jumbo-orders', async (c) => {
+  const body = await c.req.json()
+  // body.jumboOrders: 생성할 점보롤 오더 배열
+  const created: any[] = []
+  for (const item of (body.jumboOrders || [])) {
+    const now = new Date().toISOString().replace('T',' ').slice(0,19)
+    const jOrder = {
+      jumboId: jumboSeq++,
+      jumboOrderNo: 'J' + String(9000000000 + jumboSeq).slice(-10),
+      machineNo: item.machineNo,
+      basisWeight: item.basisWeight,
+      jumboWidth: item.jumboWidth,          // 점보롤 전체 지폭 (폭들의 합 + 미미)
+      totalTon: item.totalTon,
+      pokCount: item.pokCount,
+      widths: item.widths,                   // 포함된 개별 지폭 배열 e.g. [800, 620]
+      sourceComboId: item.sourceComboId,
+      sourceOrderNos: item.sourceOrderNos,   // 연결된 판매오더번호 배열
+      planStartDate: item.planStartDate || '',
+      planEndDate: item.planEndDate || '',
+      status: 'PLANNED',
+      createdAt: now,
+      createdBy: '시스템',
+    }
+    jumboOrders.push(jOrder)
+    created.push(jOrder)
+  }
+  return c.json({ success:true, data:created, count:created.length })
+})
+
+// 점보롤 오더 취소
+app.delete('/klean-aps-api/jumbo-orders/:id', (c) => {
+  const id = Number(c.req.param('id'))
+  const idx = jumboOrders.findIndex(j => j.jumboId === id)
+  if (idx === -1) return c.json({ success:false, message:'오더를 찾을 수 없습니다.' }, 404)
+  jumboOrders.splice(idx, 1)
+  return c.json({ success:true })
+})
 
 // 기계 추가
 app.post('/klean-aps-api/machines', async (c) => {
@@ -1090,6 +1138,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
     <div class="nav-group-title">시뮬레이션</div>
     <div class="nav-item" id="nav-simulation"   onclick="goPage('simulation')">  <i class="fas fa-layer-group"></i>지폭조합 시뮬레이션</div>
+    <div class="nav-item" id="nav-jumbo-list"   onclick="goPage('jumbo-list')">  <i class="fas fa-scroll"></i>점보롤 생산오더</div>
 
     <div class="nav-group-title">관리자메뉴</div>
     <div class="nav-item" id="nav-rfc-log"      onclick="goPage('rfc-log')">     <i class="fas fa-exchange-alt"></i>RFC 통신결과</div>
@@ -2363,10 +2412,151 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           </div>
         </div>
 
+        <!-- ══ 점보롤 생산오더 결과 패널 (오더생성 후 표시) ══ -->
+        <div class="section-card" id="sim-jumbo-panel" style="display:none;">
+          <div class="section-title">
+            <i class="fas fa-scroll" style="color:#34d399;"></i>
+            점보롤 생산오더
+            <span id="sim-jumbo-count" class="count-badge" style="margin-left:8px;"></span>
+            <span style="margin-left:auto;font-size:11px;font-weight:600;color:#34d399;" id="sim-jumbo-status-badge"></span>
+          </div>
+
+          <!-- 요약 스탯 -->
+          <div class="section-body" style="padding-bottom:0;">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;">
+              <div class="stat-mini"><div class="sv" id="sj-count"   style="color:#34d399;">-</div><div class="sl">점보롤 수</div></div>
+              <div class="stat-mini"><div class="sv" id="sj-m2"      style="color:#60a5fa;">-</div><div class="sl">2호기</div></div>
+              <div class="stat-mini"><div class="sv" id="sj-m3"      style="color:#a78bfa;">-</div><div class="sl">3호기</div></div>
+              <div class="stat-mini"><div class="sv" id="sj-ton"     style="color:#34d399;">-</div><div class="sl">총 생산량(TON)</div></div>
+              <div class="stat-mini"><div class="sv" id="sj-avgloss" style="color:#f87171;">-</div><div class="sl">평균 Loss</div></div>
+            </div>
+
+            <!-- 점보롤 오더 테이블 -->
+            <div style="overflow-x:auto;margin-bottom:4px;">
+              <table class="data-table" style="font-size:12px;">
+                <thead>
+                  <tr>
+                    <th style="width:32px;">#</th>
+                    <th>점보롤 오더번호</th>
+                    <th>호기</th>
+                    <th>평량</th>
+                    <th>전체 지폭</th>
+                    <th>폭 구성</th>
+                    <th>폭수</th>
+                    <th>생산량(TON)</th>
+                    <th>Loss</th>
+                    <th>연결 판매오더</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody id="sim-jumbo-tbody">
+                  <tr><td colspan="11" class="empty-state">오더생성 버튼을 눌러 점보롤 생산오더를 생성하세요.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- SAP 전송 결과 로그 -->
+            <div id="sim-jumbo-rfc-log" style="display:none;margin-top:12px;padding:12px 14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);font-size:11px;font-family:monospace;color:var(--text-muted);line-height:1.8;max-height:160px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
 </div><!-- /page-simulation -->
+
+<!-- ============================================================
+     점보롤 생산오더 페이지
+     ============================================================ -->
+<div id="page-jumbo-list" style="display:none;height:100%;flex-direction:column;">
+  <div style="padding:24px 28px 0;flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <h2 style="font-size:1.25rem;font-weight:700;color:var(--text-primary);margin:0 0 4px;">점보롤 생산오더</h2>
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin:0;">지폭조합으로 생성된 점보롤 생산오더 목록입니다.</p>
+      </div>
+      <button class="btn-primary" style="font-size:0.82rem;padding:8px 16px;" onclick="loadJumboList()">
+        <i class="fas fa-sync-alt" style="margin-right:6px;"></i>새로고침
+      </button>
+    </div>
+
+    <!-- 필터 행 -->
+    <div class="section-card" style="margin-bottom:16px;padding:16px 20px;">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">호기</label>
+          <select id="jl-filter-machine" class="form-select" style="width:110px;font-size:0.82rem;padding:7px 10px;" onchange="applyJumboFilter()">
+            <option value="">전체</option>
+            <option value="2">2호기</option>
+            <option value="3">3호기</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">평량</label>
+          <select id="jl-filter-bw" class="form-select" style="width:110px;font-size:0.82rem;padding:7px 10px;" onchange="applyJumboFilter()">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">상태</label>
+          <select id="jl-filter-status" class="form-select" style="width:120px;font-size:0.82rem;padding:7px 10px;" onchange="applyJumboFilter()">
+            <option value="">전체</option>
+            <option value="PENDING">대기</option>
+            <option value="SENT">SAP전송완료</option>
+            <option value="CANCELLED">취소됨</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">오더번호</label>
+          <input id="jl-filter-no" class="form-input" type="text" placeholder="J-000 검색" style="width:140px;font-size:0.82rem;padding:7px 10px;" oninput="applyJumboFilter()">
+        </div>
+        <button class="btn-ghost" style="font-size:0.82rem;padding:7px 14px;margin-top:auto;" onclick="resetJumboFilter()">
+          <i class="fas fa-times" style="margin-right:4px;"></i>필터 초기화
+        </button>
+      </div>
+    </div>
+
+    <!-- 요약 통계 -->
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+      <div class="stat-mini"><span class="stat-mini-val" id="jl-count">0</span><span class="stat-mini-label">전체 오더</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" id="jl-m2">0</span><span class="stat-mini-label">2호기</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" id="jl-m3">0</span><span class="stat-mini-label">3호기</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" id="jl-ton">0</span><span class="stat-mini-label">총 생산량(TON)</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" id="jl-pending">0</span><span class="stat-mini-label">대기중</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" id="jl-sent">0</span><span class="stat-mini-label">SAP전송완료</span></div>
+    </div>
+  </div>
+
+  <!-- 테이블 영역 -->
+  <div style="flex:1;overflow:auto;padding:0 28px 28px;">
+    <div class="section-card" style="padding:0;overflow:hidden;">
+      <table class="data-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th style="width:110px;">점보롤 오더번호</th>
+            <th style="width:60px;">호기</th>
+            <th style="width:70px;">평량</th>
+            <th style="width:90px;">전체 지폭(mm)</th>
+            <th style="width:180px;">폭 구성</th>
+            <th style="width:55px;">폭수</th>
+            <th style="width:80px;">생산량(TON)</th>
+            <th style="width:70px;">손실율</th>
+            <th style="width:80px;">납기일</th>
+            <th>연결 판매오더</th>
+            <th style="width:80px;">상태</th>
+            <th style="width:70px;">생성일시</th>
+            <th style="width:60px;">작업</th>
+          </tr>
+        </thead>
+        <tbody id="jl-tbody">
+          <tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text-secondary);">
+            <i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>로딩 중...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /page-jumbo-list -->
 
   </div><!-- /page-content-wrap -->
 </div><!-- /main-area -->
@@ -2409,6 +2599,7 @@ const PAGE_NAMES = {
   'rfc-log'     : 'RFC 통신결과',
   'constraint'  : '제약조건 설정',
   'machine'     : '기계 마스터',
+  'jumbo-list'  : '점보롤 생산오더',
 }
 
 /* ══════════════════════════════════════
@@ -2465,7 +2656,7 @@ function toggleTheme() {
 /* ══════════════════════════════════════
    페이지 전환
 ══════════════════════════════════════ */
-const PAGES = ['dashboard','order-import','order-list','prod-list','prod-cancel','simulation','rfc-log','constraint','machine']
+const PAGES = ['dashboard','order-import','order-list','prod-list','prod-cancel','simulation','rfc-log','constraint','machine','jumbo-list']
 
 function goPage(p) {
   PAGES.forEach(id => {
@@ -2485,6 +2676,7 @@ function goPage(p) {
   if (p === 'simulation')  loadSimulation()
   if (p === 'constraint')  loadConstraintValues()
   if (p === 'machine')     loadMachine()
+  if (p === 'jumbo-list')  loadJumboList()
 }
 
 /* ══════════════════════════════════════
@@ -3086,6 +3278,137 @@ function closeCancelResultModal() {
 }
 
 /* ══════════════════════════════════════
+   점보롤 생산오더 목록
+══════════════════════════════════════ */
+let jumboAllData = []
+
+async function loadJumboList() {
+  try {
+    const res = await fetch('/klean-aps-api/jumbo-orders')
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+    jumboAllData = json.data || []
+    // 평량 필터 옵션 갱신
+    const bwSel = document.getElementById('jl-filter-bw')
+    if (bwSel) {
+      const bws = [...new Set(jumboAllData.map(o => o.basisWeight))].filter(Boolean).sort((a,b)=>a-b)
+      bwSel.innerHTML = '<option value="">전체</option>' + bws.map(b => '<option value="'+b+'">'+b+'g</option>').join('')
+    }
+    applyJumboFilter()
+  } catch(e) {
+    toast('점보롤 오더 로드 실패: ' + e.message, 'error')
+  }
+}
+
+function resetJumboFilter() {
+  const ids = ['jl-filter-machine','jl-filter-bw','jl-filter-status','jl-filter-no']
+  ids.forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.value = ''
+  })
+  applyJumboFilter()
+}
+
+function applyJumboFilter() {
+  const machine = (document.getElementById('jl-filter-machine') || {}).value || ''
+  const bw      = (document.getElementById('jl-filter-bw')      || {}).value || ''
+  const status  = (document.getElementById('jl-filter-status')  || {}).value || ''
+  const no      = ((document.getElementById('jl-filter-no')     || {}).value || '').trim().toLowerCase()
+
+  const filtered = jumboAllData.filter(o => {
+    if (machine && String(o.machineNo) !== machine) return false
+    if (bw      && String(o.basisWeight) !== bw)    return false
+    if (status  && o.status !== status)             return false
+    if (no      && !(o.jumboOrderNo || '').toLowerCase().includes(no)) return false
+    return true
+  })
+
+  renderJumboListTable(filtered)
+  renderJumboListStats(filtered)
+}
+
+function renderJumboListStats(list) {
+  const el = id => document.getElementById(id)
+  const safe = (id, val) => { if (el(id)) el(id).textContent = val }
+
+  safe('jl-count', list.length)
+  safe('jl-m2',    list.filter(o => String(o.machineNo) === '2').length)
+  safe('jl-m3',    list.filter(o => String(o.machineNo) === '3').length)
+  safe('jl-ton',   list.reduce((s,o) => s+(o.totalTon||0), 0).toFixed(2))
+  safe('jl-pending', list.filter(o => o.status === 'PENDING').length)
+  safe('jl-sent',    list.filter(o => o.status === 'SENT').length)
+}
+
+function renderJumboListTable(list) {
+  const tbody = document.getElementById('jl-tbody')
+  if (!tbody) return
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text-secondary);">'
+      + '<i class="fas fa-inbox" style="margin-right:8px;font-size:1.4rem;display:block;margin-bottom:8px;"></i>'
+      + '점보롤 생산오더가 없습니다.</td></tr>'
+    return
+  }
+
+  tbody.innerHTML = list.map(function(o) {
+    var widthTags = (o.widths || []).map(function(w) {
+      return '<span style="display:inline-block;background:var(--accent-blue);color:#fff;border-radius:4px;padding:2px 7px;font-size:0.75rem;margin:1px;">' + w + 'mm</span>'
+    }).join(' ')
+
+    var sourceStr = (o.sourceOrderNos || []).slice(0, 3).join(', ')
+      + (o.sourceOrderNos && o.sourceOrderNos.length > 3 ? ' 외 '+(o.sourceOrderNos.length-3)+'건' : '')
+
+    var statusBadge = ''
+    if (o.status === 'SENT')      statusBadge = '<span class="badge b-complete">SAP전송</span>'
+    else if (o.status === 'CANCELLED') statusBadge = '<span class="badge b-cancel">취소됨</span>'
+    else                                statusBadge = '<span class="badge b-pending">대기</span>'
+
+    var lossStr = (o.lossRate != null) ? o.lossRate.toFixed(1) + '%' : '-'
+    var tonStr  = (o.totalTon  != null) ? o.totalTon.toFixed(3) + ' T' : '-'
+    var dueStr  = o.planEndDate ? o.planEndDate.slice(0,10) : '-'
+    var createdStr = o.createdAt ? o.createdAt.slice(0,10) : '-'
+
+    var cancelBtn = (o.status === 'PENDING')
+      ? '<button class="btn-ghost" style="font-size:0.75rem;padding:4px 8px;color:var(--text-danger);" onclick="cancelJumboOrder(' + o.jumboId + ')">'
+        + '<i class="fas fa-ban" style="margin-right:3px;"></i>취소</button>'
+      : '<span style="color:var(--text-muted);font-size:0.75rem;">-</span>'
+
+    return '<tr>'
+      + '<td style="font-weight:700;color:var(--accent-blue);">' + (o.jumboOrderNo || '-') + '</td>'
+      + '<td style="text-align:center;">' + o.machineNo + '호기</td>'
+      + '<td style="text-align:center;">' + (o.basisWeight || '-') + 'g</td>'
+      + '<td style="text-align:center;font-weight:600;">' + (o.jumboWidth || '-') + 'mm</td>'
+      + '<td>' + widthTags + '</td>'
+      + '<td style="text-align:center;">' + (o.pokCount || '-') + '폭</td>'
+      + '<td style="text-align:center;">' + tonStr + '</td>'
+      + '<td style="text-align:center;">'
+        + (o.lossRate != null
+          ? '<span style="color:' + (o.lossRate > 5 ? 'var(--text-warning)' : 'var(--text-success)') + ';font-weight:600;">' + lossStr + '</span>'
+          : '-')
+        + '</td>'
+      + '<td style="text-align:center;">' + dueStr + '</td>'
+      + '<td style="font-size:0.78rem;color:var(--text-secondary);">' + (sourceStr || '-') + '</td>'
+      + '<td style="text-align:center;">' + statusBadge + '</td>'
+      + '<td style="text-align:center;font-size:0.75rem;color:var(--text-muted);">' + createdStr + '</td>'
+      + '<td style="text-align:center;">' + cancelBtn + '</td>'
+      + '</tr>'
+  }).join('')
+}
+
+async function cancelJumboOrder(id) {
+  if (!confirm('점보롤 오더를 취소하시겠습니까? 취소된 오더는 복구할 수 없습니다.')) return
+  try {
+    const res = await fetch('/klean-aps-api/jumbo-orders/' + id, { method: 'DELETE' })
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || '삭제 실패')
+    toast('점보롤 오더가 취소되었습니다.', 'ok')
+    loadJumboList()
+  } catch(e) {
+    toast('취소 실패: ' + e.message, 'error')
+  }
+}
+
+/* ══════════════════════════════════════
    기계 마스터
 ══════════════════════════════════════ */
 async function loadMachine() {
@@ -3442,7 +3765,15 @@ function setSimState(state) {
     setBtn(unconfBtn, true)
     setBtn(orderBtn,  true)
     if(badge) badge.innerHTML='<span class="badge b-assigned" style="font-size:11px;"><i class="fas fa-lock"></i> 확정됨</span>'
-    if(statusText) statusText.innerHTML='시뮬레이션이 <b>확정</b>되었습니다. <b>오더생성</b>으로 SAP에 전달하거나 <b>확정취소</b>로 재수정할 수 있습니다.'
+    if(statusText) statusText.innerHTML='시뮬레이션이 <b>확정</b>되었습니다. <b>오더생성</b>으로 점보롤 생산오더를 SAP에 전달하세요.'
+  } else if (state === 'ordered') {
+    setBtn(genBtn,    false)
+    setBtn(confBtn,   false)
+    setBtn(unconfBtn, false)
+    setBtn(orderBtn,  false)
+    if(badge) badge.innerHTML='<span class="badge b-complete" style="font-size:11px;"><i class="fas fa-check-circle"></i> 오더생성 완료</span>'
+    if(statusText) statusText.innerHTML='점보롤 생산오더가 SAP으로 전송되었습니다. 새 시뮬레이션을 시작하려면 <b>생성</b> 버튼을 누르세요.'
+    if(genBtn) genBtn.disabled = false   // 생성은 다시 가능
   }
 }
 
@@ -3693,16 +4024,156 @@ function simUnconfirm() {
   toast('확정이 취소되었습니다. 시뮬레이션을 재생성하거나 수정할 수 있습니다.','ok')
 }
 
+// ── 점보롤 오더 번호 시퀀스 (프론트 로컬)
+let _jumboLocalSeq = 1
+
+// 점보롤 생산오더 생성 → API 저장 → 화면 렌더링 → SAP RFC 로그
 async function simSendOrder() {
   if (simState !== 'confirmed') return
   if (!simCombos.length) { toast('전송할 조합이 없습니다.','info'); return }
+
   const btn = document.getElementById('btn-sim-order')
   if (btn) btn.disabled = true
-  toast('SAP으로 생산오더 전송 중...','ok')
-  await new Promise(r => setTimeout(r, 900))
-  const n = simCombos.length
-  toast('생산오더 '+n+'건이 SAP RFC(Z_CREATE_PROD_ORDER)로 전송되었습니다.','ok')
-  if (btn) btn.disabled = false
+  toast('점보롤 생산오더 생성 중...','ok')
+
+  // ── 1. 조합 결과 → 점보롤 오더 페이로드 빌드
+  const c = getConstraints()
+  const today = new Date()
+  const pad = n => String(n).padStart(2,'0')
+  const todayStr = today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate())
+
+  const jumboPayload = simCombos.map(combo => {
+    const mimi = c.mimi || 30
+    // 개별 지폭 배열
+    const widths = combo.orders.map(o => o.paperWidth)
+    // 전체 지폭 = 폭합산 + 미미 × (폭수-1)
+    const jumboWidth = widths.reduce((s,w) => s+w, 0) + (widths.length > 1 ? mimi*(widths.length-1) : 0)
+    // 연결 판매오더번호
+    const sourceOrderNos = combo.orders.map(o => o.sapOrderNo)
+    // 납기일 중 가장 이른 것으로 planEndDate 설정
+    const dueDates = combo.orders.map(o => o.dueDate).filter(Boolean).sort()
+    const planEndDate = dueDates[0] || todayStr
+
+    return {
+      machineNo:      combo.machineNo,
+      basisWeight:    combo.basisWeight,
+      jumboWidth,
+      totalTon:       Number(combo.totalTon),
+      pokCount:       combo.pokCount,
+      widths,
+      sourceComboId:  combo.comboId,
+      sourceOrderNos,
+      planStartDate:  todayStr,
+      planEndDate,
+      lossRate:       combo.lossRate,
+    }
+  })
+
+  try {
+    // ── 2. API 저장
+    const res  = await fetch('/klean-aps-api/jumbo-orders', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ jumboOrders: jumboPayload })
+    })
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+
+    const created = json.data
+
+    // ── 3. Mock SAP RFC 딜레이
+    await new Promise(r => setTimeout(r, 700))
+
+    // ── 4. 화면 렌더링
+    renderJumboOrders(created)
+
+    // ── 5. 상태 전환 (오더생성 완료 = 새 상태 'ordered')
+    setSimState('ordered')
+    toast('점보롤 생산오더 '+created.length+'건이 생성되었습니다. (SAP RFC Z_CREATE_PROD_ORDER 전송 완료)','ok')
+
+  } catch(e) {
+    toast('오더생성 실패: '+e.message,'err')
+    if (btn) btn.disabled = false
+  }
+}
+
+// ── 점보롤 오더 목록 렌더링
+function renderJumboOrders(list) {
+  // 패널 표시
+  const panel = document.getElementById('sim-jumbo-panel')
+  if (panel) panel.style.display = 'flex', panel.style.flexDirection = 'column'
+
+  // 요약 통계
+  const m2 = list.filter(j => j.machineNo === '2').length
+  const m3 = list.filter(j => j.machineNo === '3').length
+  const totalTon = list.reduce((s,j) => s+Number(j.totalTon), 0)
+  const avgLoss  = list.length
+    ? (list.reduce((s,j) => s+Number(j.lossRate||0), 0) / list.length).toFixed(1)
+    : '0.0'
+
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v }
+  set('sj-count',   list.length+'건')
+  set('sj-m2',      m2+'건')
+  set('sj-m3',      m3+'건')
+  set('sj-ton',     totalTon.toFixed(3)+'T')
+  set('sj-avgloss', avgLoss+'%')
+  const cntBadge = document.getElementById('sim-jumbo-count')
+  if (cntBadge) cntBadge.textContent = list.length+'건'
+  const stBadge = document.getElementById('sim-jumbo-status-badge')
+  if (stBadge) stBadge.innerHTML = '<i class="fas fa-check-circle"></i> SAP 전송 완료'
+
+  // 테이블
+  const tbody = document.getElementById('sim-jumbo-tbody')
+  if (!tbody) return
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">생성된 점보롤 오더가 없습니다.</td></tr>'
+    return
+  }
+
+  tbody.innerHTML = list.map((j, idx) => {
+    const lossColor = Number(j.lossRate) === 0 ? '#34d399'
+                    : Number(j.lossRate) < 2   ? '#f59e0b' : '#f87171'
+    const widthCells = (j.widths||[]).map(w =>
+      '<span style="display:inline-block;padding:2px 6px;margin:1px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:10px;font-weight:700;">'+w+'mm</span>'
+    ).join('<span style="color:var(--text-faint);font-size:10px;"> + </span>')
+
+    const orderNos = (j.sourceOrderNos||[]).map(no =>
+      '<span style="font-family:monospace;font-size:10px;color:#60a5fa;margin-right:4px;">'+no+'</span>'
+    ).join('')
+
+    return '<tr>'+
+      '<td class="center" style="color:var(--text-faint);font-size:11px;">'+(idx+1)+'</td>'+
+      '<td style="font-family:monospace;font-weight:700;color:#34d399;font-size:11px;">'+j.jumboOrderNo+'</td>'+
+      '<td class="center"><span class="machine-badge">'+j.machineNo+'호기</span></td>'+
+      '<td class="num" style="font-weight:700;">'+j.basisWeight+'</td>'+
+      '<td class="num" style="font-weight:800;color:var(--text-main);">'+j.jumboWidth.toLocaleString()+'mm</td>'+
+      '<td style="white-space:nowrap;">'+widthCells+'</td>'+
+      '<td class="center" style="font-weight:700;">'+j.pokCount+'폭</td>'+
+      '<td class="num" style="font-weight:700;color:#34d399;">'+Number(j.totalTon).toFixed(3)+'T</td>'+
+      '<td class="num" style="font-weight:700;color:'+lossColor+';">'+j.lossRate+'%</td>'+
+      '<td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+orderNos+'</td>'+
+      '<td class="center"><span class="badge b-assigned" style="font-size:10px;"><i class="fas fa-paper-plane"></i> SAP전송</span></td>'+
+      '</tr>'
+  }).join('')
+
+  // RFC 로그 출력
+  const rfcLog = document.getElementById('sim-jumbo-rfc-log')
+  if (rfcLog) {
+    rfcLog.style.display = 'block'
+    const now = new Date()
+    const ts = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0')
+    const logLines = ['['+ts+'] RFC Z_CREATE_PROD_ORDER 호출 시작 — 점보롤 '+list.length+'건']
+    list.forEach((j,i) => {
+      logLines.push(
+        '['+ts+'] #'+(i+1)+' '+j.jumboOrderNo+
+        ' | '+j.machineNo+'호기 | '+j.basisWeight+'g | '+j.jumboWidth+'mm '+j.pokCount+'폭'+
+        ' | '+Number(j.totalTon).toFixed(3)+'T → RETURN: S (성공)'
+      )
+    })
+    logLines.push('['+ts+'] RFC 완료 — 전체 '+list.length+'건 성공, 실패 0건')
+    rfcLog.innerHTML = logLines.join('<br>')
+    rfcLog.scrollTop = rfcLog.scrollHeight
+  }
 }
 
 /* ══════════════════════════════════════
