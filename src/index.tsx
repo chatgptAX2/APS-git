@@ -2611,13 +2611,10 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             </div>
             <div class="form-group">
               <label class="form-label">평량 (g/m²)</label>
-              <select class="form-select" id="sim-basisWeight">
-                <option value="">전체</option>
-                <option value="220">220</option>
-                <option value="300">300</option>
-                <option value="500">500</option>
-                <option value="550">550</option>
-              </select>
+              <input type="number" class="form-input" id="sim-basisWeight"
+                placeholder="전체" min="1" list="bw-list-sim"
+                style="width:100%;">
+              <datalist id="bw-list-sim"></datalist>
             </div>
             <div class="form-group">
               <label class="form-label">납기일 From</label>
@@ -3215,7 +3212,7 @@ async function saveSelected() {
 // 평량 datalist 동적 업데이트 (실제 데이터에서 추출)
 function updateBwDatalist(orders) {
   const bws = [...new Set(orders.map(o => o.basisWeight).filter(Boolean))].sort((a,b)=>a-b)
-  const ids = ['bw-list-import','bw-list-order','bw-list-prod']
+  const ids = ['bw-list-import','bw-list-order','bw-list-prod','bw-list-sim']
   ids.forEach(id => {
     const dl = document.getElementById(id)
     if (!dl) return
@@ -4111,6 +4108,10 @@ let simExcluded = []    // 분리된 예외 오더
 function loadSimulation() {
   updateSimConstraintSummary()
   setSimState('idle')
+  // 실제 로드된 데이터 기반으로 평량 datalist 갱신
+  if (allOrders && allOrders.length > 0) {
+    updateBwDatalist(allOrders)
+  }
 }
 
 function setSimState(state) {
@@ -4238,7 +4239,14 @@ async function simGenerate() {
   const tbody = document.getElementById('sim-order-tbody')
   if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 오더 불러오는 중...</td></tr>'
 
-  let filtered = [...orders]
+  // allOrders: 판매오더 불러오기에서 실제 로드된 데이터 사용
+  const sourceOrders = (allOrders && allOrders.length > 0) ? allOrders : []
+  if (sourceOrders.length === 0) {
+    toast('판매오더를 먼저 불러와 주세요. (판매오더 불러오기 메뉴)','warn')
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-info-circle"></i> 판매오더 불러오기를 먼저 실행해 주세요.</td></tr>'
+    return
+  }
+  let filtered = [...sourceOrders]
   if (machineNo)   filtered = filtered.filter(o => o.machineNo   === machineNo)
   if (basisWeight) filtered = filtered.filter(o => o.basisWeight === Number(basisWeight))
   if (dueFrom)     filtered = filtered.filter(o => o.dueDate >= dueFrom)
