@@ -2962,7 +2962,7 @@ function resetImportFilter() {
 }
 
 async function confirmResetAllData() {
-  if (!confirm('판매오더 · 점보롤 생산오더 · 생산오더 전체를 삭제합니다.\n\n이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?')) return
+  if (!confirm('판매오더 · 점보롤 생산오더 · 생산오더 전체를 삭제합니다.\\n\\n이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?')) return
   try {
     const r = await fetch(API+'/klean-aps-api/reset-all-data', { method:'DELETE' })
     const d = await r.json()
