@@ -581,26 +581,26 @@ body{
 
 /* ── 사이드바 ── */
 #sidebar{
-  width:224px;height:100vh;
+  width:290px;height:100vh;
   background:var(--bg-surface);
   border-right:1px solid var(--border);
   display:flex;flex-direction:column;flex-shrink:0;
   transition:background .25s, border-color .25s;
 }
 .nav-group-title{
-  font-size:10px;font-weight:700;
+  font-size:11px;font-weight:700;
   color:var(--nav-group-txt);
-  letter-spacing:.1em;padding:14px 16px 5px;
+  letter-spacing:.12em;padding:16px 20px 6px;
   font-family:'SBAggroL','Malgun Gothic',sans-serif;
 }
 .nav-item{
-  display:flex;align-items:center;gap:9px;
-  padding:9px 14px;cursor:pointer;font-size:13px;
+  display:flex;align-items:center;gap:12px;
+  padding:13px 20px;cursor:pointer;
   color:var(--nav-text);
   transition:all .12s;
   border-left:3px solid transparent;margin:1px 0;
   font-family:'Jalnan','Malgun Gothic',sans-serif;
-  font-size:12px;
+  font-size:24px;
   letter-spacing:0.12em;
   -webkit-text-stroke: 0px;
   text-shadow: none;
@@ -613,7 +613,7 @@ body{
   border-left-color:var(--nav-active-bdr);
   font-weight:600;
 }
-.nav-item i{width:16px;text-align:center;font-size:13px;}
+.nav-item i{width:24px;text-align:center;font-size:20px;flex-shrink:0;}
 
 /* ── 탑바 ── */
 #topbar{
@@ -886,20 +886,20 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
 /* ── 로고 영역 ── */
 .logo-wrap{
-  padding:18px 16px 14px;
+  padding:20px 20px 16px;
   border-bottom:1px solid var(--border);
   transition:border-color .25s;
 }
 .logo-icon{
-  width:34px;height:34px;
+  width:40px;height:40px;
   background:var(--logo-bg);
-  border-radius:9px;
+  border-radius:10px;
   display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:15px;
+  font-weight:900;font-size:18px;
   color:var(--logo-txt);
   flex-shrink:0;
 }
-.logo-name{font-weight:700;font-size:14px;color:var(--text-primary);font-family:'Jalnan','Malgun Gothic',sans-serif;}
+.logo-name{font-weight:700;font-size:16px;color:var(--text-primary);font-family:'Jalnan','Malgun Gothic',sans-serif;letter-spacing:0.06em;}
 .logo-desc{font-size:10px;color:var(--text-muted);font-family:'SBAggroL','Malgun Gothic',sans-serif;}
 
 /* ── 조회 검색바 ── */
