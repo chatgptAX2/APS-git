@@ -333,6 +333,20 @@ const mainHtml = `<!DOCTYPE html>
   font-display: swap;
 }
 @font-face {
+  font-family: 'SBAggroL';
+  src: url('https://cdn.jsdelivr.net/npm/@noonnu/sbaggrol/SBAggroL.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'SBAggroM';
+  src: url('https://cdn.jsdelivr.net/npm/@noonnu/sbaggrom/SBAggroM.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
   font-family: 'SBAggroB';
   src: url('https://cdn.jsdelivr.net/npm/@noonnu/sb-aggro-b@0.1.0/fonts/sbaggrob-normal.woff') format('woff');
   font-weight: normal;
@@ -558,7 +572,7 @@ const mainHtml = `<!DOCTYPE html>
 ═══════════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
-  font-family:'SBAggroB','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  font-family:'SBAggroL','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
   background:var(--bg-base);
   color:var(--text-secondary);
   overflow:hidden;
@@ -577,7 +591,7 @@ body{
   font-size:10px;font-weight:700;
   color:var(--nav-group-txt);
   letter-spacing:.1em;padding:14px 16px 5px;
-  font-family:'SBAggroB','Malgun Gothic',sans-serif;
+  font-family:'SBAggroL','Malgun Gothic',sans-serif;
 }
 .nav-item{
   display:flex;align-items:center;gap:9px;
@@ -586,6 +600,7 @@ body{
   transition:all .12s;
   border-left:3px solid transparent;margin:1px 0;
   font-family:'Jalnan','Malgun Gothic',sans-serif;
+  font-size:12px;
 }
 .nav-item:hover{background:var(--nav-hover-bg);color:var(--nav-hover-txt);}
 .nav-item.active{
@@ -674,7 +689,7 @@ body{
 select.inp option{background:var(--bg-select-opt);}
 
 /* ── 버튼 ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .12s;white-space:nowrap;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .12s;white-space:nowrap;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
 .btn-primary{background:#2563eb;color:#fff;} .btn-primary:hover{background:#1d4ed8;}
 .btn-success{background:#16a34a;color:#fff;} .btn-success:hover{background:#15803d;}
 .btn-danger {background:#dc2626;color:#fff;} .btn-danger:hover{background:#b91c1c;}
@@ -695,6 +710,7 @@ select.inp option{background:var(--bg-select-opt);}
   background:var(--th-bg);
   color:var(--th-text);
   font-weight:600;padding:9px 10px;text-align:left;
+  font-family:'SBAggroM','Malgun Gothic',sans-serif;
   border-bottom:1px solid var(--border);
   white-space:nowrap;position:sticky;top:0;z-index:5;
   transition:background .25s, color .25s;
@@ -711,7 +727,7 @@ select.inp option{background:var(--bg-select-opt);}
 .data-table .center{text-align:center;}
 
 /* ── 배지 ── */
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
 .b-open    {background:var(--badge-open-bg);   color:var(--badge-open-txt);}
 .b-assigned{background:var(--badge-assign-bg); color:var(--badge-assign-txt);}
 .b-complete{background:var(--badge-done-bg);   color:var(--badge-done-txt);}
@@ -733,13 +749,13 @@ select.inp option{background:var(--bg-select-opt);}
   display:flex;flex-direction:column;gap:2px;
   transition:background .25s, border-color .25s;
 }
-.stat-mini .sv{font-size:18px;font-weight:800;}
+.stat-mini .sv{font-size:18px;font-weight:700;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
 .stat-mini .sl{font-size:10px;color:var(--text-subtle);}
 
 /* ── 페이지 제목 ── */
 .page-header{padding:18px 28px 0;flex-shrink:0;}
-.page-title{font-size:18px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:10px;}
-.page-sub{font-size:12px;color:var(--text-subtle);margin-top:3px;}
+.page-title{font-size:18px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
+.page-sub{font-size:12px;color:var(--text-subtle);margin-top:3px;font-family:'SBAggroL','Malgun Gothic',sans-serif;}
 
 /* ── RFC 로딩 ── */
 .rfc-loading{
@@ -838,9 +854,10 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   transition:border-color .25s;
 }
 .card-label{
-  font-size:13px;font-weight:700;
+  font-size:13px;font-weight:600;
   color:var(--text-muted);
   display:flex;align-items:center;gap:8px;
+  font-family:'SBAggroM','Malgun Gothic',sans-serif;
 }
 .count-badge{
   font-size:11px;
@@ -878,8 +895,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   color:var(--logo-txt);
   flex-shrink:0;
 }
-.logo-name{font-weight:800;font-size:14px;color:var(--text-primary);font-family:'Jalnan','Malgun Gothic',sans-serif;}
-.logo-desc{font-size:10px;color:var(--text-muted);font-family:'SBAggroB','Malgun Gothic',sans-serif;}
+.logo-name{font-weight:700;font-size:14px;color:var(--text-primary);font-family:'Jalnan','Malgun Gothic',sans-serif;}
+.logo-desc{font-size:10px;color:var(--text-muted);font-family:'SBAggroL','Malgun Gothic',sans-serif;}
 
 /* ── 조회 검색바 ── */
 .search-grid{
