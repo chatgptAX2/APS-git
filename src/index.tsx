@@ -581,7 +581,7 @@ body{
 
 /* ── 사이드바 ── */
 #sidebar{
-  width:290px;height:100vh;
+  width:230px;height:100vh;
   background:var(--bg-surface);
   border-right:1px solid var(--border);
   display:flex;flex-direction:column;flex-shrink:0;
