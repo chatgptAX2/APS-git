@@ -2585,11 +2585,36 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         </button>
       </div>
     </div>
+    <!-- DB 저장 상태 배너 -->
+    <div id="sim-db-banner" style="margin-top:10px;padding:9px 14px;border-radius:7px;border:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:10px;">
+      <i id="sim-db-icon" class="fas fa-database" style="flex-shrink:0;font-size:14px;"></i>
+      <div style="flex:1;min-width:0;">
+        <span id="sim-db-text" style="font-weight:600;">DB 상태 확인 중...</span>
+        <span id="sim-db-sub" style="margin-left:8px;font-size:11px;color:var(--text-muted);"></span>
+      </div>
+      <button id="sim-db-go-btn" onclick="goPage('order-import')" style="display:none;padding:4px 12px;font-size:11px;font-weight:700;border-radius:5px;border:none;cursor:pointer;background:#3b82f6;color:#fff;white-space:nowrap;">
+        <i class="fas fa-download"></i> 판매오더 불러오기
+      </button>
+      <button id="sim-db-refresh-btn" onclick="loadSimulation()" style="display:none;padding:4px 10px;font-size:11px;font-weight:600;border-radius:5px;border:1px solid var(--border);cursor:pointer;background:var(--bg-input);color:var(--text-muted);white-space:nowrap;">
+        <i class="fas fa-sync-alt"></i> 새로고침
+      </button>
+    </div>
     <!-- 상태 표시줄 -->
-    <div id="sim-status-banner" style="margin-top:10px;padding:8px 14px;border-radius:7px;background:var(--bg-input);border:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;">
+    <div id="sim-status-banner" style="margin-top:6px;padding:8px 14px;border-radius:7px;background:var(--bg-input);border:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;">
       <i class="fas fa-info-circle" style="color:#60a5fa;flex-shrink:0;"></i>
       <span id="sim-status-text" style="color:var(--text-muted);">조회 조건을 설정하고 <b>생성</b> 버튼을 눌러 시뮬레이션을 시작하세요.</span>
       <span id="sim-state-badge" style="margin-left:auto;flex-shrink:0;"></span>
+    </div>
+    <!-- 진행률 오버레이 -->
+    <div id="sim-progress-overlay" style="display:none;margin-top:6px;padding:12px 16px;border-radius:8px;background:var(--bg-input);border:1px solid #a78bfa44;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <i class="fas fa-cog fa-spin" style="color:#a78bfa;font-size:14px;"></i>
+        <span id="sim-progress-msg" style="font-size:12px;font-weight:600;color:var(--text);">시뮬레이션 준비 중...</span>
+        <span id="sim-progress-pct" style="margin-left:auto;font-size:13px;font-weight:800;color:#a78bfa;">0%</span>
+      </div>
+      <div style="height:6px;border-radius:4px;background:var(--border);overflow:hidden;">
+        <div id="sim-progress-bar" style="height:100%;width:0%;border-radius:4px;background:linear-gradient(90deg,#7c3aed,#a78bfa);transition:width .3s ease;"></div>
+      </div>
     </div>
   </div>
 
@@ -4105,12 +4130,62 @@ let simOrders = []      // 현재 시뮬레이션 대상 오더
 let simCombos = []      // 생성된 조합 결과
 let simExcluded = []    // 분리된 예외 오더
 
-function loadSimulation() {
+async function loadSimulation() {
   updateSimConstraintSummary()
   setSimState('idle')
-  // 실제 로드된 데이터 기반으로 평량 datalist 갱신
-  if (allOrders && allOrders.length > 0) {
+
+  // DB 저장 상태 확인 + allOrders 갱신
+  const dbBanner  = document.getElementById('sim-db-banner')
+  const dbIcon    = document.getElementById('sim-db-icon')
+  const dbText    = document.getElementById('sim-db-text')
+  const dbSub     = document.getElementById('sim-db-sub')
+  const dbGoBtn   = document.getElementById('sim-db-go-btn')
+  const dbRefBtn  = document.getElementById('sim-db-refresh-btn')
+  const genBtn    = document.getElementById('btn-sim-generate')
+
+  // 로딩 상태
+  if (dbBanner) { dbBanner.style.borderColor='var(--border)'; dbBanner.style.background='var(--bg-input)' }
+  if (dbIcon)   { dbIcon.style.color='#60a5fa'; dbIcon.className='fas fa-spinner fa-spin' }
+  if (dbText)   dbText.textContent='DB 저장 데이터 확인 중...'
+  if (dbSub)    dbSub.textContent=''
+  if (dbGoBtn)  dbGoBtn.style.display='none'
+  if (dbRefBtn) dbRefBtn.style.display='none'
+  if (genBtn)   genBtn.disabled = true
+
+  try {
+    const r = await fetch(API+'/klean-aps-api/sales-orders')
+    const d = await r.json()
+    allOrders = d.data || []
     updateBwDatalist(allOrders)
+
+    const openCnt = allOrders.filter(o => o.status==='OPEN' && !o.isExcluded).length
+    const exclCnt = allOrders.filter(o => o.isExcluded).length
+
+    if (allOrders.length === 0) {
+      // DB 비어있음 → 불러오기 유도
+      if (dbBanner) { dbBanner.style.borderColor='#f59e0b55'; dbBanner.style.background='#f59e0b0a' }
+      if (dbIcon)   { dbIcon.style.color='#f59e0b'; dbIcon.className='fas fa-exclamation-triangle' }
+      if (dbText)   dbText.innerHTML='<span style="color:#f59e0b">DB에 판매오더가 없습니다</span>'
+      if (dbSub)    dbSub.textContent='판매오더를 먼저 불러와야 시뮬레이션을 실행할 수 있습니다.'
+      if (dbGoBtn)  dbGoBtn.style.display=''
+      if (genBtn)   genBtn.disabled = true
+    } else {
+      // DB 정상
+      if (dbBanner) { dbBanner.style.borderColor='#34d39944'; dbBanner.style.background='#34d3790a' }
+      if (dbIcon)   { dbIcon.style.color='#34d399'; dbIcon.className='fas fa-check-circle' }
+      if (dbText)   dbText.innerHTML='<span style="color:#34d399">DB 데이터 로드 완료</span>'
+      if (dbSub)    dbSub.textContent='총 '+allOrders.length+'건 (OPEN '+openCnt+'건 / 예외 '+exclCnt+'건)'
+      if (dbRefBtn) dbRefBtn.style.display=''
+      if (genBtn)   genBtn.disabled = false
+    }
+  } catch(e) {
+    // 서버 오류
+    if (dbBanner) { dbBanner.style.borderColor='#f8717155'; dbBanner.style.background='#f871710a' }
+    if (dbIcon)   { dbIcon.style.color='#f87171'; dbIcon.className='fas fa-times-circle' }
+    if (dbText)   dbText.innerHTML='<span style="color:#f87171">서버 연결 오류</span>'
+    if (dbSub)    dbSub.textContent='서버가 응답하지 않습니다. 잠시 후 새로고침해 주세요.'
+    if (dbRefBtn) dbRefBtn.style.display=''
+    if (genBtn)   genBtn.disabled = true
   }
 }
 
@@ -4226,34 +4301,87 @@ function runCombinationAlgorithm(orders) {
   return combos
 }
 
+// 진행률 표시 헬퍼
+function simSetProgress(pct, msg) {
+  const overlay = document.getElementById('sim-progress-overlay')
+  const bar     = document.getElementById('sim-progress-bar')
+  const pctEl   = document.getElementById('sim-progress-pct')
+  const msgEl   = document.getElementById('sim-progress-msg')
+  if (!overlay) return
+  if (pct === null) {
+    overlay.style.display = 'none'; return
+  }
+  overlay.style.display = 'block'
+  if (bar)   bar.style.width   = pct + '%'
+  if (pctEl) pctEl.textContent = pct + '%'
+  if (msgEl) msgEl.textContent = msg || ''
+}
+
 async function simGenerate() {
   if (simState === 'confirmed') {
     toast('확정된 시뮬레이션입니다. 확정취소 후 재생성하세요.','info'); return
   }
+
+  const genBtn = document.getElementById('btn-sim-generate')
+  if (genBtn) genBtn.disabled = true
+
+  // ── 1단계: DB에서 최신 판매오더 조회 (10%)
+  simSetProgress(10, '① DB에서 판매오더 조회 중...')
+  const tbody = document.getElementById('sim-order-tbody')
+  if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 판매오더 불러오는 중...</td></tr>'
+
+  try {
+    const r = await fetch(API+'/klean-aps-api/sales-orders')
+    if (!r.ok) throw new Error('HTTP '+r.status)
+    const d = await r.json()
+    allOrders = d.data || []
+    updateBwDatalist(allOrders)
+  } catch(e) {
+    simSetProgress(null, '')
+    if (genBtn) genBtn.disabled = false
+    toast('서버 연결 오류. 잠시 후 다시 시도해 주세요.','err')
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state" style="color:#f87171"><i class="fas fa-times-circle"></i> 서버 연결 오류</td></tr>'
+    return
+  }
+
+  if (allOrders.length === 0) {
+    simSetProgress(null, '')
+    if (genBtn) genBtn.disabled = false
+    toast('DB에 판매오더가 없습니다. 판매오더 불러오기를 먼저 실행해 주세요.','warn')
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> 판매오더 불러오기를 먼저 실행해 주세요.</td></tr>'
+    // DB 배너도 갱신
+    const dbIcon = document.getElementById('sim-db-icon')
+    const dbText = document.getElementById('sim-db-text')
+    const dbSub  = document.getElementById('sim-db-sub')
+    const dbGoBtn = document.getElementById('sim-db-go-btn')
+    if (dbIcon) { dbIcon.style.color='#f59e0b'; dbIcon.className='fas fa-exclamation-triangle' }
+    if (dbText) dbText.innerHTML='<span style="color:#f59e0b">DB에 판매오더가 없습니다</span>'
+    if (dbSub)  dbSub.textContent='판매오더 불러오기를 먼저 실행해 주세요.'
+    if (dbGoBtn) dbGoBtn.style.display=''
+    return
+  }
+
+  // ── 2단계: 조회 조건 적용 (30%)
+  simSetProgress(30, '② 조회 조건 필터링 중...')
+  await new Promise(r => setTimeout(r, 120))
+
   const machineNo   = (document.getElementById('sim-machineNo')||{}).value||''
   const basisWeight = (document.getElementById('sim-basisWeight')||{}).value||''
   const dueFrom     = (document.getElementById('sim-dueFrom')||{}).value||''
   const dueTo       = (document.getElementById('sim-dueTo')||{}).value||''
   const orderStatus = (document.getElementById('sim-orderStatus')||{}).value||''
 
-  const tbody = document.getElementById('sim-order-tbody')
-  if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 오더 불러오는 중...</td></tr>'
-
-  // allOrders: 판매오더 불러오기에서 실제 로드된 데이터 사용
-  const sourceOrders = (allOrders && allOrders.length > 0) ? allOrders : []
-  if (sourceOrders.length === 0) {
-    toast('판매오더를 먼저 불러와 주세요. (판매오더 불러오기 메뉴)','warn')
-    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-info-circle"></i> 판매오더 불러오기를 먼저 실행해 주세요.</td></tr>'
-    return
-  }
-  let filtered = [...sourceOrders]
+  let filtered = [...allOrders]
   if (machineNo)   filtered = filtered.filter(o => o.machineNo   === machineNo)
   if (basisWeight) filtered = filtered.filter(o => o.basisWeight === Number(basisWeight))
   if (dueFrom)     filtered = filtered.filter(o => o.dueDate >= dueFrom)
   if (dueTo)       filtered = filtered.filter(o => o.dueDate <= dueTo)
   if (orderStatus) filtered = filtered.filter(o => o.status    === orderStatus)
 
-  // 예외 분리
+  // ── 3단계: 예외 오더 분리 (55%)
+  simSetProgress(55, '③ 예외 오더 분리 중...')
+  await new Promise(r => setTimeout(r, 120))
+
   simExcluded = []
   simOrders   = filtered.filter(o => {
     const reason = isExcludedOrder(o)
@@ -4261,12 +4389,18 @@ async function simGenerate() {
     return true
   })
 
-  // 오더 목록 렌더링
   renderSimOrderTable(simOrders)
 
-  // 조합 실행
-  await new Promise(r => setTimeout(r, 400)) // UX 딜레이
+  // ── 4단계: 지폭조합 알고리즘 실행 (80%)
+  simSetProgress(80, '④ 지폭조합 알고리즘 실행 중... ('+simOrders.length+'건)')
+  await new Promise(r => setTimeout(r, 200))
+
   simCombos = runCombinationAlgorithm(simOrders)
+
+  // ── 5단계: 결과 렌더링 (100%)
+  simSetProgress(100, '⑤ 결과 렌더링 완료')
+  await new Promise(r => setTimeout(r, 150))
+
   renderSimResult(simCombos)
   renderSimExcluded(simExcluded)
 
@@ -4277,8 +4411,27 @@ async function simGenerate() {
   } else {
     document.getElementById('sim-excl-panel').style.display = 'none'
   }
+
+  // DB 배너 최신 상태 반영
+  const openCnt = allOrders.filter(o => o.status==='OPEN' && !o.isExcluded).length
+  const exclCnt = allOrders.filter(o => o.isExcluded).length
+  const dbIcon2  = document.getElementById('sim-db-icon')
+  const dbText2  = document.getElementById('sim-db-text')
+  const dbSub2   = document.getElementById('sim-db-sub')
+  const dbRefBtn = document.getElementById('sim-db-refresh-btn')
+  const dbBanner = document.getElementById('sim-db-banner')
+  if (dbBanner)  { dbBanner.style.borderColor='#34d39944'; dbBanner.style.background='#34d3790a' }
+  if (dbIcon2)   { dbIcon2.style.color='#34d399'; dbIcon2.className='fas fa-check-circle' }
+  if (dbText2)   dbText2.innerHTML='<span style="color:#34d399">DB 데이터 로드 완료</span>'
+  if (dbSub2)    dbSub2.textContent='총 '+allOrders.length+'건 (OPEN '+openCnt+'건 / 예외 '+exclCnt+'건)'
+  if (dbRefBtn)  dbRefBtn.style.display=''
+
+  // 진행률 숨김 + 버튼 복원
+  setTimeout(() => simSetProgress(null, ''), 600)
+  if (genBtn) genBtn.disabled = false
+
   setSimState('generated')
-  toast('지폭조합 시뮬레이션이 생성되었습니다.','ok')
+  toast('지폭조합 시뮬레이션이 생성되었습니다. ('+simCombos.length+'조합 / '+simOrders.length+'건)','ok')
 }
 
 function renderSimOrderTable(list) {
