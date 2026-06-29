@@ -331,35 +331,35 @@ const mainHtml = `<!DOCTYPE html>
   --bg-surface   : #0f172a;
   --bg-raised    : #050a14;
   --bg-hover     : #0f1e38;
-  --bg-input     : #0a0f1e;
+  --bg-input     : #0d1526;
   --bg-select-opt: #0f172a;
 
-  --border       : #1e293b;
+  --border       : #2d3f55;
   --border-focus : #3b82f6;
-  --border-strong: #334155;
+  --border-strong: #3d5470;
 
   --text-primary : #f1f5f9;
   --text-secondary: #e2e8f0;
-  --text-muted   : #64748b;
-  --text-subtle  : #475569;
-  --text-faint   : #374151;
-  --text-label   : #475569;
+  --text-muted   : #94a3b8;
+  --text-subtle  : #94a3b8;
+  --text-faint   : #64748b;
+  --text-label   : #94a3b8;
 
-  --nav-text     : #64748b;
+  --nav-text     : #94a3b8;
   --nav-hover-bg : #1e293b;
   --nav-hover-txt: #e2e8f0;
   --nav-active-bg: #1e3a5f;
   --nav-active-txt:#93c5fd;
   --nav-active-bdr:#3b82f6;
-  --nav-group-txt: #374151;
+  --nav-group-txt: #64748b;
 
-  --tab-text     : #475569;
+  --tab-text     : #64748b;
   --tab-hover    : #94a3b8;
   --tab-active   : #60a5fa;
   --tab-active-bdr:#3b82f6;
 
   --th-bg        : #050a14;
-  --th-text      : #475569;
+  --th-text      : #94a3b8;
   --td-border    : #0d1526;
   --tr-hover     : #0f1e38;
 
@@ -651,6 +651,7 @@ body{
   transition:border-color .12s, background .25s, color .25s;
 }
 .inp:focus{border-color:var(--border-focus);box-shadow:0 0 0 2px rgba(59,130,246,.15);}
+.inp::placeholder{color:var(--text-faint);}
 select.inp option{background:var(--bg-select-opt);}
 
 /* ── 버튼 ── */
