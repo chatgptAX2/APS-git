@@ -2469,91 +2469,88 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
      점보롤 생산오더 페이지
      ============================================================ -->
 <div id="page-jumbo-list" style="display:none;height:100%;flex-direction:column;">
-  <div style="padding:24px 28px 0;flex-shrink:0;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div>
-        <h2 style="font-size:1.25rem;font-weight:700;color:var(--text-primary);margin:0 0 4px;">점보롤 생산오더</h2>
-        <p style="font-size:0.82rem;color:var(--text-secondary);margin:0;">지폭조합으로 생성된 점보롤 생산오더 목록입니다.</p>
-      </div>
-      <button class="btn-primary" style="font-size:0.82rem;padding:8px 16px;" onclick="loadJumboList()">
-        <i class="fas fa-sync-alt" style="margin-right:6px;"></i>새로고침
-      </button>
-    </div>
+  <div class="page-header">
+    <div class="page-title"><i class="fas fa-scroll" style="color:#a78bfa;"></i>점보롤 생산오더</div>
+    <div class="page-sub">지폭조합 시뮬레이션에서 생성된 점보롤 생산오더 목록</div>
+  </div>
 
-    <!-- 필터 행 -->
-    <div class="section-card" style="margin-bottom:16px;padding:16px 20px;">
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">호기</label>
-          <select id="jl-filter-machine" class="form-select" style="width:110px;font-size:0.82rem;padding:7px 10px;" onchange="applyJumboFilter()">
+  <div class="page-scroll" style="padding-top:14px;">
+    <!-- 필터 -->
+    <div class="section-card" style="padding:14px 18px;">
+      <div class="search-grid">
+        <div><label class="field-label">호기</label>
+          <select id="jl-filter-machine" class="inp" onchange="applyJumboFilter()">
             <option value="">전체</option>
             <option value="2">2호기</option>
             <option value="3">3호기</option>
           </select>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">평량</label>
-          <select id="jl-filter-bw" class="form-select" style="width:110px;font-size:0.82rem;padding:7px 10px;" onchange="applyJumboFilter()">
+        <div><label class="field-label">평량</label>
+          <select id="jl-filter-bw" class="inp" onchange="applyJumboFilter()">
             <option value="">전체</option>
           </select>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">상태</label>
-          <select id="jl-filter-status" class="form-select" style="width:120px;font-size:0.82rem;padding:7px 10px;" onchange="applyJumboFilter()">
+        <div><label class="field-label">상태</label>
+          <select id="jl-filter-status" class="inp" onchange="applyJumboFilter()">
             <option value="">전체</option>
             <option value="PENDING">대기</option>
             <option value="SENT">SAP전송완료</option>
             <option value="CANCELLED">취소됨</option>
           </select>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;">오더번호</label>
-          <input id="jl-filter-no" class="form-input" type="text" placeholder="J-000 검색" style="width:140px;font-size:0.82rem;padding:7px 10px;" oninput="applyJumboFilter()">
+        <div><label class="field-label">오더번호</label>
+          <input id="jl-filter-no" class="inp" type="text" placeholder="J-000 검색" oninput="applyJumboFilter()">
         </div>
-        <button class="btn-ghost" style="font-size:0.82rem;padding:7px 14px;margin-top:auto;" onclick="resetJumboFilter()">
-          <i class="fas fa-times" style="margin-right:4px;"></i>필터 초기화
-        </button>
+        <div style="display:flex;align-items:flex-end;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="applyJumboFilter()"><i class="fas fa-search"></i> 조회</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetJumboFilter()"><i class="fas fa-undo"></i></button>
+          <button class="btn btn-ghost btn-sm" onclick="loadJumboList()"><i class="fas fa-sync-alt"></i></button>
+        </div>
       </div>
     </div>
 
     <!-- 요약 통계 -->
-    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-      <div class="stat-mini"><span class="stat-mini-val" id="jl-count">0</span><span class="stat-mini-label">전체 오더</span></div>
-      <div class="stat-mini"><span class="stat-mini-val" id="jl-m2">0</span><span class="stat-mini-label">2호기</span></div>
-      <div class="stat-mini"><span class="stat-mini-val" id="jl-m3">0</span><span class="stat-mini-label">3호기</span></div>
-      <div class="stat-mini"><span class="stat-mini-val" id="jl-ton">0</span><span class="stat-mini-label">총 생산량(TON)</span></div>
-      <div class="stat-mini"><span class="stat-mini-val" id="jl-pending">0</span><span class="stat-mini-label">대기중</span></div>
-      <div class="stat-mini"><span class="stat-mini-val" id="jl-sent">0</span><span class="stat-mini-label">SAP전송완료</span></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="stat-mini"><div class="sv" style="color:#60a5fa;" id="jl-count">0</div><div class="sl">전체 오더</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#34d399;" id="jl-m2">0</div><div class="sl">2호기</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#a78bfa;" id="jl-m3">0</div><div class="sl">3호기</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#93c5fd;" id="jl-ton">0</div><div class="sl">총 생산량(TON)</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#f59e0b;" id="jl-pending">0</div><div class="sl">대기중</div></div>
+      <div class="stat-mini"><div class="sv" style="color:#4ade80;" id="jl-sent">0</div><div class="sl">SAP전송완료</div></div>
     </div>
-  </div>
 
-  <!-- 테이블 영역 -->
-  <div style="flex:1;overflow:auto;padding:0 28px 28px;">
-    <div class="section-card" style="padding:0;overflow:hidden;">
-      <table class="data-table" style="width:100%;">
-        <thead>
-          <tr>
-            <th style="width:110px;">점보롤 오더번호</th>
-            <th style="width:60px;">호기</th>
-            <th style="width:70px;">평량</th>
-            <th style="width:90px;">전체 지폭(mm)</th>
-            <th style="width:180px;">폭 구성</th>
-            <th style="width:55px;">폭수</th>
-            <th style="width:80px;">생산량(TON)</th>
-            <th style="width:70px;">손실율</th>
-            <th style="width:80px;">납기일</th>
-            <th>연결 판매오더</th>
-            <th style="width:80px;">상태</th>
-            <th style="width:70px;">생성일시</th>
-            <th style="width:60px;">작업</th>
-          </tr>
-        </thead>
-        <tbody id="jl-tbody">
-          <tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text-secondary);">
-            <i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>로딩 중...
-          </td></tr>
-        </tbody>
-      </table>
+    <!-- 결과 테이블 -->
+    <div class="section-card" style="overflow:hidden;">
+      <div class="card-header">
+        <div class="card-label">
+          <i class="fas fa-list-alt" style="color:#a78bfa;"></i>
+          조회 결과 <span class="count-badge" id="jl-count-badge">0 건</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:calc(100vh - 390px);overflow-y:auto;">
+        <table class="data-table" id="jl-table">
+          <thead>
+            <tr>
+              <th class="center">오더번호</th>
+              <th class="center">호기</th>
+              <th class="num">평량(g)</th>
+              <th class="num">전체지폭(mm)</th>
+              <th>폭 구성</th>
+              <th class="center">폭수</th>
+              <th class="num">생산량(TON)</th>
+              <th class="num">손실율</th>
+              <th class="center">납기일</th>
+              <th>연결 판매오더</th>
+              <th class="center">상태</th>
+              <th class="center">생성일</th>
+              <th class="center">작업</th>
+            </tr>
+          </thead>
+          <tbody id="jl-tbody">
+            <tr><td colspan="13" class="empty-state">로딩 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div><!-- /page-jumbo-list -->
@@ -3331,7 +3328,8 @@ function renderJumboListStats(list) {
   const el = id => document.getElementById(id)
   const safe = (id, val) => { if (el(id)) el(id).textContent = val }
 
-  safe('jl-count', list.length)
+  safe('jl-count',      list.length)
+  safe('jl-count-badge', list.length + ' 건')
   safe('jl-m2',    list.filter(o => String(o.machineNo) === '2').length)
   safe('jl-m3',    list.filter(o => String(o.machineNo) === '3').length)
   safe('jl-ton',   list.reduce((s,o) => s+(o.totalTon||0), 0).toFixed(2))
@@ -3344,9 +3342,7 @@ function renderJumboListTable(list) {
   if (!tbody) return
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text-secondary);">'
-      + '<i class="fas fa-inbox" style="margin-right:8px;font-size:1.4rem;display:block;margin-bottom:8px;"></i>'
-      + '점보롤 생산오더가 없습니다.</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="13" class="empty-state">조회된 점보롤 생산오더가 없습니다.</td></tr>'
     return
   }
 
