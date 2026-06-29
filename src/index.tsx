@@ -1453,10 +1453,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             <option value="3">3호기</option>
           </select>
         </div>
-        <div><label class="field-label">평량 (g/m²)</label>
-          <input class="inp" id="fi-basisWeight" type="number" placeholder="예) 350" min="1" list="bw-list-import" style="width:100%;">
-          <datalist id="bw-list-import"></datalist>
-        </div>
         <div><label class="field-label">생성일 From</label>
           <input class="inp" id="fi-dateFrom" type="date">
         </div>
@@ -1545,7 +1541,16 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           RFC 조회 결과
           <span class="count-badge" id="import-count">0 건</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <!-- 평량 필터 (결과 로드 후 활성화) -->
+          <div style="display:flex;align-items:center;gap:6px;">
+            <label style="font-size:12px;color:var(--text-subtle);white-space:nowrap;">평량</label>
+            <input type="number" id="fi-basisWeight" class="inp" placeholder="전체" min="1"
+              list="bw-list-import" oninput="applyImportFilter()"
+              style="width:90px;padding:4px 8px;font-size:12px;height:30px;">
+            <datalist id="bw-list-import"></datalist>
+          </div>
+          <div style="width:1px;height:20px;background:var(--border);"></div>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-subtle);cursor:pointer;">
             <input type="checkbox" id="chk-all-import" onchange="toggleAllImport(this.checked)"> 전체선택
           </label>
@@ -2938,12 +2943,19 @@ async function loadDashboard() {
    판매오더 불러오기 — RFC 조회
 ══════════════════════════════════════ */
 function resetImportFilter() {
-  ['fi-orderType','fi-sapOrderNo','fi-machineNo','fi-basisWeight',
+  ['fi-orderType','fi-sapOrderNo','fi-machineNo',
    'fi-dateFrom','fi-dateTo','fi-createdBy','fi-dueFrom','fi-dueTo',
    'fi-status','fi-customerName'].forEach(id => {
     const el = document.getElementById(id)
     if (el) el.value = ''
   })
+}
+
+// RFC 조회 결과 테이블 평량 필터
+function applyImportFilter() {
+  const bw = Number(document.getElementById('fi-basisWeight').value) || 0
+  const filtered = bw ? importResult.filter(o => o.basisWeight === bw) : importResult
+  renderImportTable(filtered)
 }
 
 async function confirmResetAllData() {
@@ -2972,7 +2984,6 @@ async function runRfcSync() {
     orderType   : document.getElementById('fi-orderType').value,
     sapOrderNo  : document.getElementById('fi-sapOrderNo').value,
     machineNo   : document.getElementById('fi-machineNo').value,
-    basisWeight : document.getElementById('fi-basisWeight').value,
     dateFrom    : document.getElementById('fi-dateFrom').value,
     dateTo      : document.getElementById('fi-dateTo').value,
     createdBy   : document.getElementById('fi-createdBy').value,
@@ -3025,6 +3036,9 @@ async function runRfcSync() {
     const alreadyCard = document.getElementById('rs-already-card')
     alreadyCard.style.borderColor = alreadyN > 0 ? '#f59e0b' : 'var(--border)'
 
+    // 평량 필터 초기화 후 전체 렌더
+    const bwEl = document.getElementById('fi-basisWeight')
+    if (bwEl) bwEl.value = ''
     renderImportTable(importResult)
     document.getElementById('btn-save').disabled = false
     selectedImport.clear()
