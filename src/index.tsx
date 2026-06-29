@@ -411,7 +411,7 @@ const mainHtml = `<!DOCTYPE html>
   --scroll-hover : #334155;
 
   /* 하단 버전 텍스트 */
-  --ver-txt       : #1e293b;
+  --ver-txt       : #4a6080;
   --ver-online    : #16a34a;
 
   /* 테마 토글 버튼 */
@@ -860,7 +860,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   flex-shrink:0;
 }
 .logo-name{font-weight:800;font-size:14px;color:var(--text-primary);}
-.logo-desc{font-size:10px;color:var(--text-faint);}
+.logo-desc{font-size:10px;color:var(--text-muted);}
 
 /* ── 조회 검색바 ── */
 .search-grid{
