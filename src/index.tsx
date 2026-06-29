@@ -600,7 +600,11 @@ body{
   transition:all .12s;
   border-left:3px solid transparent;margin:1px 0;
   font-family:'Jalnan','Malgun Gothic',sans-serif;
-  font-size:10px;
+  font-size:12px;
+  letter-spacing:0.03em;
+  -webkit-text-stroke: 0px;
+  text-shadow: none;
+  opacity: 0.92;
 }
 .nav-item:hover{background:var(--nav-hover-bg);color:var(--nav-hover-txt);}
 .nav-item.active{
