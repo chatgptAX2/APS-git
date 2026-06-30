@@ -264,6 +264,59 @@ const rfcImportLogs: any[] = []  // 판매오더 불러오기 이력
 const rfcSendLogs:   any[] = []  // 생산오더 전송 이력
 
 // ============================================================
+// 시뮬레이션 세션 (헤더 + 디테일)
+//
+// ┌─ simHeaders (1 row per session) ───────────────────────────
+// │  simCode      : "S-YYYY-MM-DD-0001" 고유코드
+// │  simId        : 자동 증가 PK
+// │  status       : 'DRAFT' | 'CONFIRMED' | 'SENT'
+// │  machineNo    : 호기 필터 ('' = 전체)
+// │  basisWeight  : 평량 필터 (0 = 전체)
+// │  targetOrders : 대상 오더 수
+// │  combosTotal  : 총 조합 수
+// │  confirmedCombos : 확정 조합 수
+// │  sentCombos   : 전송(오더생성) 조합 수
+// │  createdAt    : 생성 일시
+// │  confirmedAt  : 확정 일시
+// │  sentAt       : 전송 일시
+// │  operator     : 실행자
+// └─────────────────────────────────────────────────────────────
+//
+// ┌─ simDetails (N rows per session) ──────────────────────────
+// │  detailId     : 자동 증가 PK
+// │  simCode      : FK → simHeaders.simCode
+// │  comboId      : 조합 번호 (1-based within session)
+// │  machineNo    : 호기
+// │  basisWeight  : 평량
+// │  pokCount     : 폭 수
+// │  jumboWidth   : 점보롤 전체 지폭 (mm)
+// │  widths       : 개별 지폭 배열 JSON
+// │  totalTon     : 총 중량 (T)
+// │  lossRate     : 로스율 (%)
+// │  orderCount   : 포함 오더 수
+// │  orderNos     : 포함 SAP 오더번호 배열 JSON
+// │  status       : 'GENERATED' | 'CONFIRMED' | 'SENT'
+// │  jumboOrderNo : 생성된 점보롤 오더번호 (SENT 후)
+// └─────────────────────────────────────────────────────────────
+// ============================================================
+let simSessionSeq  = 1
+let simDetailSeq   = 1
+const simHeaders:  any[] = []
+const simDetails:  any[] = []
+
+// 날짜별 시뮬레이션 코드 카운터  { 'YYYY-MM-DD': number }
+const _simCodeCounter: Record<string, number> = {}
+
+function generateSimCode(): string {
+  const today = new Date()
+  const pad   = (n: number) => String(n).padStart(2, '0')
+  const dateKey = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate())
+  _simCodeCounter[dateKey] = (_simCodeCounter[dateKey] || 0) + 1
+  const seq = String(_simCodeCounter[dateKey]).padStart(4, '0')
+  return 'S-' + dateKey + '-' + seq   // e.g. S-2026-06-30-0001
+}
+
+// ============================================================
 // API
 // ============================================================
 app.get('/klean-aps-api/machines', (c) => c.json({ success:true, data:machines }))
@@ -633,6 +686,152 @@ app.get('/klean-aps-api/rfc-logs', (c) => {
       totalCount: rfcSendLogs.reduce((s,l) => s + (l.sentCount||0), 0)
     }
   })
+})
+
+// ============================================================
+// 시뮬레이션 세션 API
+// ============================================================
+
+// 전체 세션 목록 (헤더만, 최신순)
+app.get('/klean-aps-api/sim-sessions', (c) => {
+  return c.json({
+    success: true,
+    data   : [...simHeaders].reverse(),
+    total  : simHeaders.length,
+  })
+})
+
+// 특정 세션 상세 (헤더 + 디테일)
+app.get('/klean-aps-api/sim-sessions/:code', (c) => {
+  const code   = c.req.param('code')
+  const header = simHeaders.find(h => h.simCode === code)
+  if (!header) return c.json({ success: false, message: '세션 없음' }, 404)
+  const details = simDetails.filter(d => d.simCode === code)
+  return c.json({ success: true, header, details })
+})
+
+// 세션 삭제 (DRAFT 상태만 허용)
+app.delete('/klean-aps-api/sim-sessions/:code', (c) => {
+  const code = c.req.param('code')
+  const idx  = simHeaders.findIndex(h => h.simCode === code)
+  if (idx === -1) return c.json({ success: false, message: '세션 없음' }, 404)
+  if (simHeaders[idx].status === 'SENT')
+    return c.json({ success: false, message: 'SAP 전송 완료된 세션은 삭제할 수 없습니다.' }, 400)
+  simHeaders.splice(idx, 1)
+  const before = simDetails.length
+  for (let i = simDetails.length - 1; i >= 0; i--) {
+    if (simDetails[i].simCode === code) simDetails.splice(i, 1)
+  }
+  return c.json({ success: true, message: '세션 삭제 완료', deletedDetails: before - simDetails.length })
+})
+
+// 세션 생성 (simGenerate 호출 시 — DRAFT)
+// 세션 생성 — 확정 시점에만 호출되므로 status는 바로 CONFIRMED
+// combos: 확정된 조합만 전달받음
+app.post('/klean-aps-api/sim-sessions', async (c) => {
+  const body    = await c.req.json()
+  const simCode = generateSimCode()
+  const pad2    = (n: number) => String(n).padStart(2, '0')
+  const now     = new Date()
+  const ts = now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate())+' '+
+             pad2(now.getHours())+':'+pad2(now.getMinutes())+':'+pad2(now.getSeconds())
+
+  const confirmedCount = (body.combos || []).length
+
+  const header: any = {
+    simId           : simSessionSeq++,
+    simCode,
+    status          : 'CONFIRMED',            // 확정 시점 생성이므로 즉시 CONFIRMED
+    machineNo       : body.machineNo    || '',
+    basisWeight     : body.basisWeight  || 0,
+    dueFrom         : body.dueFrom      || '',
+    dueTo           : body.dueTo        || '',
+    targetOrders    : body.targetOrders || 0,
+    excludedOrders  : body.excludedOrders || 0,
+    combosTotal     : body.combosTotal  || confirmedCount,  // 전체 생성 조합 수
+    confirmedCombos : confirmedCount,          // 확정된 조합 수
+    sentCombos      : 0,
+    createdAt       : ts,
+    confirmedAt     : ts,                      // 생성=확정 동시이므로 동일 시각
+    sentAt          : null,
+    operator        : '사용자',
+  }
+  simHeaders.push(header)
+
+  // 디테일 rows — 확정된 조합만 저장, 모두 CONFIRMED 상태
+  const detailRows: any[] = (body.combos || []).map((combo: any, idx: number) => {
+    const c_: any = {
+      detailId    : simDetailSeq++,
+      simCode,
+      comboId     : combo.comboId,
+      seqNo       : idx + 1,
+      machineNo   : combo.machineNo,
+      basisWeight : combo.basisWeight,
+      pokCount    : combo.pokCount,
+      jumboWidth  : combo.jumboWidth
+                    || combo.orders?.reduce((s: number, o: any) => s + o.paperWidth, 0)
+                    || 0,
+      widths      : JSON.stringify(combo.orders?.map((o: any) => o.paperWidth) || []),
+      totalTon    : combo.totalTon,
+      lossRate    : combo.lossRate,
+      orderCount  : combo.orders?.length || 0,
+      orderNos    : JSON.stringify(combo.orders?.map((o: any) => o.sapOrderNo) || []),
+      status      : 'CONFIRMED',
+      jumboOrderNo: null,
+      confirmedAt : ts,
+    }
+    simDetails.push(c_)
+    return c_
+  })
+
+  return c.json({ success: true, simCode, header, details: detailRows })
+})
+
+// 세션 확정 (simConfirm 호출 시 — CONFIRMED)
+app.patch('/klean-aps-api/sim-sessions/:code/confirm', async (c) => {
+  const code   = c.req.param('code')
+  const header = simHeaders.find(h => h.simCode === code)
+  if (!header) return c.json({ success: false, message: '세션 없음' }, 404)
+  const body   = await c.req.json()                       // { confirmedComboIds: number[] }
+  const ids: number[] = body.confirmedComboIds || []
+
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+  const now  = new Date()
+  header.confirmedAt     = now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate())+' '+
+                           pad2(now.getHours())+':'+pad2(now.getMinutes())+':'+pad2(now.getSeconds())
+  header.status          = 'CONFIRMED'
+  header.confirmedCombos = ids.length
+
+  // 디테일 상태 갱신
+  simDetails.filter(d => d.simCode === code).forEach(d => {
+    d.status = ids.includes(d.comboId) ? 'CONFIRMED' : 'GENERATED'
+  })
+
+  return c.json({ success: true, simCode: code, confirmedCombos: ids.length })
+})
+
+// 세션 전송완료 (simSendOrder 호출 시 — SENT)
+app.patch('/klean-aps-api/sim-sessions/:code/send', async (c) => {
+  const code   = c.req.param('code')
+  const header = simHeaders.find(h => h.simCode === code)
+  if (!header) return c.json({ success: false, message: '세션 없음' }, 404)
+  const body   = await c.req.json()    // { sentItems: [{ comboId, jumboOrderNo }] }
+  const items: { comboId: number; jumboOrderNo: string }[] = body.sentItems || []
+
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+  const now  = new Date()
+  header.sentAt     = now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate())+' '+
+                      pad2(now.getHours())+':'+pad2(now.getMinutes())+':'+pad2(now.getSeconds())
+  header.status     = 'SENT'
+  header.sentCombos = items.length
+
+  // 디테일에 점보롤 오더번호 연결
+  items.forEach(item => {
+    const d = simDetails.find(d => d.simCode === code && d.comboId === item.comboId)
+    if (d) { d.status = 'SENT'; d.jumboOrderNo = item.jumboOrderNo }
+  })
+
+  return c.json({ success: true, simCode: code, sentCombos: items.length })
 })
 
 // ============================================================
@@ -2913,6 +3112,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     <div id="sim-status-banner" style="margin-top:6px;padding:8px 14px;border-radius:7px;background:var(--bg-input);border:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;">
       <i class="fas fa-info-circle" style="color:#60a5fa;flex-shrink:0;"></i>
       <span id="sim-status-text" style="color:var(--text-muted);">조회 조건을 설정하고 <b>생성</b> 버튼을 눌러 시뮬레이션을 시작하세요.</span>
+      <!-- 세션 코드 뱃지 -->
+      <span id="sim-session-code" style="display:none;margin-left:10px;padding:2px 10px;border-radius:5px;background:var(--bg-card);border:1px solid #a78bfa55;font-family:monospace;font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:.5px;"></span>
       <span id="sim-state-badge" style="margin-left:auto;flex-shrink:0;"></span>
     </div>
     <!-- 진행률 오버레이 -->
@@ -3024,6 +3225,13 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <div class="section-title">
             <i class="fas fa-th" style="color:#a78bfa;"></i>지폭조합 결과
             <span id="sim-result-count" class="count-badge" style="margin-left:8px;"></span>
+            <!-- 세션 코드 뱃지 — 확정 후 표시 -->
+            <span id="sim-result-simcode"
+              style="display:none;margin-left:10px;padding:2px 10px;border-radius:5px;
+                     background:var(--bg-base);border:1px solid #a78bfa88;
+                     font-family:monospace;font-size:11px;font-weight:800;
+                     color:#a78bfa;letter-spacing:.5px;">
+            </span>
             <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;">
               <input type="checkbox" id="combo-chk-all" checked onchange="comboSelectAll(this.checked)"
                 style="width:15px;height:15px;cursor:pointer;accent-color:#7c3aed;">
@@ -4962,15 +5170,19 @@ function aiInputResize(el) {
 /* ══════════════════════════════════════
    지폭조합 시뮬레이션
 ══════════════════════════════════════ */
-// 시뮬레이션 상태: 'idle' | 'generated' | 'confirmed'
+// 시뮬레이션 상태: 'idle' | 'generated' | 'confirmed' | 'ordered'
 let simState = 'idle'
 let simOrders = []      // 현재 시뮬레이션 대상 오더
 let simCombos = []      // 생성된 조합 결과
 let simExcluded = []    // 분리된 예외 오더
+let currentSimCode = '' // 현재 세션 코드 (S-YYYY-MM-DD-0001)
 
 async function loadSimulation() {
   updateSimConstraintSummary()
   setSimState('idle')
+  currentSimCode = ''
+  const codeEl = document.getElementById('sim-session-code')
+  if (codeEl) { codeEl.textContent = ''; codeEl.style.display = 'none' }
 
   // DB 저장 상태 확인 + allOrders 갱신
   const dbBanner  = document.getElementById('sim-db-banner')
@@ -5268,6 +5480,13 @@ async function simGenerate() {
   if (dbSub2)    dbSub2.textContent='총 '+allOrders.length+'건 (OPEN '+openCnt+'건 / 예외 '+exclCnt+'건)'
   if (dbRefBtn)  dbRefBtn.style.display=''
 
+  // ── 6단계: 세션 코드 미리 예약 (확정 전까지는 DB 미저장 — 확정 시에만 저장)
+  // 코드는 생성해서 화면에 표시하되 실제 저장은 simConfirm() 시점에 수행
+  currentSimCode = ''  // 확정 전 초기화
+  // 상태 표시줄에는 "미확정" 코드 예고 없이 빈 상태 유지
+  const codeEl = document.getElementById('sim-session-code')
+  if (codeEl) { codeEl.textContent = ''; codeEl.style.display = 'none' }
+
   // 진행률 숨김 + 버튼 복원
   setTimeout(() => simSetProgress(null, ''), 600)
   if (genBtn) genBtn.disabled = false
@@ -5469,19 +5688,64 @@ function getCheckedComboIds() {
     .map(c => c.comboId)
 }
 
-function simConfirm() {
+async function simConfirm() {
   if (simState !== 'generated') return
   if (!simCombos.length) { toast('조합 결과가 없습니다.','info'); return }
   const selectedIds = getCheckedComboIds()
   if (!selectedIds.length) { toast('확정할 조합을 하나 이상 선택해주세요.','info'); return }
+
+  // ── 확정된 조합만 추출
+  const confirmedCombos = simCombos.filter(c => selectedIds.indexOf(c.comboId) !== -1)
+
+  // ── 세션 생성 + 확정 동시 처리 (확정 조합만 저장)
+  try {
+    const machineNo   = (document.getElementById('sim-machineNo')||{}).value||''
+    const basisWeight = (document.getElementById('sim-basisWeight')||{}).value||''
+    const dueFrom     = (document.getElementById('sim-dueFrom')||{}).value||''
+    const dueTo       = (document.getElementById('sim-dueTo')||{}).value||''
+
+    const sessRes  = await fetch(API+'/klean-aps-api/sim-sessions', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({
+        machineNo      : machineNo,
+        basisWeight    : basisWeight ? Number(basisWeight) : 0,
+        dueFrom,
+        dueTo,
+        targetOrders   : simOrders.length,
+        excludedOrders : simExcluded.length,
+        combosTotal    : simCombos.length,          // 전체 생성 조합 수
+        combos         : confirmedCombos,            // 확정된 조합만 저장
+      })
+    })
+    const sessJson = await sessRes.json()
+    if (sessJson.success) {
+      currentSimCode = sessJson.simCode
+
+      // ── 결과 화면에 세션 코드 표시 (상태 표시줄 + 결과 섹션 타이틀)
+      const codeEl = document.getElementById('sim-session-code')
+      if (codeEl) { codeEl.textContent = currentSimCode; codeEl.style.display = '' }
+      const titleCodeEl = document.getElementById('sim-result-simcode')
+      if (titleCodeEl) { titleCodeEl.textContent = currentSimCode; titleCodeEl.style.display = '' }
+    }
+  } catch(e) {
+    console.warn('세션 저장 실패 (비차단):', e)
+  }
+
   setSimState('confirmed')
-  toast('선택된 ' + selectedIds.length + '개 조합이 확정되었습니다. 오더생성 버튼으로 SAP에 전달하세요.','ok')
+  toast('선택된 ' + selectedIds.length + '개 조합이 확정되었습니다. (세션코드: '+(currentSimCode||'-')+') 오더생성 버튼으로 SAP에 전달하세요.','ok')
 }
 
 function simUnconfirm() {
   if (simState !== 'confirmed') return
+  // 세션 코드 초기화 (확정 취소 → 재확정 시 새 코드 발급)
+  currentSimCode = ''
+  const codeEl = document.getElementById('sim-session-code')
+  if (codeEl) { codeEl.textContent = ''; codeEl.style.display = 'none' }
+  const titleCodeEl = document.getElementById('sim-result-simcode')
+  if (titleCodeEl) { titleCodeEl.textContent = ''; titleCodeEl.style.display = 'none' }
   setSimState('generated')
-  toast('확정이 취소되었습니다. 시뮬레이션을 재생성하거나 수정할 수 있습니다.','ok')
+  toast('확정이 취소되었습니다. 조합을 수정하거나 재확정할 수 있습니다.','ok')
 }
 
 // ── 점보롤 오더 번호 시퀀스 (프론트 로컬)
@@ -5552,7 +5816,20 @@ async function simSendOrder() {
     // ── 4. 화면 렌더링
     renderJumboOrders(created)
 
-    // ── 5. 상태 전환 (오더생성 완료 = 새 상태 'ordered')
+    // ── 5. 세션 SENT 상태 갱신 (비차단)
+    if (currentSimCode) {
+      const sentItems = created.map(j => ({
+        comboId     : j.sourceComboId,
+        jumboOrderNo: j.jumboOrderNo,
+      }))
+      fetch(API+'/klean-aps-api/sim-sessions/'+currentSimCode+'/send', {
+        method : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ sentItems })
+      }).catch(() => {})
+    }
+
+    // ── 6. 상태 전환 (오더생성 완료 = 새 상태 'ordered')
     setSimState('ordered')
     toast('점보롤 생산오더 '+created.length+'건이 생성되었습니다. (SAP RFC Z_CREATE_PROD_ORDER 전송 완료)','ok')
 
