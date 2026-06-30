@@ -5017,43 +5017,56 @@ function renderSimResult(combos) {
       '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
       o.paperWidth+'mm</span>'
     ).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
+    const cid = 'combo-check-' + combo.comboId
 
-    return '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--bg-input);">'+
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'+
-        '<span style="font-weight:800;font-size:14px;color:#a78bfa;">#'+combo.comboId+'</span>'+
-        '<span class="machine-badge">'+combo.machineNo+'호기</span>'+
-        '<span style="font-size:12px;color:var(--text-muted);">평량 '+combo.basisWeight+'g/m²</span>'+
-        '<span style="font-size:12px;">'+combo.pokCount+'폭</span>'+
-        '<div style="margin-left:auto;display:flex;gap:8px;align-items:center;">'+
+    return '<div id="combo-card-'+combo.comboId+'" style="border:2px solid var(--border);border-radius:10px;margin-bottom:10px;background:var(--bg-input);overflow:hidden;transition:border-color .15s;">'+
+      '<!-- header -->'+
+      '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);">'+
+        '<!-- checkbox -->'+
+        '<label style="display:flex;align-items:center;cursor:pointer;gap:0;" title="이 조합 선택">'+
+          '<input type="checkbox" id="'+cid+'" checked onchange="onComboCheckChange('+combo.comboId+')" style="width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;" />'+
+        '</label>'+
+        '<span style="font-weight:800;font-size:15px;color:#a78bfa;">#'+combo.comboId+'</span>'+
+        '<span class="machine-badge" style="font-size:13px;padding:3px 12px;">'+combo.machineNo+'호기</span>'+
+        '<span style="font-size:12px;color:var(--text-muted);">평량 <b style="color:var(--text-main);">'+combo.basisWeight+'g/m²</b></span>'+
+        '<span style="font-size:12px;color:var(--text-muted);"><b style="color:var(--text-main);">'+combo.pokCount+'</b>폭</span>'+
+        '<div style="margin-left:auto;display:flex;gap:10px;align-items:center;">'+
           '<span style="font-size:12px;color:var(--text-muted);">합계 지폭: <b style="color:var(--text-main);">'+combo.widthSum.toLocaleString()+'mm</b> / '+combo.maxWidth.toLocaleString()+'mm</span>'+
-          '<span style="font-size:12px;color:'+lossColor+';font-weight:700;">Loss '+combo.lossRate+'%</span>'+
-          '<span style="font-size:12px;color:#34d399;font-weight:700;">'+combo.totalTon+'T</span>'+
+          '<span style="font-size:13px;color:'+lossColor+';font-weight:800;">Loss '+combo.lossRate+'%</span>'+
+          '<span style="font-size:13px;color:#34d399;font-weight:800;">'+combo.totalTon+'T</span>'+
         '</div>'+
       '</div>'+
-      '<div style="margin-bottom:8px;">'+widthBars+'</div>'+
-      '<table style="width:100%;border-collapse:collapse;font-size:11px;">'+
-        '<thead style="background:var(--bg-card);">'+
-          '<tr><th style="padding:4px 6px;text-align:left;color:var(--text-muted);">오더번호</th>'+
-          '<th style="padding:4px 6px;text-align:left;color:var(--text-muted);">납품처</th>'+
-          '<th style="padding:4px 6px;text-align:right;color:var(--text-muted);">지폭</th>'+
-          '<th style="padding:4px 6px;text-align:right;color:var(--text-muted);">수량</th>'+
-          '<th style="padding:4px 6px;text-align:left;color:var(--text-muted);">납기일</th></tr>'+
-        '</thead>'+
-        '<tbody>'+
-          combo.orders.map(o => {
-            const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
-            return '<tr>'+
-              '<td style="padding:4px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
-              '<td style="padding:4px 6px;">'+o.customerName+'</td>'+
-              '<td style="padding:4px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm</td>'+
-              '<td style="padding:4px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
-              '<td style="padding:4px 6px;color:var(--text-muted);">'+o.dueDate+'</td>'+
-              '</tr>'
-          }).join('')+
-        '</tbody>'+
-      '</table>'+
+      '<!-- body -->'+
+      '<div style="padding:12px 16px 4px;">'+
+        '<div style="margin-bottom:10px;">'+widthBars+'</div>'+
+        '<table style="width:100%;border-collapse:collapse;font-size:11px;">'+
+          '<thead style="background:var(--bg-card);">'+
+            '<tr>'+
+              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">오더번호</th>'+
+              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">납품처</th>'+
+              '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">지폭</th>'+
+              '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">수량</th>'+
+              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">납기일</th>'+
+            '</tr>'+
+          '</thead>'+
+          '<tbody>'+
+            combo.orders.map(o => {
+              const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
+              return '<tr>'+
+                '<td style="padding:5px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
+                '<td style="padding:5px 6px;">'+o.customerName+'</td>'+
+                '<td style="padding:5px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm</td>'+
+                '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
+                '<td style="padding:5px 6px;color:var(--text-muted);">'+o.dueDate+'</td>'+
+                '</tr>'
+            }).join('')+
+          '</tbody>'+
+        '</table>'+
+      '</div>'+
     '</div>'
   }).join('')
+  // 체크박스 초기 상태 반영
+  combos.forEach(combo => onComboCheckChange(combo.comboId))
 }
 
 function renderSimExcluded(list) {
@@ -5074,11 +5087,34 @@ function renderSimExcluded(list) {
   }).join('')
 }
 
+// 체크박스 변경 시 카드 테두리 색 + 비활성화 스타일 토글
+function onComboCheckChange(comboId) {
+  const cb = document.getElementById('combo-check-' + comboId)
+  const card = document.getElementById('combo-card-' + comboId)
+  if (!cb || !card) return
+  if (cb.checked) {
+    card.style.borderColor = '#7c3aed'
+    card.style.opacity = '1'
+  } else {
+    card.style.borderColor = 'var(--border)'
+    card.style.opacity = '0.45'
+  }
+}
+
+// 선택된 comboId 목록 반환
+function getCheckedComboIds() {
+  return simCombos
+    .filter(c => { var cb = document.getElementById('combo-check-' + c.comboId); return cb && cb.checked })
+    .map(c => c.comboId)
+}
+
 function simConfirm() {
   if (simState !== 'generated') return
   if (!simCombos.length) { toast('조합 결과가 없습니다.','info'); return }
+  const selectedIds = getCheckedComboIds()
+  if (!selectedIds.length) { toast('확정할 조합을 하나 이상 선택해주세요.','info'); return }
   setSimState('confirmed')
-  toast('시뮬레이션이 확정되었습니다. 오더생성 버튼으로 SAP에 전달하세요.','ok')
+  toast('선택된 ' + selectedIds.length + '개 조합이 확정되었습니다. 오더생성 버튼으로 SAP에 전달하세요.','ok')
 }
 
 function simUnconfirm() {
@@ -5095,9 +5131,14 @@ async function simSendOrder() {
   if (simState !== 'confirmed') return
   if (!simCombos.length) { toast('전송할 조합이 없습니다.','info'); return }
 
+  // 선택된 조합만 처리
+  const selectedIds = getCheckedComboIds()
+  if (!selectedIds.length) { toast('전송할 조합을 하나 이상 선택해주세요.','info'); return }
+  const selectedCombos = simCombos.filter(c => selectedIds.indexOf(c.comboId) !== -1)
+
   const btn = document.getElementById('btn-sim-order')
   if (btn) btn.disabled = true
-  toast('점보롤 생산오더 생성 중...','ok')
+  toast('선택된 ' + selectedCombos.length + '개 조합 점보롤 생산오더 생성 중...','ok')
 
   // ── 1. 조합 결과 → 점보롤 오더 페이로드 빌드
   const c = getConstraints()
@@ -5105,7 +5146,7 @@ async function simSendOrder() {
   const pad = n => String(n).padStart(2,'0')
   const todayStr = today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate())
 
-  const jumboPayload = simCombos.map(combo => {
+  const jumboPayload = selectedCombos.map(combo => {
     const mimi = c.mimi || 30
     // 개별 지폭 배열
     const widths = combo.orders.map(o => o.paperWidth)
