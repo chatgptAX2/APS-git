@@ -2890,7 +2890,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <thead>
                 <tr>
                   <th style="width:32px;"></th>
-                  <th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
+                  <th>오더번호</th><th>납품처</th><th class="center">호기</th><th class="center">평량</th><th class="center">지폭</th><th class="center">수량</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
                 </tr>
               </thead>
               <tbody id="sim-order-tbody">
@@ -4946,12 +4946,14 @@ async function simGenerate() {
   const dueTo       = (document.getElementById('sim-dueTo')||{}).value||''
   const orderStatus = (document.getElementById('sim-orderStatus')||{}).value||''
 
-  let filtered = [...allOrders]
+  // DB저장 오더 중 OPEN 상태만 기본 선적용
+  let filtered = allOrders.filter(o => o.status === 'OPEN')
   if (machineNo)   filtered = filtered.filter(o => o.machineNo   === machineNo)
   if (basisWeight) filtered = filtered.filter(o => o.basisWeight === Number(basisWeight))
   if (dueFrom)     filtered = filtered.filter(o => o.dueDate >= dueFrom)
   if (dueTo)       filtered = filtered.filter(o => o.dueDate <= dueTo)
-  if (orderStatus) filtered = filtered.filter(o => o.status    === orderStatus)
+  if (orderStatus && orderStatus !== 'OPEN')
+                   filtered = filtered.filter(o => o.status    === orderStatus)
 
   // ── 3단계: 예외 오더 분리 (55%)
   simSetProgress(55, '③ 예외 오더 분리 중...')
@@ -5026,9 +5028,9 @@ function renderSimOrderTable(list) {
       '<td style="font-family:monospace;color:#60a5fa;font-size:11px;">'+o.sapOrderNo+'</td>' +
       '<td style="font-size:12px;">'+o.customerName+'</td>' +
       '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>' +
-      '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
-      '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
-      '<td class="num">'+qtyStr+'</td>' +
+      '<td class="center" style="font-weight:700;">'+o.basisWeight+'</td>' +
+      '<td class="center" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
+      '<td class="center">'+qtyStr+'</td>' +
       '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
       '<td style="font-size:11px;color:var(--text-muted);">'+o.dueDate+'</td>' +
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
