@@ -2774,7 +2774,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     </div>
   </div>
 
-  <div class="page-scroll">
+  <div class="page-scroll" style="padding-bottom:72px;">
     <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start;">
 
       <!-- 좌: 조회 조건 패널 -->
