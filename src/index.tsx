@@ -468,13 +468,18 @@ app.post('/klean-aps-api/sales-orders/save', async (c) => {
   let addedCount = 0
   let skippedCount = 0
   for (const o of toSave) {
-    const already = savedOrders.find(s => s.orderId === o.orderId)
+    // machineNo가 비어있으면 자재코드에서 추출
+    const rec: any = { ...o }
+    if (!rec.machineNo && rec.matCode) {
+      rec.machineNo = parseMachineNoFromMatCode(rec.matCode)
+    }
+    const already = savedOrders.find(s => s.orderId === rec.orderId)
     if (already) {
       // 이미 저장된 경우 최신 내용으로 덮어쓰기
-      Object.assign(already, { ...o })
+      Object.assign(already, rec)
       skippedCount++
     } else {
-      savedOrders.push({ ...o, savedAt: new Date().toISOString().replace('T',' ').slice(0,19) })
+      savedOrders.push({ ...rec, savedAt: new Date().toISOString().replace('T',' ').slice(0,19) })
       addedCount++
     }
   }
@@ -504,13 +509,27 @@ app.patch('/klean-aps-api/sales-orders/:id/include', (c) => {
   return c.json({ success:true, data:o })
 })
 
+// ── 자재코드 MID(2,1) → 생산호기 파싱
+// 자재코드 규칙: LEFT(1)=품목유형, MID(2,1)=생산호기(1/2/3), ...
+// 예: H3S11350-09400000 → index[1] = '3' → '3'호기
+function parseMachineNoFromMatCode(matCode: string): string {
+  if (!matCode || matCode.length < 2) return ''
+  const ch = matCode.charAt(1)  // MID(2,1) = 0-based index 1
+  return (ch === '1' || ch === '2' || ch === '3') ? ch : ''
+}
+
 app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
   await new Promise(r => setTimeout(r, 800))
   // 이미 불러온 경우 중복 방지 (재불러오기는 덮어쓰기)
   salesOrders.length = 0
   // 엑셀 데이터를 딥카피해서 런타임 배열에 로드
+  // machineNo가 비어있으면 자재코드 MID(2,1)에서 자동 추출
   for (const o of EXCEL_SALES_ORDERS_DATA) {
-    salesOrders.push({ ...o })
+    const rec: any = { ...o }
+    if (!rec.machineNo && rec.matCode) {
+      rec.machineNo = parseMachineNoFromMatCode(rec.matCode)
+    }
+    salesOrders.push(rec)
   }
   salesOrdersLoaded = true
   const total     = salesOrders.length
