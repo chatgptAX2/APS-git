@@ -1472,8 +1472,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 .due-near   {color:#fb923c;}
 .due-normal {color:var(--text-muted);}
 
-/* ── AI 채팅 패널 ── */
-#sim-ai-panel { background:var(--bg-card); }
+/* ── AI 채팅 패널 (하단 고정 슬라이드업) ── */
+/* #sim-ai-panel 은 인라인 style로 제어 (position:fixed, height 토글) */
 .ai-msg { display:flex; gap:10px; animation:fadeInUp .2s ease; }
 .ai-msg.user  { flex-direction:row-reverse; }
 .ai-msg .ai-bubble {
@@ -2940,72 +2940,73 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       </div>
     </div>
 
-    <!-- ══ AI 분석 프롬프트 패널 ══ -->
-    <div id="sim-ai-panel" style="border-top:1px solid var(--border);padding:14px 20px 0;flex-shrink:0;">
-      <div style="max-width:1200px;margin:0 auto;">
+  </div>
+</div><!-- /page-simulation -->
 
-        <!-- 헤더 -->
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#a78bfa);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <i class="fas fa-robot" style="color:#fff;font-size:13px;"></i>
-            </div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:var(--text);">AI 분석 어시스턴트</div>
-              <div style="font-size:10px;color:var(--text-muted);">claude-opus-4-8 · 시뮬레이션 결과 기반 질의응답</div>
-            </div>
-          </div>
-          <div id="ai-status-dot" style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);">
-            <span id="ai-status-indicator" style="width:7px;height:7px;border-radius:50%;background:#6b7280;display:inline-block;"></span>
-            <span id="ai-status-label">대기 중</span>
-          </div>
-          <button onclick="clearAiChat()" style="padding:4px 10px;font-size:11px;border-radius:5px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-muted);cursor:pointer;">
-            <i class="fas fa-trash-alt"></i> 대화 초기화
-          </button>
-        </div>
+<!-- ══ AI 분석 어시스턴트 슬라이드업 패널 (전체 앱 고정 우하단) ══ -->
+<div id="sim-ai-panel" style="position:fixed;bottom:0;left:260px;right:0;z-index:200;display:none;flex-direction:column;background:var(--bg-card);border-top:2px solid #7c3aed;box-shadow:0 -4px 24px rgba(124,58,237,.2);height:52px;overflow:hidden;transition:height .3s cubic-bezier(.4,0,.2,1);">
 
-        <!-- 대화 히스토리 -->
-        <div id="ai-chat-history" style="min-height:60px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px 0;margin-bottom:10px;">
-          <div id="ai-chat-empty" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">
-            <i class="fas fa-lightbulb" style="color:#a78bfa;font-size:20px;margin-bottom:8px;display:block;"></i>
-            시뮬레이션 결과가 있으면 AI에게 질문해보세요.<br>
-            <span style="color:var(--text-subtle);font-size:11px;">Loss 활용 방안, 조합 최적화, 오더 우선순위 등 무엇이든 물어보세요.</span>
-          </div>
-        </div>
+  <!-- 탭 핸들 (항상 표시) -->
+  <div onclick="toggleAiPanel()" style="display:flex;align-items:center;gap:10px;padding:0 20px;height:52px;cursor:pointer;flex-shrink:0;background:linear-gradient(90deg,rgba(99,102,241,.15) 0%,transparent 60%);user-select:none;">
+    <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#6366f1,#a78bfa);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <i class="fas fa-robot" style="color:#fff;font-size:12px;"></i>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <span style="font-size:13px;font-weight:700;color:var(--text);">AI 분석 어시스턴트</span>
+      <span style="font-size:10px;color:#a78bfa;margin-left:8px;">claude-opus-4-8 · 제지 생산 계획 전문 AI</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);margin-right:8px;">
+      <span id="ai-status-indicator" style="width:7px;height:7px;border-radius:50%;background:#6b7280;display:inline-block;"></span>
+      <span id="ai-status-label">대기 중</span>
+    </div>
+    <button onclick="event.stopPropagation();clearAiChat()" title="대화 초기화" style="padding:3px 9px;font-size:11px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;flex-shrink:0;">
+      <i class="fas fa-trash-alt"></i>
+    </button>
+    <i id="ai-panel-chevron" class="fas fa-chevron-up" style="margin-left:4px;font-size:11px;color:#a78bfa;transition:transform .3s;flex-shrink:0;"></i>
+  </div>
 
-        <!-- 빠른 질문 버튼 -->
-        <div id="ai-quick-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-          <button class="ai-quick-btn" onclick="sendAiQuick('현재 시뮬레이션 결과의 Loss율이 높은 조합은 무엇이며, 개선 방안을 제안해주세요.')">
-            <i class="fas fa-chart-line"></i> Loss 분석
-          </button>
-          <button class="ai-quick-btn" onclick="sendAiQuick('Loss가 발생한 부분을 재단하여 활용할 수 있는 방법을 제안해주세요.')">
-            <i class="fas fa-cut"></i> Loss 활용방안
-          </button>
-          <button class="ai-quick-btn" onclick="sendAiQuick('현재 조합에서 오더를 재배치하여 더 효율적인 조합을 만들 수 있는지 분석해주세요.')">
-            <i class="fas fa-random"></i> 조합 최적화
-          </button>
-          <button class="ai-quick-btn" onclick="sendAiQuick('납기일 기준으로 우선순위가 높은 오더를 분석하고, 생산 순서를 추천해주세요.')">
-            <i class="fas fa-calendar-check"></i> 납기 우선순위
-          </button>
-          <button class="ai-quick-btn" onclick="sendAiQuick('2호기와 3호기의 부하 분산이 적절한지 분석하고 개선안을 제시해주세요.')">
-            <i class="fas fa-balance-scale"></i> 호기 부하분산
-          </button>
-        </div>
+  <!-- 본문 (펼쳐졌을 때) -->
+  <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding:0 20px 12px;min-height:0;">
 
-        <!-- 입력창 -->
-        <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:14px;">
-          <textarea id="ai-input" placeholder="시뮬레이션 결과에 대해 질문하세요... (Shift+Enter: 줄바꿈 / Enter: 전송)"
-            style="flex:1;resize:none;height:44px;max-height:140px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:13px;font-family:inherit;line-height:1.5;outline:none;overflow-y:hidden;"
-            onkeydown="aiInputKeydown(event)" oninput="aiInputResize(this)"></textarea>
-          <button id="ai-send-btn" onclick="sendAiMessage()" style="height:44px;padding:0 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity .2s;">
-            <i class="fas fa-paper-plane"></i> 전송
-          </button>
-        </div>
+    <!-- 대화 히스토리 -->
+    <div id="ai-chat-history" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px 0 6px;min-height:0;">
+      <div id="ai-chat-empty" style="text-align:center;padding:28px 0 16px;color:var(--text-muted);font-size:12px;">
+        <i class="fas fa-lightbulb" style="color:#a78bfa;font-size:24px;margin-bottom:10px;display:block;"></i>
+        시뮬레이션 결과 또는 제지 생산 계획에 대해 자유롭게 질문하세요.<br>
+        <span style="color:var(--text-subtle);font-size:11px;">Loss 분석 · 조합 최적화 · 납기 우선순위 · 호기 부하 등 무엇이든 질문 가능</span>
       </div>
     </div>
 
+    <!-- 빠른 질문 버튼 -->
+    <div id="ai-quick-btns" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 0 6px;border-top:1px solid var(--border);">
+      <button class="ai-quick-btn" onclick="sendAiQuick('현재 시뮬레이션 결과의 Loss율이 높은 조합은 무엇이며, 개선 방안을 제안해주세요.')">
+        <i class="fas fa-chart-line"></i> Loss 분석
+      </button>
+      <button class="ai-quick-btn" onclick="sendAiQuick('Loss가 발생한 부분을 재단하여 활용할 수 있는 방법을 제안해주세요.')">
+        <i class="fas fa-cut"></i> Loss 활용방안
+      </button>
+      <button class="ai-quick-btn" onclick="sendAiQuick('현재 조합에서 오더를 재배치하여 더 효율적인 조합을 만들 수 있는지 분석해주세요.')">
+        <i class="fas fa-random"></i> 조합 최적화
+      </button>
+      <button class="ai-quick-btn" onclick="sendAiQuick('납기일 기준으로 우선순위가 높은 오더를 분석하고, 생산 순서를 추천해주세요.')">
+        <i class="fas fa-calendar-check"></i> 납기 우선순위
+      </button>
+      <button class="ai-quick-btn" onclick="sendAiQuick('2호기와 3호기의 부하 분산이 적절한지 분석하고 개선안을 제시해주세요.')">
+        <i class="fas fa-balance-scale"></i> 호기 부하분산
+      </button>
+    </div>
+
+    <!-- 입력창 -->
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <textarea id="ai-input" placeholder="제지 생산 계획에 대해 자유롭게 질문하세요... (Shift+Enter: 줄바꿈 / Enter: 전송)"
+        style="flex:1;resize:none;height:44px;max-height:160px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:13px;font-family:inherit;line-height:1.5;outline:none;overflow-y:hidden;"
+        onkeydown="aiInputKeydown(event)" oninput="aiInputResize(this)"></textarea>
+      <button id="ai-send-btn" onclick="sendAiMessage()" style="height:44px;padding:0 20px;border-radius:8px;border:none;background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity .2s;">
+        <i class="fas fa-paper-plane"></i> 전송
+      </button>
+    </div>
   </div>
-</div><!-- /page-simulation -->
+</div><!-- /sim-ai-panel -->
 
 <!-- ============================================================
      점보롤 생산오더 페이지
@@ -3216,6 +3217,8 @@ function goPage(p) {
   if (p === 'constraint')  loadConstraintValues()
   if (p === 'machine')     loadMachine()
   if (p === 'jumbo-list')  loadJumboList()
+  // AI 패널: 시뮬레이션 페이지에서만 표시
+  syncAiPanel(p)
 }
 
 /* ══════════════════════════════════════
@@ -4570,6 +4573,43 @@ function sendAiQuick(text) {
   const input = document.getElementById('ai-input')
   if (input) input.value = text
   sendAiMessage()
+}
+
+/* ── AI 패널 펼치기 / 접기 ── */
+let aiPanelOpen = false
+function toggleAiPanel() {
+  aiPanelOpen = !aiPanelOpen
+  const panel   = document.getElementById('sim-ai-panel')
+  const chevron = document.getElementById('ai-panel-chevron')
+  if (!panel) return
+  if (aiPanelOpen) {
+    panel.style.height = '520px'
+    if (chevron) chevron.style.transform = 'rotate(180deg)'
+    // 열리면 입력창 포커스
+    setTimeout(function() {
+      const inp = document.getElementById('ai-input')
+      if (inp) inp.focus()
+    }, 320)
+  } else {
+    panel.style.height = '52px'
+    if (chevron) chevron.style.transform = ''
+  }
+}
+
+/* 시뮬레이션 페이지 진입 시 패널 표시, 다른 페이지에선 숨김 */
+function syncAiPanel(pageName) {
+  const panel = document.getElementById('sim-ai-panel')
+  if (!panel) return
+  if (pageName === 'simulation') {
+    panel.style.display = 'flex'
+  } else {
+    panel.style.display = 'none'
+    // 다른 페이지로 이동하면 접어둠
+    aiPanelOpen = false
+    panel.style.height = '52px'
+    const chevron = document.getElementById('ai-panel-chevron')
+    if (chevron) chevron.style.transform = ''
+  }
 }
 
 function clearAiChat() {
