@@ -2407,6 +2407,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             <tbody>
               <tr><td style="font-family:monospace;color:#a78bfa;">LEFT(1)</td><td>품목유형</td><td><span style="color:#34d399;">F</span>=제품 / <span style="color:#f59e0b;">H</span>=반제품</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">MID(2,1)</td><td>생산호기</td><td>1=1호기 / 2=2호기 / 3=3호기</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(3,3)</td><td>지종코드</td><td>원지 종류 식별 코드 (3자리)</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=속포장 / B=벌크 / 0=Roll</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">MID(6,3)</td><td>평량</td><td>g/m²</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">MID(10,4)</td><td>지폭</td><td>mm</td></tr>
@@ -2415,10 +2416,11 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           </table>
           <div style="padding:14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">예시</div>
-            <div style="font-family:monospace;font-size:14px;color:#60a5fa;letter-spacing:2px;margin-bottom:10px;">F2____220_0800____B</div>
+            <div style="font-family:monospace;font-size:14px;color:#60a5fa;letter-spacing:2px;margin-bottom:10px;">F2<span style="color:#22d3ee;">KRF</span>220_0800____B</div>
             <div style="display:flex;flex-direction:column;gap:4px;">
               <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#34d399;font-family:monospace;min-width:28px;">F</span><span style="color:var(--text-muted);">제품</span></div>
               <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#60a5fa;font-family:monospace;min-width:28px;">2</span><span style="color:var(--text-muted);">2호기</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#22d3ee;font-family:monospace;min-width:28px;">KRF</span><span style="color:var(--text-muted);">지종코드</span></div>
               <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#a78bfa;font-family:monospace;min-width:28px;">220</span><span style="color:var(--text-muted);">평량 220g/m²</span></div>
               <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f59e0b;font-family:monospace;min-width:28px;">0800</span><span style="color:var(--text-muted);">지폭 800mm</span></div>
               <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f87171;font-family:monospace;min-width:28px;">B</span><span style="color:var(--text-muted);">Sheet 벌크포장</span></div>
