@@ -552,6 +552,78 @@ app.delete('/klean-aps-api/reset-all-data', (c) => {
 })
 
 // ============================================================
+// AI Chat API — claude-opus-4-8 (SSE 스트리밍)
+// ============================================================
+app.post('/klean-aps-api/ai-chat', async (c) => {
+  const body       = await c.req.json()
+  const messages   = body.messages  || []
+  const simContext = body.simContext || null   // 시뮬레이션 결과 컨텍스트
+
+  const API_KEY  = (c.env as any)?.GSK_TOKEN  || ''
+  const BASE_URL = 'https://www.genspark.ai/api/llm_proxy/v1'
+
+  if (!API_KEY) {
+    return c.json({ success: false, message: 'AI API 키가 설정되지 않았습니다.' }, 500)
+  }
+
+  // 시스템 프롬프트: 시뮬레이션 컨텍스트 포함
+  let systemContent = `당신은 제지 생산 계획 전문 AI 어시스턴트입니다.
+지폭조합 시뮬레이션 결과를 분석하고, Loss 최소화 방안, 오더 조합 최적화, 생산 효율 개선에 대한 전문적인 조언을 제공합니다.
+답변은 한국어로, 명확하고 실용적으로 작성하세요.`
+
+  if (simContext) {
+    systemContent += `\n\n=== 현재 시뮬레이션 결과 ===
+총 조합 수: ${simContext.totalCombos}개
+포함 오더: ${simContext.totalOrders}건
+합계 생산량: ${simContext.totalTon}TON
+평균 Loss율: ${simContext.avgLoss}%
+
+조합 상세:
+${simContext.combos.map((cb: any) =>
+  `[조합#${cb.comboId}] ${cb.machineNo}호기 / 평량${cb.basisWeight}g/m² / ` +
+  `지폭합계${cb.widthSum}mm(최대${cb.maxWidth}mm) / ` +
+  `${cb.pokCount}폭 / Loss${cb.lossRate}% / ${cb.totalTon}TON` +
+  ` / 오더: ${cb.orders.map((o: any) => o.sapOrderNo+'('+o.paperWidth+'mm)').join(', ')}`
+).join('\n')}
+
+분리된 예외 오더: ${simContext.excludedCount}건`
+  }
+
+  // Fetch API로 SSE 스트리밍
+  const upstream = await fetch(`${BASE_URL}/chat/completions`, {
+    method : 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type' : 'application/json',
+    },
+    body: JSON.stringify({
+      model      : 'claude-opus-4-8',
+      stream     : true,
+      max_tokens : 2000,
+      messages   : [
+        { role: 'system', content: systemContent },
+        ...messages
+      ]
+    })
+  })
+
+  if (!upstream.ok) {
+    const err = await upstream.text()
+    return c.json({ success: false, message: 'AI API 오류: '+err }, 502)
+  }
+
+  // SSE 그대로 클라이언트에 relay
+  return new Response(upstream.body, {
+    headers: {
+      'Content-Type'                : 'text/event-stream',
+      'Cache-Control'               : 'no-cache',
+      'X-Content-Type-Options'      : 'nosniff',
+      'Access-Control-Allow-Origin' : '*',
+    }
+  })
+})
+
+// ============================================================
 // UI
 // ============================================================
 app.get('*', (c) => c.html(mainHtml))
@@ -1391,6 +1463,32 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 .due-urgent {color:#f59e0b;}
 .due-near   {color:#fb923c;}
 .due-normal {color:var(--text-muted);}
+
+/* ── AI 채팅 패널 ── */
+#sim-ai-panel { background:var(--bg-card); }
+.ai-msg { display:flex; gap:10px; animation:fadeInUp .2s ease; }
+.ai-msg.user  { flex-direction:row-reverse; }
+.ai-msg .ai-bubble {
+  max-width:75%; padding:10px 14px; border-radius:12px;
+  font-size:13px; line-height:1.65; white-space:pre-wrap; word-break:break-word;
+}
+.ai-msg.user  .ai-bubble { background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; border-bottom-right-radius:3px; }
+.ai-msg.ai    .ai-bubble { background:var(--bg-input); color:var(--text); border:1px solid var(--border); border-bottom-left-radius:3px; }
+.ai-msg .ai-avatar {
+  width:28px; height:28px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:12px;
+}
+.ai-msg.user .ai-avatar  { background:#4f46e5; color:#fff; }
+.ai-msg.ai   .ai-avatar  { background:linear-gradient(135deg,#6366f1,#a78bfa); color:#fff; }
+.ai-quick-btn {
+  padding:5px 11px; border-radius:20px; border:1px solid #a78bfa55;
+  background:#a78bfa11; color:#a78bfa; font-size:11px; font-weight:600;
+  cursor:pointer; white-space:nowrap; transition:all .15s;
+}
+.ai-quick-btn:hover { background:#a78bfa22; border-color:#a78bfa; }
+.ai-typing-cursor { display:inline-block; width:2px; height:14px; background:#a78bfa; margin-left:2px; animation:blink .7s step-end infinite; vertical-align:text-bottom; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes fadeInUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 </style>
 </head>
 <body>
@@ -2833,6 +2931,71 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
       </div>
     </div>
+
+    <!-- ══ AI 분석 프롬프트 패널 ══ -->
+    <div id="sim-ai-panel" style="border-top:1px solid var(--border);padding:14px 20px 0;flex-shrink:0;">
+      <div style="max-width:1200px;margin:0 auto;">
+
+        <!-- 헤더 -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#a78bfa);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fas fa-robot" style="color:#fff;font-size:13px;"></i>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);">AI 분석 어시스턴트</div>
+              <div style="font-size:10px;color:var(--text-muted);">claude-opus-4-8 · 시뮬레이션 결과 기반 질의응답</div>
+            </div>
+          </div>
+          <div id="ai-status-dot" style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);">
+            <span id="ai-status-indicator" style="width:7px;height:7px;border-radius:50%;background:#6b7280;display:inline-block;"></span>
+            <span id="ai-status-label">대기 중</span>
+          </div>
+          <button onclick="clearAiChat()" style="padding:4px 10px;font-size:11px;border-radius:5px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-muted);cursor:pointer;">
+            <i class="fas fa-trash-alt"></i> 대화 초기화
+          </button>
+        </div>
+
+        <!-- 대화 히스토리 -->
+        <div id="ai-chat-history" style="min-height:60px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px 0;margin-bottom:10px;">
+          <div id="ai-chat-empty" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">
+            <i class="fas fa-lightbulb" style="color:#a78bfa;font-size:20px;margin-bottom:8px;display:block;"></i>
+            시뮬레이션 결과가 있으면 AI에게 질문해보세요.<br>
+            <span style="color:var(--text-subtle);font-size:11px;">Loss 활용 방안, 조합 최적화, 오더 우선순위 등 무엇이든 물어보세요.</span>
+          </div>
+        </div>
+
+        <!-- 빠른 질문 버튼 -->
+        <div id="ai-quick-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="ai-quick-btn" onclick="sendAiQuick('현재 시뮬레이션 결과의 Loss율이 높은 조합은 무엇이며, 개선 방안을 제안해주세요.')">
+            <i class="fas fa-chart-line"></i> Loss 분석
+          </button>
+          <button class="ai-quick-btn" onclick="sendAiQuick('Loss가 발생한 부분을 재단하여 활용할 수 있는 방법을 제안해주세요.')">
+            <i class="fas fa-cut"></i> Loss 활용방안
+          </button>
+          <button class="ai-quick-btn" onclick="sendAiQuick('현재 조합에서 오더를 재배치하여 더 효율적인 조합을 만들 수 있는지 분석해주세요.')">
+            <i class="fas fa-random"></i> 조합 최적화
+          </button>
+          <button class="ai-quick-btn" onclick="sendAiQuick('납기일 기준으로 우선순위가 높은 오더를 분석하고, 생산 순서를 추천해주세요.')">
+            <i class="fas fa-calendar-check"></i> 납기 우선순위
+          </button>
+          <button class="ai-quick-btn" onclick="sendAiQuick('2호기와 3호기의 부하 분산이 적절한지 분석하고 개선안을 제시해주세요.')">
+            <i class="fas fa-balance-scale"></i> 호기 부하분산
+          </button>
+        </div>
+
+        <!-- 입력창 -->
+        <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:14px;">
+          <textarea id="ai-input" placeholder="시뮬레이션 결과에 대해 질문하세요... (Shift+Enter: 줄바꿈 / Enter: 전송)"
+            style="flex:1;resize:none;height:44px;max-height:140px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:13px;font-family:inherit;line-height:1.5;outline:none;overflow-y:hidden;"
+            onkeydown="aiInputKeydown(event)" oninput="aiInputResize(this)"></textarea>
+          <button id="ai-send-btn" onclick="sendAiMessage()" style="height:44px;padding:0 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity .2s;">
+            <i class="fas fa-paper-plane"></i> 전송
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div><!-- /page-simulation -->
 
@@ -4196,6 +4359,210 @@ function updateSimConstraintSummary() {
     '<div>배폭 미미: '+c.mimi+'mm</div>'+
     '<div>MOQ: '+c.moq+'TON / 동일규격: '+c.moqSame+'TON</div>'+
     '<div>원지비중: '+c.wjRatio+'% 이상</div>'
+}
+
+/* ══════════════════════════════════════
+   AI 채팅 어시스턴트
+══════════════════════════════════════ */
+let aiChatHistory = []   // { role:'user'|'assistant', content:'' }
+let aiStreaming   = false
+
+function buildSimContext() {
+  // 현재 시뮬레이션 결과를 AI 컨텍스트로 변환
+  if (!simCombos || simCombos.length === 0) return null
+  const totalOrders = simCombos.reduce((s,c) => s + c.orders.length, 0)
+  const totalTon    = simCombos.reduce((s,c) => s + parseFloat(c.totalTon||0), 0).toFixed(3)
+  const avgLoss     = simCombos.length > 0
+    ? (simCombos.reduce((s,c)=>s+parseFloat(c.lossRate||0),0)/simCombos.length).toFixed(1)
+    : '0.0'
+  return {
+    totalCombos   : simCombos.length,
+    totalOrders,
+    totalTon,
+    avgLoss,
+    excludedCount : simExcluded.length,
+    combos        : simCombos
+  }
+}
+
+function setAiStatus(state) {
+  // state: 'idle' | 'thinking' | 'streaming'
+  const dot   = document.getElementById('ai-status-indicator')
+  const label = document.getElementById('ai-status-label')
+  const btn   = document.getElementById('ai-send-btn')
+  if (state === 'idle') {
+    if(dot)   { dot.style.background='#6b7280'; dot.style.animation='' }
+    if(label) label.textContent='대기 중'
+    if(btn)   { btn.disabled=false; btn.style.opacity='1' }
+  } else if (state === 'thinking') {
+    if(dot)   { dot.style.background='#f59e0b'; dot.style.animation='blink 1s step-end infinite' }
+    if(label) label.textContent='생각 중...'
+    if(btn)   { btn.disabled=true; btn.style.opacity='.5' }
+  } else if (state === 'streaming') {
+    if(dot)   { dot.style.background='#34d399'; dot.style.animation='blink .5s step-end infinite' }
+    if(label) label.textContent='응답 중...'
+    if(btn)   { btn.disabled=true; btn.style.opacity='.5' }
+  }
+}
+
+function appendAiMsg(role, content, streaming) {
+  const hist  = document.getElementById('ai-chat-history')
+  const empty = document.getElementById('ai-chat-empty')
+  if (empty) empty.style.display = 'none'
+
+  const id  = 'ai-msg-' + Date.now() + '-' + Math.random().toString(36).slice(2,6)
+  const div = document.createElement('div')
+  div.className = 'ai-msg ' + role
+  div.id = id
+
+  const avatar = role === 'user'
+    ? '<div class="ai-avatar"><i class="fas fa-user"></i></div>'
+    : '<div class="ai-avatar"><i class="fas fa-robot"></i></div>'
+
+  const cursor = streaming ? '<span class="ai-typing-cursor"></span>' : ''
+  div.innerHTML =
+    avatar +
+    '<div class="ai-bubble" id="bubble-'+id+'">' +
+      escapeHtml(content) + cursor +
+    '</div>'
+
+  hist.appendChild(div)
+  hist.scrollTop = hist.scrollHeight
+  return id
+}
+
+function updateAiBubble(msgId, content, done) {
+  const bubble = document.getElementById('bubble-'+msgId)
+  if (!bubble) return
+  const cursor = done ? '' : '<span class="ai-typing-cursor"></span>'
+  bubble.innerHTML = markdownToHtml(content) + cursor
+  const hist = document.getElementById('ai-chat-history')
+  if (hist) hist.scrollTop = hist.scrollHeight
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+}
+
+function markdownToHtml(text) {
+  // 간단한 마크다운 → HTML 변환
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/\x60(.+?)\x60/g,'<code style="background:var(--bg-base);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;">$1</code>')
+    .replace(/^### (.+)$/gm,'<div style="font-weight:700;font-size:13px;margin:8px 0 4px;color:var(--text);">$1</div>')
+    .replace(/^## (.+)$/gm,'<div style="font-weight:700;font-size:14px;margin:10px 0 5px;color:var(--text);">$1</div>')
+    .replace(/^# (.+)$/gm,'<div style="font-weight:800;font-size:15px;margin:10px 0 5px;color:var(--text);">$1</div>')
+    .replace(/^- (.+)$/gm,'<div style="padding-left:12px;">• $1</div>')
+    .replace(/^\d+\. (.+)$/gm,'<div style="padding-left:12px;">$&</div>')
+    .replace(/\n{2,}/g,'<br><br>')
+    .replace(/\n/g,'<br>')
+}
+
+async function sendAiMessage() {
+  if (aiStreaming) return
+  const input = document.getElementById('ai-input')
+  const text  = (input ? input.value : '').trim()
+  if (!text) return
+
+  // 시뮬레이션 결과 없으면 경고
+  if (simCombos.length === 0) {
+    toast('시뮬레이션을 먼저 생성해주세요.','warn'); return
+  }
+
+  input.value = ''
+  aiInputResize(input)
+
+  // 사용자 메시지 추가
+  aiChatHistory.push({ role:'user', content: text })
+  appendAiMsg('user', text, false)
+
+  // AI 응답 스트리밍
+  aiStreaming = true
+  setAiStatus('thinking')
+  const assistantMsgId = appendAiMsg('ai', '', true)
+  let fullContent = ''
+
+  try {
+    setAiStatus('streaming')
+    const r = await fetch(API+'/klean-aps-api/ai-chat', {
+      method : 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body   : JSON.stringify({
+        messages   : aiChatHistory.slice(-10),  // 최근 10턴
+        simContext : buildSimContext()
+      })
+    })
+
+    if (!r.ok) {
+      const e = await r.json().catch(()=>({message:'알 수 없는 오류'}))
+      throw new Error(e.message || 'HTTP '+r.status)
+    }
+
+    const reader = r.body.getReader()
+    const dec    = new TextDecoder()
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const chunk = dec.decode(value, { stream:true })
+      const lines = chunk.split('\n')
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue
+        const data = line.slice(5).trim()
+        if (data === '[DONE]') break
+        try {
+          const j = JSON.parse(data)
+          const delta = j.choices?.[0]?.delta?.content || ''
+          fullContent += delta
+          updateAiBubble(assistantMsgId, fullContent, false)
+        } catch(_) {}
+      }
+    }
+
+    updateAiBubble(assistantMsgId, fullContent, true)
+    aiChatHistory.push({ role:'assistant', content: fullContent })
+
+  } catch(e) {
+    updateAiBubble(assistantMsgId, '오류: '+e.message, true)
+    aiChatHistory.pop()  // 실패한 user 메시지 제거
+  } finally {
+    aiStreaming = false
+    setAiStatus('idle')
+  }
+}
+
+function sendAiQuick(text) {
+  const input = document.getElementById('ai-input')
+  if (input) input.value = text
+  sendAiMessage()
+}
+
+function clearAiChat() {
+  aiChatHistory = []
+  const hist  = document.getElementById('ai-chat-history')
+  const empty = document.getElementById('ai-chat-empty')
+  if (hist) {
+    hist.innerHTML = ''
+    if (empty) { empty.style.display=''; hist.appendChild(empty) }
+  }
+  setAiStatus('idle')
+  toast('대화가 초기화되었습니다.','info')
+}
+
+function aiInputKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    sendAiMessage()
+  }
+}
+
+function aiInputResize(el) {
+  el.style.height = '44px'
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px'
 }
 
 /* ══════════════════════════════════════
