@@ -3394,9 +3394,19 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         <div class="page-title"><i class="fas fa-history" style="color:#a78bfa;"></i>지폭조합 조회</div>
         <div class="page-sub">확정된 지폭조합 시뮬레이션 세션 이력 조회</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="loadSimHistory()">
-        <i class="fas fa-sync-alt"></i> 새로고침
-      </button>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="sim-action-btn sab-unconfirm" id="sh-btn-unconfirm" onclick="shUnconfirm()" disabled title="선택된 세션의 확정을 취소합니다">
+          <i class="fas fa-undo-alt"></i> 확정취소
+        </button>
+        <div style="width:1px;height:24px;background:var(--border);margin:0 2px;"></div>
+        <button class="sim-action-btn sab-order" id="sh-btn-order" onclick="shSendOrder()" disabled title="선택된 세션의 조합으로 점보롤 생산오더를 생성합니다">
+          <i class="fas fa-paper-plane"></i> 오더생성
+        </button>
+        <div style="width:1px;height:24px;background:var(--border);margin:0 2px;"></div>
+        <button class="btn btn-ghost btn-sm" onclick="loadSimHistory()">
+          <i class="fas fa-sync-alt"></i> 새로고침
+        </button>
+      </div>
     </div>
   </div>
 
@@ -3754,7 +3764,9 @@ async function loadRfcLog() {
 /* ══════════════════════════════════════
    지폭조합 조회 (sim-history)
 ══════════════════════════════════════ */
-let _shAllSessions = []   // 전체 세션 캐시 (필터용)
+let _shAllSessions  = []    // 전체 세션 캐시 (필터용)
+let _shCurrentCode  = ''    // 현재 디테일에서 선택된 세션코드
+let _shCurrentSess  = null  // 현재 선택된 세션 헤더 객체
 
 async function loadSimHistory() {
   try {
@@ -3847,11 +3859,24 @@ async function loadSimHistoryDetail(simCode) {
     if (!data.success) { toast('세션 디테일 조회 실패', 'err'); return }
 
     const details  = data.details || []
+    const header   = data.header  || {}
     const panel    = document.getElementById('sh-detail-panel')
     const codeEl   = document.getElementById('sh-detail-simcode')
     const badge    = document.getElementById('sh-detail-count-badge')
     const tbody    = document.getElementById('sh-detail-tbody')
     if (!panel || !tbody) return
+
+    // 현재 선택 세션 저장 (shUnconfirm / shSendOrder 에서 사용)
+    _shCurrentCode = simCode
+    _shCurrentSess = header
+
+    // 버튼 활성화 — CONFIRMED: 확정취소 O / 오더생성 O  |  SENT: 둘 다 X
+    const unconfBtn = document.getElementById('sh-btn-unconfirm')
+    const orderBtn  = document.getElementById('sh-btn-order')
+    const isConfirmed = header.status === 'CONFIRMED'
+    const isSent      = header.status === 'SENT'
+    if (unconfBtn) unconfBtn.disabled = !isConfirmed
+    if (orderBtn)  orderBtn.disabled  = !isConfirmed
 
     if (codeEl) codeEl.textContent = simCode
     if (badge)  badge.textContent  = details.length + ' 건'
@@ -3921,6 +3946,13 @@ function closeSimHistoryDetail() {
   if (panel) panel.style.display = 'none'
   const allRows = document.querySelectorAll('#sh-session-tbody tr')
   allRows.forEach(r => r.style.background = '')
+  // 버튼 비활성화 + 선택 세션 초기화
+  _shCurrentCode = ''
+  _shCurrentSess = null
+  const unconfBtn = document.getElementById('sh-btn-unconfirm')
+  const orderBtn  = document.getElementById('sh-btn-order')
+  if (unconfBtn) unconfBtn.disabled = true
+  if (orderBtn)  orderBtn.disabled  = true
 }
 
 function applySimHistoryFilter() {
@@ -3943,6 +3975,110 @@ function resetSimHistoryFilter() {
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
   renderSimHistoryTable(_shAllSessions)
   closeSimHistoryDetail()
+}
+
+/* ── 지폭조합 조회 화면 — 확정취소 ─────────────────────── */
+async function shUnconfirm() {
+  if (!_shCurrentCode) { toast('세션을 선택하세요.', 'info'); return }
+  if (!_shCurrentSess || _shCurrentSess.status !== 'CONFIRMED') {
+    toast('CONFIRMED 상태인 세션만 확정취소 할 수 있습니다.', 'info'); return
+  }
+  if (!confirm('[' + _shCurrentCode + '] 세션의 확정을 취소하시겠습니까? 취소 후에는 해당 세션이 삭제됩니다.')) return
+
+  try {
+    // 세션 삭제 API (CONFIRMED → 삭제 허용)
+    const res  = await fetch(API + '/klean-aps-api/sim-sessions/' + _shCurrentCode, { method: 'DELETE' })
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+
+    toast('[' + _shCurrentCode + '] 확정취소 완료. 세션이 삭제되었습니다.', 'ok')
+    closeSimHistoryDetail()
+    await loadSimHistory()   // 목록 새로고침
+  } catch(e) {
+    toast('확정취소 실패: ' + e.message, 'err')
+  }
+}
+
+/* ── 지폭조합 조회 화면 — 오더생성 ─────────────────────── */
+async function shSendOrder() {
+  if (!_shCurrentCode) { toast('세션을 선택하세요.', 'info'); return }
+  if (!_shCurrentSess || _shCurrentSess.status !== 'CONFIRMED') {
+    toast('CONFIRMED 상태인 세션만 오더생성 할 수 있습니다.', 'info'); return
+  }
+
+  const btn = document.getElementById('sh-btn-order')
+  if (btn) btn.disabled = true
+  toast('[' + _shCurrentCode + '] 점보롤 생산오더 생성 중...', 'ok')
+
+  try {
+    // 세션 디테일 조회로 확정 조합 목록 획득
+    const detRes  = await fetch(API + '/klean-aps-api/sim-sessions/' + _shCurrentCode)
+    const detData = await detRes.json()
+    if (!detData.success) throw new Error(detData.message || '세션 조회 실패')
+
+    const details = detData.details || []
+    if (!details.length) throw new Error('확정된 조합이 없습니다.')
+
+    const c      = getConstraints()
+    const today  = new Date()
+    const pad    = n => String(n).padStart(2, '0')
+    const todayStr = today.getFullYear() + '-' + pad(today.getMonth()+1) + '-' + pad(today.getDate())
+
+    // 디테일 → jumboOrders 페이로드 변환
+    const jumboPayload = details.map(d => {
+      let widthsArr = []
+      try { widthsArr = JSON.parse(d.widths || '[]') } catch(_) {}
+      let orderNosArr = []
+      try { orderNosArr = JSON.parse(d.orderNos || '[]') } catch(_) {}
+      return {
+        machineNo:     d.machineNo,
+        basisWeight:   d.basisWeight,
+        jumboWidth:    d.jumboWidth,
+        totalTon:      Number(d.totalTon),
+        pokCount:      d.pokCount,
+        widths:        widthsArr,
+        sourceComboId: d.comboId,
+        sourceOrderNos: orderNosArr,
+        planStartDate: todayStr,
+        planEndDate:   todayStr,
+        lossRate:      d.lossRate,
+      }
+    })
+
+    // 점보롤 오더 생성 API
+    const res  = await fetch('/klean-aps-api/jumbo-orders', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ jumboOrders: jumboPayload })
+    })
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+
+    const created = json.data
+
+    // 세션 SENT 상태 갱신
+    const sentItems = created.map(j => ({ comboId: j.sourceComboId, jumboOrderNo: j.jumboOrderNo }))
+    await fetch(API + '/klean-aps-api/sim-sessions/' + _shCurrentCode + '/send', {
+      method : 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ sentItems })
+    }).catch(() => {})
+
+    toast('[' + _shCurrentCode + '] 점보롤 생산오더 ' + created.length + '건 생성 완료. (SAP RFC 전송)', 'ok')
+
+    // 버튼 비활성화 (SENT 상태로 전환)
+    const unconfBtn = document.getElementById('sh-btn-unconfirm')
+    if (unconfBtn) unconfBtn.disabled = true
+    if (btn) btn.disabled = true
+
+    // 목록 새로고침 후 해당 세션 다시 선택
+    await loadSimHistory()
+    await loadSimHistoryDetail(_shCurrentCode)
+
+  } catch(e) {
+    toast('오더생성 실패: ' + e.message, 'err')
+    if (btn) btn.disabled = false
+  }
 }
 
 function initTheme() {
