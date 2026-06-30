@@ -683,6 +683,7 @@ const mainHtml = `<!DOCTYPE html>
 [data-theme="dark"] {
   --bg-base      : #0a0f1e;
   --bg-surface   : #0f172a;
+  --bg-card      : #0f172a;
   --bg-raised    : #050a14;
   --bg-hover     : #0f1e38;
   --bg-input     : #0d1526;
@@ -790,6 +791,7 @@ const mainHtml = `<!DOCTYPE html>
 [data-theme="light"] {
   --bg-base      : #f1f5f9;
   --bg-surface   : #ffffff;
+  --bg-card      : #ffffff;
   --bg-raised    : #f8fafc;
   --bg-hover     : #eff6ff;
   --bg-input     : #ffffff;
@@ -1473,7 +1475,13 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 .due-normal {color:var(--text-muted);}
 
 /* ── AI 채팅 패널 (하단 고정 슬라이드업) ── */
-/* #sim-ai-panel 은 인라인 style로 제어 (position:fixed, height 토글) */
+/* 배경색: 테마 변수 우선, 폴백으로 다크/라이트 명시 */
+#sim-ai-panel {
+  background: var(--bg-card, #0f172a) !important;
+}
+[data-theme="light"] #sim-ai-panel {
+  background: #ffffff !important;
+}
 .ai-msg { display:flex; gap:10px; animation:fadeInUp .2s ease; }
 .ai-msg.user  { flex-direction:row-reverse; }
 .ai-msg .ai-bubble {
@@ -2944,7 +2952,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 </div><!-- /page-simulation -->
 
 <!-- ══ AI 분석 어시스턴트 슬라이드업 패널 (전체 앱 고정 우하단) ══ -->
-<div id="sim-ai-panel" style="position:fixed;bottom:0;left:260px;right:0;z-index:200;display:none;flex-direction:column;background:var(--bg-card);border-top:2px solid #7c3aed;box-shadow:0 -4px 24px rgba(124,58,237,.2);height:52px;overflow:hidden;transition:height .3s cubic-bezier(.4,0,.2,1);">
+<div id="sim-ai-panel" style="position:fixed;bottom:0;left:260px;right:0;z-index:200;display:none;flex-direction:column;background:var(--bg-card,#0f172a);border-top:2px solid #7c3aed;box-shadow:0 -6px 32px rgba(0,0,0,.45),0 -2px 8px rgba(124,58,237,.3);height:52px;overflow:hidden;transition:height .3s cubic-bezier(.4,0,.2,1);">
 
   <!-- 탭 핸들 (항상 표시) -->
   <div onclick="toggleAiPanel()" style="display:flex;align-items:center;gap:10px;padding:0 20px;height:52px;cursor:pointer;flex-shrink:0;background:linear-gradient(90deg,rgba(99,102,241,.15) 0%,transparent 60%);user-select:none;">
