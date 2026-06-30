@@ -1874,6 +1874,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
     <div class="nav-group-title">시뮬레이션</div>
     <div class="nav-item" id="nav-simulation"   onclick="goPage('simulation')">  <i class="fas fa-layer-group"></i>지폭조합 시뮬레이션</div>
+    <div class="nav-item" id="nav-sim-history"  onclick="goPage('sim-history')"> <i class="fas fa-history"></i>지폭조합 조회</div>
     <div class="nav-item" id="nav-jumbo-list"   onclick="goPage('jumbo-list')">  <i class="fas fa-scroll"></i>점보롤 생산오더</div>
 
     <div class="nav-group-title">생산오더 관리</div>
@@ -3384,6 +3385,139 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 </div><!-- /sim-ai-panel -->
 
 <!-- ============================================================
+     지폭조합 조회 페이지
+     ============================================================ -->
+<div id="page-sim-history" style="display:none;height:100%;flex-direction:column;">
+  <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+      <div>
+        <div class="page-title"><i class="fas fa-history" style="color:#a78bfa;"></i>지폭조합 조회</div>
+        <div class="page-sub">확정된 지폭조합 시뮬레이션 세션 이력 조회</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadSimHistory()">
+        <i class="fas fa-sync-alt"></i> 새로고침
+      </button>
+    </div>
+  </div>
+
+  <div class="page-scroll" style="padding-top:14px;">
+
+    <!-- 요약 통계 -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <div class="stat-mini"><div class="sv" id="sh-stat-total"   style="color:#a78bfa;">0</div><div class="sl">총 세션</div></div>
+      <div class="stat-mini"><div class="sv" id="sh-stat-confirm" style="color:#38bdf8;">0</div><div class="sl">확정</div></div>
+      <div class="stat-mini"><div class="sv" id="sh-stat-sent"    style="color:#4ade80;">0</div><div class="sl">SAP전송</div></div>
+      <div class="stat-mini"><div class="sv" id="sh-stat-combos"  style="color:#f59e0b;">0</div><div class="sl">총 확정조합</div></div>
+    </div>
+
+    <!-- 필터 바 -->
+    <div class="section-card" style="padding:12px 18px;margin-bottom:12px;">
+      <div class="search-grid">
+        <div>
+          <label class="field-label">상태</label>
+          <select id="sh-filter-status" class="inp" onchange="applySimHistoryFilter()">
+            <option value="">전체</option>
+            <option value="CONFIRMED">확정</option>
+            <option value="SENT">SAP전송</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">호기</label>
+          <select id="sh-filter-machine" class="inp" onchange="applySimHistoryFilter()">
+            <option value="">전체</option>
+            <option value="2">2호기</option>
+            <option value="3">3호기</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">세션코드</label>
+          <input id="sh-filter-code" class="inp" type="text" placeholder="S-2026-..." oninput="applySimHistoryFilter()">
+        </div>
+        <div>
+          <label class="field-label">기간</label>
+          <input id="sh-filter-date" class="inp" type="date" onchange="applySimHistoryFilter()">
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="resetSimHistoryFilter()"><i class="fas fa-undo"></i> 초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 세션 목록 -->
+    <div class="section-card" style="overflow:hidden;">
+      <div class="card-header">
+        <div class="card-label"><i class="fas fa-list" style="color:#a78bfa;"></i>세션 목록</div>
+        <span class="count-badge" id="sh-count-badge">0 건</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="center" style="width:36px;"></th>
+              <th>세션코드</th>
+              <th class="center">상태</th>
+              <th class="center">호기</th>
+              <th class="center">평량</th>
+              <th class="num">대상오더</th>
+              <th class="num">전체조합</th>
+              <th class="num">확정조합</th>
+              <th class="num">전송조합</th>
+              <th>확정일시</th>
+              <th>전송일시</th>
+              <th class="center">작업</th>
+            </tr>
+          </thead>
+          <tbody id="sh-session-tbody">
+            <tr><td colspan="12" class="empty-state">확정된 시뮬레이션 세션이 없습니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 디테일 패널 (행 클릭 시 펼침) -->
+    <div id="sh-detail-panel" style="display:none;margin-top:12px;">
+      <div class="section-card" style="overflow:hidden;">
+        <div class="card-header">
+          <div class="card-label">
+            <i class="fas fa-sitemap" style="color:#38bdf8;"></i>
+            조합 디테일
+            <span id="sh-detail-simcode" style="margin-left:8px;font-family:monospace;font-size:11px;font-weight:800;color:#a78bfa;"></span>
+          </div>
+          <span class="count-badge" id="sh-detail-count-badge">0 건</span>
+          <button onclick="closeSimHistoryDetail()" style="margin-left:10px;padding:2px 8px;font-size:11px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="center">#</th>
+                <th class="center">호기</th>
+                <th class="num">평량(g)</th>
+                <th class="num">전체지폭(mm)</th>
+                <th>폭 구성</th>
+                <th class="center">폭수</th>
+                <th class="num">총량(T)</th>
+                <th class="num">Loss(%)</th>
+                <th class="num">오더수</th>
+                <th>포함 오더번호</th>
+                <th class="center">상태</th>
+                <th>점보롤 오더</th>
+              </tr>
+            </thead>
+            <tbody id="sh-detail-tbody">
+              <tr><td colspan="12" class="empty-state">세션을 선택하면 디테일을 조회합니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-scroll -->
+</div><!-- /page-sim-history -->
+
+<!-- ============================================================
      점보롤 생산오더 페이지
      ============================================================ -->
 <div id="page-jumbo-list" style="display:none;height:100%;flex-direction:column;">
@@ -3511,6 +3645,7 @@ const PAGE_NAMES = {
   'prod-list'   : '생산오더 조회',
   'prod-cancel' : '생산오더 취소',
   'simulation'  : '지폭조합 시뮬레이션',
+  'sim-history' : '지폭조합 조회',
   'rfc-log'     : 'RFC 통신결과',
   'constraint'  : '제약조건 설정',
   'machine'     : '기계 마스터',
@@ -3616,6 +3751,200 @@ async function loadRfcLog() {
   }
 }
 
+/* ══════════════════════════════════════
+   지폭조합 조회 (sim-history)
+══════════════════════════════════════ */
+let _shAllSessions = []   // 전체 세션 캐시 (필터용)
+
+async function loadSimHistory() {
+  try {
+    const res  = await fetch(API + '/klean-aps-api/sim-sessions')
+    const data = await res.json()
+    if (!data.success) return
+
+    _shAllSessions = data.data || []
+
+    // 요약 통계
+    const total   = _shAllSessions.length
+    const confirm = _shAllSessions.filter(s => s.status === 'CONFIRMED').length
+    const sent    = _shAllSessions.filter(s => s.status === 'SENT').length
+    const combos  = _shAllSessions.reduce((s, h) => s + (h.confirmedCombos || 0), 0)
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
+    set('sh-stat-total',   total)
+    set('sh-stat-confirm', confirm)
+    set('sh-stat-sent',    sent)
+    set('sh-stat-combos',  combos)
+
+    // 테이블 렌더
+    renderSimHistoryTable(_shAllSessions)
+
+    // 디테일 패널 닫기
+    closeSimHistoryDetail()
+  } catch(e) {
+    console.error('loadSimHistory error:', e)
+    toast('시뮬레이션 이력 로딩 실패', 'err')
+  }
+}
+
+function renderSimHistoryTable(list) {
+  const tbody = document.getElementById('sh-session-tbody')
+  const badge = document.getElementById('sh-count-badge')
+  if (badge) badge.textContent = list.length + ' 건'
+  if (!tbody) return
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">확정된 시뮬레이션 세션이 없습니다.<br><small style="color:var(--text-faint);">지폭조합 시뮬레이션에서 조합을 확정하면 여기에 표시됩니다.</small></td></tr>'
+    return
+  }
+
+  tbody.innerHTML = list.map((h, idx) => {
+    // 상태 뱃지
+    const statusBadge = h.status === 'SENT'
+      ? '<span class="badge b-assigned" style="font-size:10px;"><i class="fas fa-paper-plane"></i> SAP전송</span>'
+      : '<span class="badge" style="font-size:10px;background:var(--badge-info-bg,#1e3a5f);color:#38bdf8;border:1px solid #38bdf855;"><i class="fas fa-check-double"></i> 확정</span>'
+
+    // 호기/평량 표시
+    const machine = h.machineNo ? h.machineNo + '호기' : '전체'
+    const bw      = h.basisWeight ? h.basisWeight + 'g' : '전체'
+
+    // 전송 조합 수 색상
+    const sentColor = h.sentCombos > 0 ? '#4ade80' : 'var(--text-faint)'
+
+    return '<tr style="cursor:pointer;" onclick="loadSimHistoryDetail(\''+h.simCode+'\')" title="클릭하여 디테일 조회">' +
+      '<td class="center" style="color:var(--text-faint);font-size:11px;">' + (idx+1) + '</td>' +
+      '<td><span style="font-family:monospace;font-weight:800;font-size:12px;color:#a78bfa;letter-spacing:.3px;">' + h.simCode + '</span></td>' +
+      '<td class="center">' + statusBadge + '</td>' +
+      '<td class="center"><span class="machine-badge" style="font-size:11px;">' + machine + '</span></td>' +
+      '<td class="center" style="font-weight:700;">' + bw + '</td>' +
+      '<td class="num">' + (h.targetOrders || 0) + '</td>' +
+      '<td class="num">' + (h.combosTotal  || 0) + '</td>' +
+      '<td class="num" style="font-weight:700;color:#38bdf8;">' + (h.confirmedCombos || 0) + '</td>' +
+      '<td class="num" style="font-weight:700;color:' + sentColor + ';">' + (h.sentCombos || 0) + '</td>' +
+      '<td style="font-size:11px;color:var(--text-muted);">' + (h.confirmedAt || '-') + '</td>' +
+      '<td style="font-size:11px;color:var(--text-muted);">' + (h.sentAt || '-') + '</td>' +
+      '<td class="center">' +
+        '<button onclick="event.stopPropagation();loadSimHistoryDetail(\''+h.simCode+'\')" ' +
+          'style="padding:2px 8px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">' +
+          '<i class="fas fa-search"></i>' +
+        '</button>' +
+      '</td>' +
+    '</tr>'
+  }).join('')
+}
+
+async function loadSimHistoryDetail(simCode) {
+  // 선택된 행 하이라이트
+  const allRows = document.querySelectorAll('#sh-session-tbody tr')
+  allRows.forEach(r => r.style.background = '')
+  const clickedRows = document.querySelectorAll('#sh-session-tbody tr')
+  clickedRows.forEach(r => {
+    if (r.textContent.includes(simCode)) r.style.background = 'var(--bg-input)'
+  })
+
+  try {
+    const res  = await fetch(API + '/klean-aps-api/sim-sessions/' + simCode)
+    const data = await res.json()
+    if (!data.success) { toast('세션 디테일 조회 실패', 'err'); return }
+
+    const details  = data.details || []
+    const panel    = document.getElementById('sh-detail-panel')
+    const codeEl   = document.getElementById('sh-detail-simcode')
+    const badge    = document.getElementById('sh-detail-count-badge')
+    const tbody    = document.getElementById('sh-detail-tbody')
+    if (!panel || !tbody) return
+
+    if (codeEl) codeEl.textContent = simCode
+    if (badge)  badge.textContent  = details.length + ' 건'
+    panel.style.display = 'block'
+
+    // 디테일 패널로 스크롤
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+
+    if (!details.length) {
+      tbody.innerHTML = '<tr><td colspan="12" class="empty-state">확정된 조합 디테일이 없습니다.</td></tr>'
+      return
+    }
+
+    tbody.innerHTML = details.map((d, idx) => {
+      // 지폭 배열 파싱
+      let widthsArr = []
+      try { widthsArr = JSON.parse(d.widths || '[]') } catch(_) {}
+      const widthTags = widthsArr.map(w =>
+        '<span style="display:inline-block;padding:1px 6px;margin:1px;background:var(--bg-input);border:1px solid var(--border);border-radius:3px;font-size:10px;font-weight:700;">' + w + 'mm</span>'
+      ).join('<span style="font-size:9px;color:var(--text-faint);"> + </span>')
+
+      // 포함 오더번호 파싱
+      let orderNosArr = []
+      try { orderNosArr = JSON.parse(d.orderNos || '[]') } catch(_) {}
+      const orderTags = orderNosArr.map(no =>
+        '<span style="font-family:monospace;font-size:10px;color:#60a5fa;margin-right:4px;">' + no + '</span>'
+      ).join('')
+
+      // 상태 뱃지
+      const statusBadge = d.status === 'SENT'
+        ? '<span class="badge b-assigned" style="font-size:10px;"><i class="fas fa-paper-plane"></i> SAP전송</span>'
+        : '<span class="badge" style="font-size:10px;background:var(--badge-info-bg,#1e3a5f);color:#38bdf8;border:1px solid #38bdf855;"><i class="fas fa-check-double"></i> 확정</span>'
+
+      // Loss 색상
+      const lossColor = Number(d.lossRate) === 0 ? '#34d399'
+                      : Number(d.lossRate) < 2   ? '#f59e0b' : '#f87171'
+
+      // 점보롤 오더번호
+      const jumboCell = d.jumboOrderNo
+        ? '<span style="font-family:monospace;font-size:11px;font-weight:700;color:#34d399;">' + d.jumboOrderNo + '</span>'
+        : '<span style="color:var(--text-faint);font-size:11px;">-</span>'
+
+      return '<tr>' +
+        '<td class="center" style="color:var(--text-faint);font-size:11px;">' + (idx+1) + '</td>' +
+        '<td class="center"><span class="machine-badge" style="font-size:11px;">' + d.machineNo + '호기</span></td>' +
+        '<td class="num" style="font-weight:700;">' + d.basisWeight + '</td>' +
+        '<td class="num" style="font-weight:800;color:var(--text-main);">' + (d.jumboWidth || 0).toLocaleString() + '</td>' +
+        '<td style="white-space:nowrap;">' + widthTags + '</td>' +
+        '<td class="center" style="font-weight:700;">' + d.pokCount + '폭</td>' +
+        '<td class="num" style="font-weight:700;color:#34d399;">' + Number(d.totalTon).toFixed(3) + '</td>' +
+        '<td class="num" style="font-weight:700;color:' + lossColor + ';">' + d.lossRate + '%</td>' +
+        '<td class="num">' + d.orderCount + '</td>' +
+        '<td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + orderTags + '</td>' +
+        '<td class="center">' + statusBadge + '</td>' +
+        '<td class="center">' + jumboCell + '</td>' +
+      '</tr>'
+    }).join('')
+
+  } catch(e) {
+    console.error('loadSimHistoryDetail error:', e)
+    toast('디테일 조회 실패', 'err')
+  }
+}
+
+function closeSimHistoryDetail() {
+  const panel = document.getElementById('sh-detail-panel')
+  if (panel) panel.style.display = 'none'
+  const allRows = document.querySelectorAll('#sh-session-tbody tr')
+  allRows.forEach(r => r.style.background = '')
+}
+
+function applySimHistoryFilter() {
+  const status  = (document.getElementById('sh-filter-status')||{}).value  || ''
+  const machine = (document.getElementById('sh-filter-machine')||{}).value || ''
+  const code    = ((document.getElementById('sh-filter-code')||{}).value  || '').toLowerCase()
+  const date    = (document.getElementById('sh-filter-date')||{}).value    || ''
+
+  let filtered = _shAllSessions
+  if (status)  filtered = filtered.filter(s => s.status === status)
+  if (machine) filtered = filtered.filter(s => s.machineNo === machine)
+  if (code)    filtered = filtered.filter(s => s.simCode.toLowerCase().includes(code))
+  if (date)    filtered = filtered.filter(s => (s.confirmedAt || '').startsWith(date))
+  renderSimHistoryTable(filtered)
+  closeSimHistoryDetail()
+}
+
+function resetSimHistoryFilter() {
+  const ids = ['sh-filter-status','sh-filter-machine','sh-filter-code','sh-filter-date']
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+  renderSimHistoryTable(_shAllSessions)
+  closeSimHistoryDetail()
+}
+
 function initTheme() {
   const saved = localStorage.getItem('klean-aps-theme') || 'dark'
   applyTheme(saved, false)
@@ -3659,7 +3988,7 @@ function toggleTheme() {
 /* ══════════════════════════════════════
    페이지 전환
 ══════════════════════════════════════ */
-const PAGES = ['dashboard','order-import','order-list','prod-list','prod-cancel','simulation','rfc-log','constraint','machine','jumbo-list']
+const PAGES = ['dashboard','order-import','order-list','prod-list','prod-cancel','simulation','sim-history','rfc-log','constraint','machine','jumbo-list']
 
 function goPage(p) {
   PAGES.forEach(id => {
@@ -3677,6 +4006,7 @@ function goPage(p) {
   if (p === 'prod-list')   loadProdList()
   if (p === 'prod-cancel') loadCancelList()
   if (p === 'simulation')  loadSimulation()
+  if (p === 'sim-history') loadSimHistory()
   if (p === 'constraint')  loadConstraintValues()
   if (p === 'machine')     loadMachine()
   if (p === 'jumbo-list')  loadJumboList()
