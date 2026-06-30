@@ -2393,7 +2393,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             <tbody>
               <tr><td style="font-family:monospace;color:#a78bfa;">LEFT(1)</td><td>품목유형</td><td><span style="color:#34d399;">F</span>=제품 / <span style="color:#f59e0b;">H</span>=반제품</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">MID(2,1)</td><td>생산호기</td><td>1=1호기 / 2=2호기 / 3=3호기</td></tr>
-              <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=속포장 / B=벌크 / Null=Roll</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=속포장 / B=벌크 / 0=Roll</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">MID(6,3)</td><td>평량</td><td>g/m²</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">MID(10,4)</td><td>지폭</td><td>mm</td></tr>
               <tr><td style="font-family:monospace;color:#a78bfa;">MID(14,4)</td><td>지장</td><td>mm</td></tr>
