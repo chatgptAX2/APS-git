@@ -226,10 +226,13 @@ const EXCEL_SALES_ORDERS_DATA = [
   { orderId:196, sapOrderNo:'50136305', sapItemNo:'000010', orderType:'내수', customerCode:'101152', customerName:'양지페이퍼(주)', machineNo:'', basisWeight:400, paperWidth:480, orderQtyKg:1.6, orderQtyTon:1.6, orderQtyR:null, orderQtySok:null, unit:'R', dueDate:'2026-06-11', orderDate:'2026-06-10', createdBy:'SAP', status:'OPEN', isExcluded:false, excludeReason:null, matCode:'F3S11400-04800680A', desc:'SC Manila 400GSM 0480*0680 Ream (3)', prodType:'Ream', unitPrice:925.0, currency:'KRW', plant:'P100' }
 ]
 // ============================================================
-// 런타임 salesOrders (불러오기 전 비어있음, rfc-sync 후 채워짐)
+// 런타임 데이터 구조
+//   salesOrders : rfc-sync 임시 버퍼 (불러오기 조회 결과 표시용)
+//   savedOrders : "선택항목 DB저장" 후 실제 저장된 항목 (시뮬레이션 대상)
 // ============================================================
-let salesOrders: any[] = []
-let salesOrdersLoaded = false  // 불러오기 완료 여부
+let salesOrders: any[] = []       // 임시 버퍼 (rfc-sync 결과)
+let savedOrders: any[] = []       // DB 저장 확정 항목 (시뮬레이션 소스)
+let salesOrdersLoaded = false
 
 // ============================================================
 // Mock 생산오더 데이터
@@ -417,6 +420,7 @@ app.post('/klean-aps-api/prod-orders/:id/cancel', async (c) => {
   })
 })
 
+// ── GET /sales-orders : DB 저장 확정 항목(savedOrders) 반환 — 시뮬레이션 소스
 app.get('/klean-aps-api/sales-orders', (c) => {
   const q           = c.req.query('q') || ''
   const orderType   = c.req.query('orderType') || ''
@@ -432,7 +436,7 @@ app.get('/klean-aps-api/sales-orders', (c) => {
   const sapOrderNo      = c.req.query('sapOrderNo') || ''
   const excludedFilter  = c.req.query('excluded') || ''
 
-  let list = salesOrders.filter(o => {
+  let list = savedOrders.filter(o => {
     if (sapOrderNo   && !o.sapOrderNo.includes(sapOrderNo)) return false
     if (orderType    && o.orderType !== orderType) return false
     if (machineNo    && o.machineNo !== machineNo) return false
@@ -452,17 +456,49 @@ app.get('/klean-aps-api/sales-orders', (c) => {
   return c.json({ success:true, data:list, total:list.length })
 })
 
+// ── POST /sales-orders/save : 선택 항목을 savedOrders에 저장 (DB 저장 확정)
+app.post('/klean-aps-api/sales-orders/save', async (c) => {
+  const body = await c.req.json()
+  const ids: number[] = body.orderIds || []
+  if (!ids.length) return c.json({ success:false, message:'저장할 항목이 없습니다.' }, 400)
+
+  const toSave = salesOrders.filter(o => ids.includes(o.orderId))
+  if (!toSave.length) return c.json({ success:false, message:'해당 오더를 찾을 수 없습니다.' }, 404)
+
+  let addedCount = 0
+  let skippedCount = 0
+  for (const o of toSave) {
+    const already = savedOrders.find(s => s.orderId === o.orderId)
+    if (already) {
+      // 이미 저장된 경우 최신 내용으로 덮어쓰기
+      Object.assign(already, { ...o })
+      skippedCount++
+    } else {
+      savedOrders.push({ ...o, savedAt: new Date().toISOString().replace('T',' ').slice(0,19) })
+      addedCount++
+    }
+  }
+  return c.json({
+    success: true,
+    addedCount,
+    skippedCount,
+    totalSaved: savedOrders.length,
+    message: `${addedCount}건 DB 저장 완료 (중복 ${skippedCount}건 갱신)`
+  })
+})
+
 app.patch('/klean-aps-api/sales-orders/:id/exclude', async (c) => {
   const id   = Number(c.req.param('id'))
   const body = await c.req.json()
-  const o    = salesOrders.find(x => x.orderId === id)
+  // savedOrders 우선, 없으면 salesOrders(임시)에서 찾음
+  const o = savedOrders.find(x => x.orderId === id) || salesOrders.find(x => x.orderId === id)
   if (!o) return c.json({ success:false, message:'오더 없음' }, 404)
   o.isExcluded = true;(o as any).excludeReason = body.reason
   return c.json({ success:true, data:o })
 })
 app.patch('/klean-aps-api/sales-orders/:id/include', (c) => {
   const id = Number(c.req.param('id'))
-  const o  = salesOrders.find(x => x.orderId === id)
+  const o  = savedOrders.find(x => x.orderId === id) || salesOrders.find(x => x.orderId === id)
   if (!o) return c.json({ success:false, message:'오더 없음' }, 404)
   o.isExcluded = false;(o as any).excludeReason = null
   return c.json({ success:true, data:o })
@@ -499,9 +535,11 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
 // ============================================================
 app.delete('/klean-aps-api/reset-all-data', (c) => {
   const soCount    = salesOrders.length
+  const svCount    = savedOrders.length
   const jumboCount = jumboOrders.length
   const prodCount  = prodOrders.length
   salesOrders.length = 0
+  savedOrders.length = 0
   jumboOrders.length = 0
   prodOrders.length  = 0
   salesOrdersLoaded  = false
@@ -509,7 +547,7 @@ app.delete('/klean-aps-api/reset-all-data', (c) => {
   return c.json({
     success: true,
     message: `전체 데이터 초기화 완료`,
-    deleted: { salesOrders: soCount, jumboOrders: jumboCount, prodOrders: prodCount }
+    deleted: { salesOrders: soCount, savedOrders: svCount, jumboOrders: jumboCount, prodOrders: prodCount }
   })
 })
 
@@ -1541,7 +1579,11 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           RFC 조회 결과
           <span class="count-badge" id="import-count">0 건</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <!-- DB 저장 현황 배지 -->
+          <div id="saved-count-banner" style="display:none;padding:3px 10px;border-radius:5px;background:#34d39920;border:1px solid #34d39966;font-size:12px;font-weight:700;color:#34d399;white-space:nowrap;">
+            <i class="fas fa-database"></i> DB저장: <span id="saved-count-num">0</span>건
+          </div>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-subtle);cursor:pointer;">
             <input type="checkbox" id="chk-all-import" onchange="toggleAllImport(this.checked)"> 전체선택
           </label>
@@ -3163,7 +3205,19 @@ async function runRfcSync() {
     resetImportResultFilter()
     document.getElementById('btn-save').disabled = false
     selectedImport.clear()
-    toast('\ud310\ub9e4\uc624\ub354 \ubd88\ub7ec\uc624\uae30 \uc131\uacf5 — \uc131\uacf5 '+successN+'\uac74 / \uc2e4\ud328 '+failN+'\uac74', 'ok')
+
+    // 기존 DB 저장 건수 배너 갱신
+    try {
+      const sr = await fetch(API+'/klean-aps-api/sales-orders')
+      const sd = await sr.json()
+      const savedTotal = (sd.data || []).length
+      const savedBannerEl = document.getElementById('saved-count-banner')
+      const savedNumEl = document.getElementById('saved-count-num')
+      if (savedBannerEl) savedBannerEl.style.display = savedTotal > 0 ? '' : 'none'
+      if (savedNumEl) savedNumEl.textContent = savedTotal
+    } catch(_) {}
+
+    toast('판매오더 조회 완료 ('+successN+'건) — 저장할 항목 선택 후 [DB저장] 클릭', 'ok')
   } catch(e) {
     toast('RFC 호출 실패: '+e.message, 'err')
   } finally {
@@ -3225,10 +3279,33 @@ function updateSaveBtn() {
 }
 async function saveSelected() {
   if (selectedImport.size === 0) return
-  toast(selectedImport.size+'건 DB 저장 완료 (Mock)', 'ok')
-  selectedImport.clear()
-  updateSaveBtn()
-  toggleAllImport(false)
+  const btn = document.getElementById('btn-save')
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...' }
+
+  try {
+    const r = await fetch(API+'/klean-aps-api/sales-orders/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderIds: [...selectedImport] })
+    })
+    const d = await r.json()
+    if (!d.success) throw new Error(d.message || '저장 실패')
+
+    // 저장 결과 배너에 반영
+    const savedBannerEl = document.getElementById('saved-count-banner')
+    if (savedBannerEl) {
+      savedBannerEl.style.display = ''
+      document.getElementById('saved-count-num').textContent = d.totalSaved
+    }
+
+    toast(d.message + ' (총 DB저장: '+d.totalSaved+'건)', 'ok')
+    selectedImport.clear()
+    updateSaveBtn()
+    toggleAllImport(false)
+  } catch(e) {
+    toast('DB 저장 실패: '+e.message, 'err')
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> 선택항목 DB저장 ('+selectedImport.size+'건)' }
+  }
 }
 
 /* ══════════════════════════════════════
