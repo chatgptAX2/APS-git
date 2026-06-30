@@ -1789,7 +1789,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <th>판매문서번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th>호기</th>
               <th class="num">평량(g)</th><th class="num">지폭(mm)</th>
               <th class="num">수량(TON)</th><th class="num">수량(R)</th><th class="num">수량(SOK)</th>
-              <th>단위</th><th>생성일</th><th>생성자</th><th>납품요청일</th><th>상태</th><th>비고</th>
+              <th>단위</th><th>자재코드</th><th>생성일</th><th>생성자</th><th>납품요청일</th><th>상태</th><th>비고</th>
             </tr>
           </thead>
           <tbody id="import-tbody">
@@ -1894,7 +1894,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <th>오더번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th>호기</th>
               <th class="num">평량(g)</th><th class="num">지폭(mm)</th>
               <th class="num">수량(TON)</th><th class="num">수량(R)</th><th class="num">수량(SOK)</th>
-              <th>납기일</th><th>상태</th><th>예외</th><th class="center">액션</th>
+              <th>자재코드</th><th>납기일</th><th>상태</th><th>예외</th><th class="center">액션</th>
             </tr>
           </thead>
           <tbody id="list-tbody">
@@ -2855,11 +2855,11 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <thead>
                 <tr>
                   <th style="width:32px;"></th>
-                  <th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>납기일</th><th>유형</th><th>예외</th>
+                  <th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
                 </tr>
               </thead>
               <tbody id="sim-order-tbody">
-                <tr><td colspan="10" class="empty-state">조회 조건을 설정하고 생성 버튼을 눌러주세요.</td></tr>
+                <tr><td colspan="11" class="empty-state">조회 조건을 설정하고 생성 버튼을 눌러주세요.</td></tr>
               </tbody>
             </table>
           </div>
@@ -2890,7 +2890,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <div style="overflow-x:auto;">
             <table class="data-table" style="font-size:12px;">
               <thead>
-                <tr><th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>유형</th><th>분리사유</th></tr>
+                <tr><th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>자재코드</th><th>유형</th><th>분리사유</th></tr>
               </thead>
               <tbody id="sim-excl-tbody"></tbody>
             </table>
@@ -3412,7 +3412,7 @@ function renderImportTable(list) {
   const tbody = document.getElementById('import-tbody')
   document.getElementById('import-count').textContent = list.length+' 건'
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="17" class="empty-state">조회된 데이터가 없습니다.</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="18" class="empty-state">조회된 데이터가 없습니다.</td></tr>'
     return
   }
   tbody.innerHTML = list.map(o =>
@@ -3429,6 +3429,7 @@ function renderImportTable(list) {
     '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>' +
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>' +
     '<td><span class="badge b-'+(o.unit==='TON'?'ton':o.unit==='R'?'r':'sok')+'">'+o.unit+'</span></td>' +
+    '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
     '<td style="color:var(--text-muted);font-size:11px;">'+o.orderDate+'</td>' +
     '<td style="color:var(--text-muted);font-size:11px;">'+o.createdBy+'</td>' +
     '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:11px;font-weight:600;">'+o.dueDate+'</td>' +
@@ -3558,7 +3559,7 @@ function renderListTable(list) {
   const tbody = document.getElementById('list-tbody')
   document.getElementById('list-count').textContent = list.length+' 건'
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="15" class="empty-state">조회된 오더가 없습니다.</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="16" class="empty-state">조회된 오더가 없습니다.</td></tr>'
     return
   }
   tbody.innerHTML = list.map((o,i) =>
@@ -3574,6 +3575,7 @@ function renderListTable(list) {
     '<td class="num">'+(o.orderQtyTon!=null ? '<span class="badge b-ton">'+o.orderQtyTon.toFixed(3)+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
+    '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
     '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:11px;font-weight:600;">'+o.dueDate+'</td>'+
     '<td>'+renderStatusBadge(o.status)+'</td>'+
     '<td class="center">'+(o.isExcluded?'<span class="badge b-excl" style="font-size:10px;"><i class="fas fa-ban"></i> 예외</span>':'')+'</td>'+
@@ -4851,7 +4853,7 @@ async function simGenerate() {
   // ── 1단계: DB에서 최신 판매오더 조회 (10%)
   simSetProgress(10, '① DB에서 판매오더 조회 중...')
   const tbody = document.getElementById('sim-order-tbody')
-  if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 판매오더 불러오는 중...</td></tr>'
+  if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><i class="fas fa-spinner fa-spin"></i> 판매오더 불러오는 중...</td></tr>'
 
   try {
     const r = await fetch(API+'/klean-aps-api/sales-orders')
@@ -4863,7 +4865,7 @@ async function simGenerate() {
     simSetProgress(null, '')
     if (genBtn) genBtn.disabled = false
     toast('서버 연결 오류. 잠시 후 다시 시도해 주세요.','err')
-    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state" style="color:#f87171"><i class="fas fa-times-circle"></i> 서버 연결 오류</td></tr>'
+    if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state" style="color:#f87171"><i class="fas fa-times-circle"></i> 서버 연결 오류</td></tr>'
     return
   }
 
@@ -4871,7 +4873,7 @@ async function simGenerate() {
     simSetProgress(null, '')
     if (genBtn) genBtn.disabled = false
     toast('DB에 판매오더가 없습니다. 판매오더 불러오기를 먼저 실행해 주세요.','warn')
-    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> 판매오더 불러오기를 먼저 실행해 주세요.</td></tr>'
+    if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> 판매오더 불러오기를 먼저 실행해 주세요.</td></tr>'
     // DB 배너도 갱신
     const dbIcon = document.getElementById('sim-db-icon')
     const dbText = document.getElementById('sim-db-text')
@@ -4963,7 +4965,7 @@ function renderSimOrderTable(list) {
   if (cnt) cnt.textContent = list.length + '건'
   if (!tbody) return
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">조건에 맞는 오더가 없습니다.</td></tr>'; return
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">조건에 맞는 오더가 없습니다.</td></tr>'; return
   }
   tbody.innerHTML = list.map(o => {
     const qtyStr = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T'
@@ -4977,6 +4979,7 @@ function renderSimOrderTable(list) {
       '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
       '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
       '<td class="num">'+qtyStr+'</td>' +
+      '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
       '<td style="font-size:11px;color:var(--text-muted);">'+o.dueDate+'</td>' +
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
       '<td class="center">'+(o.isExcluded ? '<i class="fas fa-flag" style="color:#f87171;"></i>' : '')+'</td>' +
@@ -5046,6 +5049,7 @@ function renderSimResult(combos) {
               '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">납품처</th>'+
               '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">지폭</th>'+
               '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">수량</th>'+
+              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">자재코드</th>'+
               '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">납기일</th>'+
             '</tr>'+
           '</thead>'+
@@ -5057,6 +5061,7 @@ function renderSimResult(combos) {
                 '<td style="padding:5px 6px;">'+o.customerName+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm</td>'+
                 '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
+                '<td style="padding:5px 6px;font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
                 '<td style="padding:5px 6px;color:var(--text-muted);">'+o.dueDate+'</td>'+
                 '</tr>'
             }).join('')+
@@ -5081,6 +5086,7 @@ function renderSimExcluded(list) {
       '<td class="num">'+o.basisWeight+'</td>'+
       '<td class="num">'+o.paperWidth.toLocaleString()+'</td>'+
       '<td class="num">'+q+'</td>'+
+      '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
       '<td><span class="badge b-cancel" style="font-size:10px;">'+o._excludeReason+'</span></td>'+
       '</tr>'
