@@ -2961,7 +2961,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     </div>
     <div style="flex:1;min-width:0;">
       <span style="font-size:13px;font-weight:700;color:var(--text);">AI 분석 어시스턴트</span>
-      <span style="font-size:10px;color:#a78bfa;margin-left:8px;">claude-opus-4-8 · 제지 생산 계획 전문 AI</span>
+      <span style="font-size:10px;color:#a78bfa;margin-left:8px;">클릭하여 확대</span>
     </div>
     <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);margin-right:8px;">
       <span id="ai-status-indicator" style="width:7px;height:7px;border-radius:50%;background:#6b7280;display:inline-block;"></span>
