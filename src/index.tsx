@@ -3810,7 +3810,7 @@ function renderSimHistoryTable(list) {
     // 전송 조합 수 색상
     const sentColor = h.sentCombos > 0 ? '#4ade80' : 'var(--text-faint)'
 
-    return '<tr style="cursor:pointer;" onclick="loadSimHistoryDetail(\''+h.simCode+'\')" title="클릭하여 디테일 조회">' +
+    return '<tr style="cursor:pointer;" data-simcode="'+h.simCode+'" onclick="loadSimHistoryDetail(this.dataset.simcode)" title="클릭하여 디테일 조회">'  +
       '<td class="center" style="color:var(--text-faint);font-size:11px;">' + (idx+1) + '</td>' +
       '<td><span style="font-family:monospace;font-weight:800;font-size:12px;color:#a78bfa;letter-spacing:.3px;">' + h.simCode + '</span></td>' +
       '<td class="center">' + statusBadge + '</td>' +
@@ -3823,7 +3823,7 @@ function renderSimHistoryTable(list) {
       '<td style="font-size:11px;color:var(--text-muted);">' + (h.confirmedAt || '-') + '</td>' +
       '<td style="font-size:11px;color:var(--text-muted);">' + (h.sentAt || '-') + '</td>' +
       '<td class="center">' +
-        '<button onclick="event.stopPropagation();loadSimHistoryDetail(\''+h.simCode+'\')" ' +
+        '<button onclick="event.stopPropagation();loadSimHistoryDetail(this.parentElement.parentElement.dataset.simcode)" ' +
           'style="padding:2px 8px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">' +
           '<i class="fas fa-search"></i>' +
         '</button>' +
