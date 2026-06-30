@@ -1484,6 +1484,29 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 }
 .excl-row:hover { border-color: var(--border); }
 
+/* ── 제약조건 읽기 전용 모드 ── */
+#page-constraint.constraint-readonly .form-input,
+#page-constraint.constraint-readonly .form-select {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: default;
+  pointer-events: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+#page-constraint.constraint-readonly .excl-row {
+  cursor: default;
+  pointer-events: none;
+}
+#page-constraint.constraint-readonly .stock-row input[type="checkbox"] {
+  pointer-events: none;
+  cursor: default;
+}
+#page-constraint.constraint-readonly .excl-row input[type="checkbox"] {
+  pointer-events: none;
+  cursor: default;
+}
+
 /* ── 기계 마스터 카드 행 ── */
 .machine-row-card {
   background: var(--bg-card);
@@ -2556,15 +2579,29 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       <div class="page-title"><i class="fas fa-sliders-h" style="color:#f59e0b;"></i>제약조건 설정</div>
       <div class="page-sub">지폭조합 시뮬레이션에 적용되는 기준값을 설정합니다</div>
     </div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-sm btn-secondary" onclick="resetConstraints()"><i class="fas fa-undo"></i> 기본값 복원</button>
-      <button class="btn btn-sm btn-primary" onclick="saveConstraints()"><i class="fas fa-save"></i> 저장</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <!-- 조회 모드 버튼 (기본 표시) -->
+      <div id="constraint-view-btns" style="display:flex;gap:8px;">
+        <span id="constraint-view-badge" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:var(--bg-input);border:1px solid var(--border);font-size:12px;color:var(--text-muted);">
+          <i class="fas fa-eye"></i> 조회 모드
+        </span>
+        <button class="btn btn-sm btn-primary" onclick="constraintStartEdit()"><i class="fas fa-pencil-alt"></i> 수정</button>
+      </div>
+      <!-- 편집 모드 버튼 (수정 클릭 후 표시) -->
+      <div id="constraint-edit-btns" style="display:none;gap:8px;">
+        <button class="btn btn-sm btn-secondary" onclick="resetConstraints()"><i class="fas fa-undo"></i> 기본값 복원</button>
+        <button class="btn btn-sm btn-secondary" onclick="constraintCancelEdit()"><i class="fas fa-times"></i> 취소</button>
+        <button class="btn btn-sm btn-primary" onclick="saveConstraints()"><i class="fas fa-save"></i> 저장</button>
+      </div>
     </div>
   </div>
   <div class="page-scroll">
 
     <div id="constraint-save-banner" style="display:none;margin-bottom:12px;padding:10px 16px;border-radius:8px;border:1px solid #34d399;color:#16a34a;font-size:13px;align-items:center;gap:8px;">
       <i class="fas fa-check-circle"></i> 제약조건이 저장되었습니다.
+    </div>
+    <div id="constraint-edit-banner" style="display:none;margin-bottom:12px;padding:10px 16px;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,0.07);color:#b45309;font-size:13px;align-items:center;gap:8px;">
+      <i class="fas fa-pencil-alt"></i> 수정 모드 — 변경 후 <b>저장</b> 버튼을 눌러 적용하세요. 취소하면 변경 내용이 되돌아갑니다.
     </div>
 
     <!-- 기계별 지폭 규정 -->
@@ -4366,6 +4403,57 @@ function loadConstraintValues() {
     if (el.type === 'checkbox') el.checked = val
     else el.value = val
   })
+  // 페이지 진입 시 읽기 전용 모드로 초기화
+  constraintSetReadonly(true)
+}
+
+// 읽기 전용 ↔ 편집 모드 전환
+function constraintSetReadonly(readonly) {
+  const page      = document.getElementById('page-constraint')
+  const viewBtns  = document.getElementById('constraint-view-btns')
+  const editBtns  = document.getElementById('constraint-edit-btns')
+  const editBanner = document.getElementById('constraint-edit-banner')
+  if (!page) return
+  if (readonly) {
+    page.classList.add('constraint-readonly')
+    if (viewBtns)   { viewBtns.style.display  = 'flex' }
+    if (editBtns)   { editBtns.style.display  = 'none' }
+    if (editBanner) { editBanner.style.display = 'none' }
+  } else {
+    page.classList.remove('constraint-readonly')
+    if (viewBtns)   { viewBtns.style.display  = 'none' }
+    if (editBtns)   { editBtns.style.display  = 'flex' }
+    if (editBanner) { editBanner.style.display = 'flex' }
+  }
+}
+
+// 수정 버튼 클릭 → 편집 모드 진입 (현재 저장값 스냅샷 보관)
+let _constraintSnapshot = null
+function constraintStartEdit() {
+  // 현재 화면값 스냅샷 (취소 시 복원용)
+  _constraintSnapshot = {}
+  Object.keys(CONSTRAINT_DEFAULTS).forEach(k => {
+    const el = document.getElementById('c-'+k)
+    if (!el) return
+    _constraintSnapshot[k] = el.type === 'checkbox' ? el.checked : el.value
+  })
+  constraintSetReadonly(false)
+  toast('수정 모드로 전환되었습니다. 변경 후 저장 버튼을 눌러주세요.', 'info')
+}
+
+// 취소 버튼 → 스냅샷 복원 후 읽기 전용
+function constraintCancelEdit() {
+  if (_constraintSnapshot) {
+    Object.entries(_constraintSnapshot).forEach(([k, val]) => {
+      const el = document.getElementById('c-'+k)
+      if (!el) return
+      if (el.type === 'checkbox') el.checked = val
+      else el.value = val
+    })
+    _constraintSnapshot = null
+  }
+  constraintSetReadonly(true)
+  toast('변경이 취소되었습니다.', 'warn')
 }
 
 function saveConstraints() {
@@ -4378,6 +4466,8 @@ function saveConstraints() {
               : el.value
   })
   localStorage.setItem('klean-aps-constraints', JSON.stringify(data))
+  _constraintSnapshot = null
+  constraintSetReadonly(true)
   const banner = document.getElementById('constraint-save-banner')
   if (banner) { banner.style.display='flex'; setTimeout(()=>banner.style.display='none',2500) }
   toast('제약조건이 저장되었습니다.','ok')
@@ -4387,6 +4477,8 @@ function saveConstraints() {
 function resetConstraints() {
   localStorage.removeItem('klean-aps-constraints')
   loadConstraintValues()
+  // 기본값 복원은 편집 모드에서만 호출되므로 편집 모드 유지
+  constraintSetReadonly(false)
   toast('기본값으로 복원되었습니다.','ok')
 }
 
@@ -4807,11 +4899,13 @@ function setSimState(state) {
   }
 }
 
-// 예외 오더 판별
+// 예외 오더 판별 — 제약조건 설정(localStorage)을 우선, 시뮬레이션 UI는 보조
 function isExcludedOrder(o) {
-  const excJapan   = (document.getElementById('sim-exc-japan')||{}).checked !== false
-  const excSpecial = (document.getElementById('sim-exc-special')||{}).checked !== false
-  const excFlagged = (document.getElementById('sim-exc-flagged')||{}).checked !== false
+  const c = getConstraints()
+  // 제약조건 설정 페이지의 저장값 사용 (c-exc-*)
+  const excJapan   = c.excJapan
+  const excSpecial = c.excSpecial
+  const excFlagged = c.excFlagged
   if (excJapan   && o.orderType === '일본수출') return '일본수출 분리'
   if (excSpecial && o.orderType === '특수지')   return '특수지 분리'
   if (excFlagged && o.isExcluded)               return '예외 플래그'
