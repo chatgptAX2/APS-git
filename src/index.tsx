@@ -4587,22 +4587,32 @@ async function sendAiMessage() {
 
     const reader = r.body.getReader()
     const dec    = new TextDecoder()
+    // 청크 경계에서 잘린 행을 이어붙이기 위한 버퍼
+    let sseBuffer = ''
+    let isDone = false
 
-    while (true) {
+    while (!isDone) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = dec.decode(value, { stream:true })
+      sseBuffer += dec.decode(value, { stream: true })
+      // 완전한 행 단위로만 처리 (마지막 불완전 행은 버퍼에 남김)
       const NL2 = String.fromCharCode(10)
-      const lines = chunk.split(NL2)
+      const lastNL = sseBuffer.lastIndexOf(NL2)
+      if (lastNL === -1) continue          // 아직 줄 끝이 없으면 더 기다림
+      const toProcess = sseBuffer.slice(0, lastNL + 1)
+      sseBuffer = sseBuffer.slice(lastNL + 1)
+      const lines = toProcess.split(NL2)
       for (const line of lines) {
         if (!line.startsWith('data:')) continue
         const data = line.slice(5).trim()
-        if (data === '[DONE]') break
+        if (data === '[DONE]') { isDone = true; break }
         try {
           const j = JSON.parse(data)
-          const delta = j.choices?.[0]?.delta?.content || ''
-          fullContent += delta
-          updateAiBubble(assistantMsgId, fullContent, false)
+          const delta = j.choices?.[0]?.delta?.content
+          if (delta) {
+            fullContent += delta
+            updateAiBubble(assistantMsgId, fullContent, false)
+          }
         } catch(_) {}
       }
     }
