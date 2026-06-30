@@ -695,6 +695,20 @@ const mainHtml = `<!DOCTYPE html>
   font-style: normal;
   font-display: swap;
 }
+@font-face {
+  font-family: 'Netmarble';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_four@1.1/netmarbleM.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Netmarble';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_four@1.1/netmarbleB.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
 /* ═══════════════════════════════════════════════
    CSS 변수 — 다크 테마 (기본)
 ═══════════════════════════════════════════════ */
@@ -1037,7 +1051,7 @@ body{
 select.inp option{background:var(--bg-select-opt);}
 
 /* ── 버튼 ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .12s;white-space:nowrap;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .12s;white-space:nowrap;font-family:'Netmarble','Malgun Gothic',sans-serif;}
 .btn-primary{background:#2563eb;color:#fff;} .btn-primary:hover{background:#1d4ed8;}
 .btn-success{background:#16a34a;color:#fff;} .btn-success:hover{background:#15803d;}
 .btn-danger {background:#dc2626;color:#fff;} .btn-danger:hover{background:#b91c1c;}
@@ -1058,7 +1072,7 @@ select.inp option{background:var(--bg-select-opt);}
   background:var(--th-bg);
   color:var(--th-text);
   font-weight:600;padding:9px 10px;text-align:left;
-  font-family:'SBAggroM','Malgun Gothic',sans-serif;
+  font-family:'Netmarble','Malgun Gothic',sans-serif;
   border-bottom:1px solid var(--border);
   white-space:nowrap;position:sticky;top:0;z-index:5;
   transition:background .25s, color .25s;
@@ -1075,7 +1089,7 @@ select.inp option{background:var(--bg-select-opt);}
 .data-table .center{text-align:center;}
 
 /* ── 배지 ── */
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;font-family:'Netmarble','Malgun Gothic',sans-serif;}
 .b-open    {background:var(--badge-open-bg);   color:var(--badge-open-txt);}
 .b-assigned{background:var(--badge-assign-bg); color:var(--badge-assign-txt);}
 .b-complete{background:var(--badge-done-bg);   color:var(--badge-done-txt);}
@@ -1097,12 +1111,12 @@ select.inp option{background:var(--bg-select-opt);}
   display:flex;flex-direction:column;gap:2px;
   transition:background .25s, border-color .25s;
 }
-.stat-mini .sv{font-size:18px;font-weight:700;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
+.stat-mini .sv{font-size:18px;font-weight:700;font-family:'Netmarble','Malgun Gothic',sans-serif;}
 .stat-mini .sl{font-size:10px;color:var(--text-subtle);}
 
 /* ── 페이지 제목 ── */
 .page-header{padding:18px 28px 0;flex-shrink:0;}
-.page-title{font-size:18px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-family:'SBAggroM','Malgun Gothic',sans-serif;}
+.page-title{font-size:18px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-family:'Netmarble','Malgun Gothic',sans-serif;}
 .page-sub{font-size:12px;color:var(--text-subtle);margin-top:3px;font-family:'SBAggroL','Malgun Gothic',sans-serif;}
 
 /* ── RFC 로딩 ── */
