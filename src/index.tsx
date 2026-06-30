@@ -2905,6 +2905,11 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <div class="section-title">
             <i class="fas fa-th" style="color:#a78bfa;"></i>지폭조합 결과
             <span id="sim-result-count" class="count-badge" style="margin-left:8px;"></span>
+            <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;">
+              <input type="checkbox" id="combo-chk-all" checked onchange="comboSelectAll(this.checked)"
+                style="width:15px;height:15px;cursor:pointer;accent-color:#7c3aed;">
+              전체선택
+            </label>
           </div>
           <div class="section-body" style="padding-bottom:6px;">
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
@@ -5107,6 +5112,12 @@ function renderSimResult(combos) {
   }).join('')
   // 체크박스 초기 상태 반영
   combos.forEach(combo => onComboCheckChange(combo.comboId))
+  // 전체선택 체크박스 초기 상태 동기화 (최초 렌더 시 전체 체크 → checked=true)
+  const allChk = document.getElementById('combo-chk-all')
+  if (allChk) {
+    allChk.checked = true
+    allChk.indeterminate = false
+  }
 }
 
 function renderSimExcluded(list) {
@@ -5128,7 +5139,19 @@ function renderSimExcluded(list) {
   }).join('')
 }
 
+// 지폭조합 결과 전체선택 / 전체해제
+function comboSelectAll(checked) {
+  simCombos.forEach(c => {
+    const cb = document.getElementById('combo-check-' + c.comboId)
+    if (cb) { cb.checked = checked; onComboCheckChange(c.comboId) }
+  })
+  // 확정 버튼 상태 갱신
+  const confBtn = document.getElementById('btn-sim-confirm')
+  if (confBtn) confBtn.disabled = getCheckedComboIds().length === 0
+}
+
 // 체크박스 변경 시 카드 테두리 색 + 비활성화 스타일 토글
+// + 전체선택 체크박스 indeterminate 상태 자동 갱신
 function onComboCheckChange(comboId) {
   const cb = document.getElementById('combo-check-' + comboId)
   const card = document.getElementById('combo-card-' + comboId)
@@ -5140,6 +5163,26 @@ function onComboCheckChange(comboId) {
     card.style.borderColor = 'var(--border)'
     card.style.opacity = '0.45'
   }
+  // 전체선택 체크박스 상태 동기화 (전체 체크/전체 해제/일부 체크)
+  const allChk = document.getElementById('combo-chk-all')
+  if (!allChk || !simCombos.length) return
+  const checkedCount = simCombos.filter(c => {
+    const el = document.getElementById('combo-check-' + c.comboId)
+    return el && el.checked
+  }).length
+  if (checkedCount === 0) {
+    allChk.checked = false
+    allChk.indeterminate = false
+  } else if (checkedCount === simCombos.length) {
+    allChk.checked = true
+    allChk.indeterminate = false
+  } else {
+    allChk.checked = false
+    allChk.indeterminate = true
+  }
+  // 확정 버튼 상태 갱신
+  const confBtn = document.getElementById('btn-sim-confirm')
+  if (confBtn) confBtn.disabled = checkedCount === 0
 }
 
 // 선택된 comboId 목록 반환
