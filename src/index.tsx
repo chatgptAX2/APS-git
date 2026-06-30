@@ -257,6 +257,13 @@ let jumboSeq = 1
 const jumboOrders: any[] = []
 
 // ============================================================
+// RFC 통신 이력 (판매오더 불러오기 + 생산오더 전송)
+// ============================================================
+let rfcLogSeq = 1
+const rfcImportLogs: any[] = []  // 판매오더 불러오기 이력
+const rfcSendLogs:   any[] = []  // 생산오더 전송 이력
+
+// ============================================================
 // API
 // ============================================================
 app.get('/klean-aps-api/machines', (c) => c.json({ success:true, data:machines }))
@@ -266,6 +273,7 @@ app.get('/klean-aps-api/jumbo-orders', (c) => c.json({ success:true, data:jumboO
 
 // 점보롤 오더 생성 (시뮬레이션 확정 후 오더생성 시 호출)
 app.post('/klean-aps-api/jumbo-orders', async (c) => {
+  const startAt = Date.now()
   const body = await c.req.json()
   // body.jumboOrders: 생성할 점보롤 오더 배열
   const created: any[] = []
@@ -291,7 +299,33 @@ app.post('/klean-aps-api/jumbo-orders', async (c) => {
     jumboOrders.push(jOrder)
     created.push(jOrder)
   }
-  return c.json({ success:true, data:created, count:created.length })
+  const elapsed = Date.now() - startAt
+  const sentCount = created.length
+  const failCount = 0
+
+  // ── RFC 전송 이력 기록
+  const pad2 = (n: number) => String(n).padStart(2,'0')
+  const ts = new Date()
+  const calledAt = ts.getFullYear()+'-'+pad2(ts.getMonth()+1)+'-'+pad2(ts.getDate())+' '+
+                   pad2(ts.getHours())+':'+pad2(ts.getMinutes())+':'+pad2(ts.getSeconds())
+  const simId = created[0]?.sourceComboId
+    ? 'SIM-' + String(created[0].sourceComboId).padStart(4,'0')
+    : 'SIM-????'
+  rfcSendLogs.unshift({
+    logId       : rfcLogSeq++,
+    calledAt,
+    funcName    : 'Z_CREATE_PROD_ORDER',
+    simId,
+    sentCount,
+    successCount: sentCount - failCount,
+    failCount,
+    result      : failCount > 0 ? '일부실패' : '성공',
+    elapsed     : elapsed + 'ms',
+    operator    : '사용자',
+    remark      : failCount > 0 ? '일부 오더 생성 실패' : '-',
+  })
+
+  return c.json({ success:true, data:created, count:created.length, elapsed })
 })
 
 // 점보롤 오더 취소
@@ -519,6 +553,7 @@ function parseMachineNoFromMatCode(matCode: string): string {
 }
 
 app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
+  const startAt = Date.now()
   await new Promise(r => setTimeout(r, 800))
   // 이미 불러온 경우 중복 방지 (재불러오기는 덮어쓰기)
   salesOrders.length = 0
@@ -536,6 +571,34 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
   const alreadyN  = 0
   const failN     = 0
   const successN  = total
+  const elapsed   = Date.now() - startAt
+
+  // ── RFC 이력 기록
+  const body: any = await c.req.json().catch(() => ({}))
+  const condParts: string[] = []
+  if (body.orderType)    condParts.push('오더유형: ' + body.orderType)
+  if (body.machineNo)    condParts.push('호기: ' + body.machineNo + '호기')
+  if (body.sapOrderNo)   condParts.push('SAP오더: ' + body.sapOrderNo)
+  if (body.dateFrom || body.dateTo) condParts.push('기간: ' + (body.dateFrom||'') + '~' + (body.dateTo||''))
+  const condition = condParts.length ? condParts.join(', ') : '전체 조회'
+  const now = new Date()
+  const pad2 = (n: number) => String(n).padStart(2,'0')
+  const calledAt = now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate())+' '+
+                   pad2(now.getHours())+':'+pad2(now.getMinutes())+':'+pad2(now.getSeconds())
+  rfcImportLogs.unshift({
+    logId        : rfcLogSeq++,
+    calledAt,
+    funcName     : 'Z_GET_SALES_ORDER',
+    condition,
+    receivedCount: total,
+    successCount : successN,
+    failCount    : failN,
+    alreadyCount : alreadyN,
+    result       : failN > 0 ? '실패' : '성공',
+    elapsed      : elapsed + 'ms',
+    operator     : '사용자',
+  })
+
   return c.json({
     success: true,
     data: salesOrders,
@@ -543,8 +606,32 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
     successCount : successN,
     failCount    : failN,
     alreadyCount : alreadyN,
+    elapsed,
     openCount    : salesOrders.filter(o => !o.isExcluded && o.status === 'OPEN').length,
     message      : '판매오더 ' + total + '건 불러오기 성공 (엑셀 데이터)'
+  })
+})
+
+// ============================================================
+// RFC 이력 API
+// ============================================================
+app.get('/klean-aps-api/rfc-logs', (c) => {
+  return c.json({
+    success: true,
+    import: rfcImportLogs,
+    send:   rfcSendLogs,
+    importStats: {
+      total  : rfcImportLogs.length,
+      success: rfcImportLogs.filter(l => l.result === '성공').length,
+      fail   : rfcImportLogs.filter(l => l.result === '실패').length,
+      totalCount: rfcImportLogs.reduce((s,l) => s + (l.receivedCount||0), 0)
+    },
+    sendStats: {
+      total  : rfcSendLogs.length,
+      success: rfcSendLogs.filter(l => l.result === '성공').length,
+      fail   : rfcSendLogs.filter(l => l.result !== '성공').length,
+      totalCount: rfcSendLogs.reduce((s,l) => s + (l.sentCount||0), 0)
+    }
   })
 })
 
@@ -2013,18 +2100,18 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
     <!-- 판매오더 불러오기 결과 -->
     <div id="rfc-panel-import">
-      <!-- 요약 스탯 -->
+      <!-- 요약 스탯 (동적 렌더링) -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-        <div class="stat-mini"><div class="sv" style="color:#38bdf8;">24</div><div class="sl">총 호출 횟수</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#4ade80;">22</div><div class="sl">성공</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#f87171;">2</div><div class="sl">실패</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#60a5fa;">348</div><div class="sl">총 수신 건수</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-import-stat-total"  style="color:#38bdf8;">0</div><div class="sl">총 호출 횟수</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-import-stat-ok"     style="color:#4ade80;">0</div><div class="sl">성공</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-import-stat-fail"   style="color:#f87171;">0</div><div class="sl">실패</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-import-stat-count"  style="color:#60a5fa;">0</div><div class="sl">총 수신 건수</div></div>
       </div>
       <!-- 이력 테이블 -->
       <div class="section-card" style="overflow:hidden;">
         <div class="card-header">
           <div class="card-label"><i class="fas fa-history" style="color:#38bdf8;"></i>호출 이력</div>
-          <span class="count-badge">24 건</span>
+          <span class="count-badge" id="rfc-import-count-badge">0 건</span>
         </div>
         <div style="overflow-x:auto;max-height:calc(100vh - 340px);overflow-y:auto;">
           <table class="data-table">
@@ -2043,11 +2130,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                 <th>실행자</th>
               </tr>
             </thead>
-            <tbody>
-              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">1</td><td style="font-size:12px;">2026-06-26 09:15:32</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">오더유형: 내수</td><td class="num">15</td><td class="num" style="color:#4ade80;">12</td><td class="num" style="color:#f87171;">0</td><td class="num" style="color:#f59e0b;">3</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">823ms</td><td style="font-size:12px;">홍길동</td></tr>
-              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">2</td><td style="font-size:12px;">2026-06-26 10:22:14</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">호기: 2호기</td><td class="num">8</td><td class="num" style="color:#4ade80;">7</td><td class="num" style="color:#f87171;">0</td><td class="num" style="color:#f59e0b;">1</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">791ms</td><td style="font-size:12px;">이순신</td></tr>
-              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">3</td><td style="font-size:12px;">2026-06-26 11:45:08</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">전체 조회</td><td class="num">15</td><td class="num" style="color:#4ade80;">0</td><td class="num" style="color:#f87171;">1</td><td class="num" style="color:#f59e0b;">0</td><td><span class="badge b-cancel" style="font-size:10px;">실패</span></td><td style="font-size:11px;color:var(--text-muted);">3,201ms</td><td style="font-size:12px;">홍길동</td></tr>
-              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">4</td><td style="font-size:12px;">2026-06-26 14:03:55</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">Z_GET_SALES_ORDER</td><td style="font-size:11px;color:var(--text-muted);">평량: 220</td><td class="num">6</td><td class="num" style="color:#4ade80;">6</td><td class="num" style="color:#f87171;">0</td><td class="num" style="color:#f59e0b;">0</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">812ms</td><td style="font-size:12px;">강감찬</td></tr>
+            <tbody id="rfc-import-tbody">
+              <tr><td colspan="11" class="empty-state">판매오더 불러오기 이력이 없습니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -2056,18 +2140,18 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
     <!-- 생산오더 전송 결과 -->
     <div id="rfc-panel-send" style="display:none;">
-      <!-- 요약 스탯 -->
+      <!-- 요약 스탯 (동적 렌더링) -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-        <div class="stat-mini"><div class="sv" style="color:#38bdf8;">18</div><div class="sl">총 전송 횟수</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#4ade80;">17</div><div class="sl">성공</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#f87171;">1</div><div class="sl">실패</div></div>
-        <div class="stat-mini"><div class="sv" style="color:#60a5fa;">142</div><div class="sl">총 전송 건수</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-send-stat-total"  style="color:#38bdf8;">0</div><div class="sl">총 전송 횟수</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-send-stat-ok"     style="color:#4ade80;">0</div><div class="sl">성공</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-send-stat-fail"   style="color:#f87171;">0</div><div class="sl">실패</div></div>
+        <div class="stat-mini"><div class="sv" id="rfc-send-stat-count"  style="color:#60a5fa;">0</div><div class="sl">총 전송 건수</div></div>
       </div>
       <!-- 이력 테이블 -->
       <div class="section-card" style="overflow:hidden;">
         <div class="card-header">
           <div class="card-label"><i class="fas fa-paper-plane" style="color:#a78bfa;"></i>전송 이력</div>
-          <span class="count-badge">18 건</span>
+          <span class="count-badge" id="rfc-send-count-badge">0 건</span>
         </div>
         <div style="overflow-x:auto;max-height:calc(100vh - 340px);overflow-y:auto;">
           <table class="data-table">
@@ -2086,10 +2170,8 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                 <th>비고</th>
               </tr>
             </thead>
-            <tbody>
-              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">1</td><td style="font-size:12px;">2026-06-26 09:30:00</td><td style="font-family:monospace;font-size:11px;color:#a78bfa;">Z_CREATE_PROD_ORDER</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">SIM-2026-001</td><td class="num">12</td><td class="num" style="color:#4ade80;">12</td><td class="num" style="color:#f87171;">0</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">1,245ms</td><td style="font-size:12px;">홍길동</td><td style="font-size:11px;color:var(--text-muted);">-</td></tr>
-              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">2</td><td style="font-size:12px;">2026-06-26 11:15:22</td><td style="font-family:monospace;font-size:11px;color:#a78bfa;">Z_CREATE_PROD_ORDER</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">SIM-2026-002</td><td class="num">8</td><td class="num" style="color:#4ade80;">7</td><td class="num" style="color:#f87171;">1</td><td><span class="badge b-cancel" style="font-size:10px;">일부실패</span></td><td style="font-size:11px;color:var(--text-muted);">2,108ms</td><td style="font-size:12px;">이순신</td><td style="font-size:11px;color:#f87171;">자재 부족</td></tr>
-              <tr><td class="center" style="color:var(--text-faint);font-size:11px;">3</td><td style="font-size:12px;">2026-06-26 14:50:11</td><td style="font-family:monospace;font-size:11px;color:#a78bfa;">Z_CREATE_PROD_ORDER</td><td style="font-family:monospace;font-size:11px;color:#38bdf8;">SIM-2026-003</td><td class="num">15</td><td class="num" style="color:#4ade80;">15</td><td class="num" style="color:#f87171;">0</td><td><span class="badge b-assigned" style="font-size:10px;">성공</span></td><td style="font-size:11px;color:var(--text-muted);">1,532ms</td><td style="font-size:12px;">강감찬</td><td style="font-size:11px;color:var(--text-muted);">-</td></tr>
+            <tbody id="rfc-send-tbody">
+              <tr><td colspan="11" class="empty-state">생산오더 전송 이력이 없습니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -3238,6 +3320,94 @@ function switchRfcTab(tab) {
   })
 }
 
+/* ══════════════════════════════════════
+   RFC 통신결과 로드
+══════════════════════════════════════ */
+async function loadRfcLog() {
+  try {
+    const res  = await fetch(API + '/klean-aps-api/rfc-logs')
+    const data = await res.json()
+    if (!data.success) return
+
+    const is  = data.importStats || {}
+    const ss  = data.sendStats   || {}
+    const importList = data.import || []
+    const sendList   = data.send   || []
+
+    // ── 판매오더 불러오기 통계
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
+    set('rfc-import-stat-total',  is.total      || 0)
+    set('rfc-import-stat-ok',     is.success    || 0)
+    set('rfc-import-stat-fail',   is.fail       || 0)
+    set('rfc-import-stat-count',  is.totalCount || 0)
+    set('rfc-import-count-badge', (is.total || 0) + ' 건')
+
+    // ── 판매오더 이력 테이블
+    const importTbody = document.getElementById('rfc-import-tbody')
+    if (importTbody) {
+      if (!importList.length) {
+        importTbody.innerHTML = '<tr><td colspan="11" class="empty-state">판매오더 불러오기 이력이 없습니다.</td></tr>'
+      } else {
+        importTbody.innerHTML = importList.map((l, idx) => {
+          const resultBadge = l.result === '성공'
+            ? '<span class="badge b-assigned" style="font-size:10px;">성공</span>'
+            : '<span class="badge b-cancel"   style="font-size:10px;">실패</span>'
+          return '<tr>' +
+            '<td class="center" style="color:var(--text-faint);font-size:11px;">' + (idx+1) + '</td>' +
+            '<td style="font-size:12px;">'                               + l.calledAt    + '</td>' +
+            '<td style="font-family:monospace;font-size:11px;color:#38bdf8;">' + l.funcName + '</td>' +
+            '<td style="font-size:11px;color:var(--text-muted);">'        + l.condition   + '</td>' +
+            '<td class="num">'                                            + l.receivedCount + '</td>' +
+            '<td class="num" style="color:#4ade80;">'                    + l.successCount  + '</td>' +
+            '<td class="num" style="color:' + (l.failCount > 0 ? '#f87171' : 'var(--text-muted)') + ';">' + l.failCount + '</td>' +
+            '<td class="num" style="color:#f59e0b;">'                    + l.alreadyCount  + '</td>' +
+            '<td>' + resultBadge + '</td>' +
+            '<td style="font-size:11px;color:var(--text-muted);">'        + l.elapsed      + '</td>' +
+            '<td style="font-size:12px;">'                                + l.operator     + '</td>' +
+            '</tr>'
+        }).join('')
+      }
+    }
+
+    // ── 생산오더 전송 통계
+    set('rfc-send-stat-total',  ss.total      || 0)
+    set('rfc-send-stat-ok',     ss.success    || 0)
+    set('rfc-send-stat-fail',   ss.fail       || 0)
+    set('rfc-send-stat-count',  ss.totalCount || 0)
+    set('rfc-send-count-badge', (ss.total || 0) + ' 건')
+
+    // ── 생산오더 이력 테이블
+    const sendTbody = document.getElementById('rfc-send-tbody')
+    if (sendTbody) {
+      if (!sendList.length) {
+        sendTbody.innerHTML = '<tr><td colspan="11" class="empty-state">생산오더 전송 이력이 없습니다.</td></tr>'
+      } else {
+        sendTbody.innerHTML = sendList.map((l, idx) => {
+          const resultBadge = l.result === '성공'
+            ? '<span class="badge b-assigned" style="font-size:10px;">성공</span>'
+            : '<span class="badge b-cancel"   style="font-size:10px;">' + l.result + '</span>'
+          const failColor = l.failCount > 0 ? '#f87171' : 'var(--text-muted)'
+          return '<tr>' +
+            '<td class="center" style="color:var(--text-faint);font-size:11px;">' + (idx+1) + '</td>' +
+            '<td style="font-size:12px;">'                                         + l.calledAt     + '</td>' +
+            '<td style="font-family:monospace;font-size:11px;color:#a78bfa;">'     + l.funcName     + '</td>' +
+            '<td style="font-family:monospace;font-size:11px;color:#38bdf8;">'     + l.simId        + '</td>' +
+            '<td class="num">'                                                     + l.sentCount    + '</td>' +
+            '<td class="num" style="color:#4ade80;">'                             + l.successCount + '</td>' +
+            '<td class="num" style="color:' + failColor + ';">'                   + l.failCount    + '</td>' +
+            '<td>' + resultBadge + '</td>' +
+            '<td style="font-size:11px;color:var(--text-muted);">'                 + l.elapsed      + '</td>' +
+            '<td style="font-size:12px;">'                                         + l.operator     + '</td>' +
+            '<td style="font-size:11px;color:' + (l.failCount > 0 ? '#f87171' : 'var(--text-muted)') + ';">' + (l.remark||'-') + '</td>' +
+            '</tr>'
+        }).join('')
+      }
+    }
+  } catch(e) {
+    console.error('loadRfcLog error:', e)
+  }
+}
+
 function initTheme() {
   const saved = localStorage.getItem('klean-aps-theme') || 'dark'
   applyTheme(saved, false)
@@ -3302,6 +3472,7 @@ function goPage(p) {
   if (p === 'constraint')  loadConstraintValues()
   if (p === 'machine')     loadMachine()
   if (p === 'jumbo-list')  loadJumboList()
+  if (p === 'rfc-log')     loadRfcLog()
   // AI 패널: 시뮬레이션 페이지에서만 표시
   syncAiPanel(p)
 }
