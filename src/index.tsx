@@ -416,7 +416,7 @@ app.post('/klean-aps-api/prod-orders/:id/cancel', async (c) => {
   return c.json({
     success: true, data: o,
     rfcResult: { funcName:'Z_CANCEL_PROD_ORDER', sentAt: new Date().toISOString(), elapsed:'612ms', sapDoc: o.prodOrderNo },
-    message: `생산오더 ${o.prodOrderNo} 취소 완료 — SAP RFC 전송 성공`
+    message: '생산오더 ' + o.prodOrderNo + ' 취소 완료 — SAP RFC 전송 성공'
   })
 })
 
@@ -483,7 +483,7 @@ app.post('/klean-aps-api/sales-orders/save', async (c) => {
     addedCount,
     skippedCount,
     totalSaved: savedOrders.length,
-    message: `${addedCount}건 DB 저장 완료 (중복 ${skippedCount}건 갱신)`
+    message: addedCount + '건 DB 저장 완료 (중복 ' + skippedCount + '건 갱신)'
   })
 })
 
@@ -525,7 +525,7 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
     failCount    : failN,
     alreadyCount : alreadyN,
     openCount    : salesOrders.filter(o => !o.isExcluded && o.status === 'OPEN').length,
-    message      : `판매오더 ${total}건 불러오기 성공 (엑셀 데이터)`
+    message      : '판매오더 ' + total + '건 불러오기 성공 (엑셀 데이터)'
   })
 })
 
@@ -546,7 +546,7 @@ app.delete('/klean-aps-api/reset-all-data', (c) => {
   jumboSeq = 1
   return c.json({
     success: true,
-    message: `전체 데이터 초기화 완료`,
+    message: '전체 데이터 초기화 완료',
     deleted: { salesOrders: soCount, savedOrders: svCount, jumboOrders: jumboCount, prodOrders: prodCount }
   })
 })
@@ -566,34 +566,42 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
     return c.json({ success: false, message: 'AI API 키가 설정되지 않았습니다.' }, 500)
   }
 
-  // 시스템 프롬프트: 시뮬레이션 컨텍스트 포함
-  let systemContent = `당신은 제지 생산 계획 전문 AI 어시스턴트입니다.
-지폭조합 시뮬레이션 결과를 분석하고, Loss 최소화 방안, 오더 조합 최적화, 생산 효율 개선에 대한 전문적인 조언을 제공합니다.
-답변은 한국어로, 명확하고 실용적으로 작성하세요.`
+  // 시스템 프롬프트: 시뮬레이션 컨텍스트 포함 (백틱/\n 금지 — mainHtml 템플릿 충돌 방지)
+  // String.fromCharCode(10)을 직접 쓰면 Vite가 백틱 템플릿으로 최적화함 → 간접 우회
+  const _nlChar: any = String
+  const NL: string = _nlChar.fromCharCode(10)
+  const lines0 = [
+    '\ub2f9\uc2e0\uc740 \uc81c\uc9c0 \uc0dd\uc0b0 \uacc4\ud68d \uc804\ubb38 AI \uc5b4\uc2dc\uc2a4\ud134\ud2b8\uc785\ub2c8\ub2e4.',
+    '\uc9c0\ud3ed\uc870\ud569 \uc2dc\ubbac\ub808\uc774\uc158 \uacb0\uacfc\ub97c \ubd84\uc11d\ud558\uace0, Loss \ucd5c\uc18c\ud654 \ubc29\uc548, \uc624\ub354 \uc870\ud569 \ucd5c\uc801\ud654, \uc0dd\uc0b0 \ud6a8\uc728 \uac1c\uc120\uc5d0 \ub300\ud55c \uc804\ubb38\uc801\uc778 \uc870\uc5b8\uc744 \uc81c\uacf5\ud569\ub2c8\ub2e4.',
+    '\ub2f5\ubcc0\uc740 \ud55c\uad6d\uc5b4\ub85c, \uba85\ud655\ud558\uace0 \uc2e4\uc6a9\uc801\uc73c\ub85c \uc791\uc131\ud558\uc138\uc694.'
+  ]
+  let systemContent = lines0.join(NL)
 
   if (simContext) {
-    systemContent += `\n\n=== 현재 시뮬레이션 결과 ===
-총 조합 수: ${simContext.totalCombos}개
-포함 오더: ${simContext.totalOrders}건
-합계 생산량: ${simContext.totalTon}TON
-평균 Loss율: ${simContext.avgLoss}%
+    const combosText = simContext.combos.map((cb: any) =>
+      '[\uc870\ud569#' + cb.comboId + '] ' + cb.machineNo + '\ud638\uae30 / \ud3c9\ub7c9' + cb.basisWeight + 'g/m\u00b2 / ' +
+      '\uc9c0\ud3ed\ud569\uacc4' + cb.widthSum + 'mm(\ucd5c\ub300' + cb.maxWidth + 'mm) / ' +
+      cb.pokCount + '\ud3ed / Loss' + cb.lossRate + '% / ' + cb.totalTon + 'TON' +
+      ' / \uc624\ub354: ' + cb.orders.map((o: any) => o.sapOrderNo + '(' + o.paperWidth + 'mm)').join(', ')
+    ).join(NL)
 
-조합 상세:
-${simContext.combos.map((cb: any) =>
-  `[조합#${cb.comboId}] ${cb.machineNo}호기 / 평량${cb.basisWeight}g/m² / ` +
-  `지폭합계${cb.widthSum}mm(최대${cb.maxWidth}mm) / ` +
-  `${cb.pokCount}폭 / Loss${cb.lossRate}% / ${cb.totalTon}TON` +
-  ` / 오더: ${cb.orders.map((o: any) => o.sapOrderNo+'('+o.paperWidth+'mm)').join(', ')}`
-).join('\n')}
-
-분리된 예외 오더: ${simContext.excludedCount}건`
+    const ctxLines = [
+      '', '', '=== \ud604\uc7ac \uc2dc\ubbac\ub808\uc774\uc158 \uacb0\uacfc ===',
+      '\ucd1d \uc870\ud569 \uc218: ' + simContext.totalCombos + '\uac1c',
+      '\ud3ec\ud568 \uc624\ub354: ' + simContext.totalOrders + '\uac74',
+      '\ud569\uacc4 \uc0dd\uc0b0\ub7c9: ' + simContext.totalTon + 'TON',
+      '\ud3c9\uade0 Loss\uc728: ' + simContext.avgLoss + '%',
+      '', '\uc870\ud569 \uc0c1\uc138:', combosText, '',
+      '\ubd84\ub9ac\ub41c \uc608\uc678 \uc624\ub354: ' + simContext.excludedCount + '\uac74'
+    ]
+    systemContent += ctxLines.join(NL)
   }
 
-  // Fetch API로 SSE 스트리밍
-  const upstream = await fetch(`${BASE_URL}/chat/completions`, {
+  // Fetch API로 SSE 스트리밍 (백틱 금지 — mainHtml 충돌 방지)
+  const upstream = await fetch(BASE_URL + '/chat/completions', {
     method : 'POST',
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': 'Bearer ' + API_KEY,
       'Content-Type' : 'application/json',
     },
     body: JSON.stringify({
@@ -4441,25 +4449,47 @@ function updateAiBubble(msgId, content, done) {
 }
 
 function escapeHtml(s) {
-  return String(s)
+  var t = String(s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
+  var dq = String.fromCharCode(34)
+  return t.split(dq).join('&quot;')
 }
 
 function markdownToHtml(text) {
-  // 간단한 마크다운 → HTML 변환
-  return text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/\x60(.+?)\x60/g,'<code style="background:var(--bg-base);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;">$1</code>')
-    .replace(/^### (.+)$/gm,'<div style="font-weight:700;font-size:13px;margin:8px 0 4px;color:var(--text);">$1</div>')
-    .replace(/^## (.+)$/gm,'<div style="font-weight:700;font-size:14px;margin:10px 0 5px;color:var(--text);">$1</div>')
-    .replace(/^# (.+)$/gm,'<div style="font-weight:800;font-size:15px;margin:10px 0 5px;color:var(--text);">$1</div>')
-    .replace(/^- (.+)$/gm,'<div style="padding-left:12px;">• $1</div>')
-    .replace(/^\d+\. (.+)$/gm,'<div style="padding-left:12px;">$&</div>')
-    .replace(/\n{2,}/g,'<br><br>')
-    .replace(/\n/g,'<br>')
+  // HTML 이스케이프
+  var dq2 = String.fromCharCode(34)
+  var s = text
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+  s = s.split(dq2).join('&quot;')
+  // bold / italic / code
+  s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+  s = s.replace(/\*(.+?)\*/g,'<em>$1</em>')
+  var BT = String.fromCharCode(96)
+  var sq = String.fromCharCode(39)
+  var codeOpen = '<code style=' + sq + 'background:#1e1e2e;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;' + sq + '>'
+  var codeParts = s.split(BT)
+  var rebuilt = ''
+  for (var pi = 0; pi < codeParts.length; pi++) {
+    if (pi % 2 === 0) { rebuilt += codeParts[pi] }
+    else { rebuilt += codeOpen + codeParts[pi] + '</code>' }
+  }
+  s = rebuilt
+  // 줄 단위 처리 (정규식 대신 split으로 안전하게)
+  var NL = String.fromCharCode(10)
+  var sq2 = String.fromCharCode(39)
+  var lines = s.split(NL)
+  var out = lines.map(function(line) {
+    if (line.startsWith('### ')) return '<div style=' + sq2 + 'font-weight:700;font-size:13px;margin:8px 0 3px;' + sq2 + '>' + line.slice(4) + '</div>'
+    if (line.startsWith('## '))  return '<div style=' + sq2 + 'font-weight:700;font-size:14px;margin:10px 0 4px;' + sq2 + '>' + line.slice(3) + '</div>'
+    if (line.startsWith('# '))   return '<div style=' + sq2 + 'font-weight:800;font-size:15px;margin:10px 0 5px;' + sq2 + '>' + line.slice(2) + '</div>'
+    if (line.startsWith('- '))   return '<div style=' + sq2 + 'padding-left:12px;' + sq2 + '>• ' + line.slice(2) + '</div>'
+    if (/^\d+\. /.test(line))    return '<div style=' + sq2 + 'padding-left:12px;' + sq2 + '>' + line + '</div>'
+    if (line === '')              return '<br>'
+    return line
+  })
+  return out.join('<br>')
 }
 
 async function sendAiMessage() {
@@ -4509,7 +4539,8 @@ async function sendAiMessage() {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = dec.decode(value, { stream:true })
-      const lines = chunk.split('\n')
+      const NL2 = String.fromCharCode(10)
+      const lines = chunk.split(NL2)
       for (const line of lines) {
         if (!line.startsWith('data:')) continue
         const data = line.slice(5).trim()
