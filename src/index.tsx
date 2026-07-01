@@ -628,7 +628,14 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
 
   // ── RFC 이력 기록
   const body: any = await c.req.json().catch(() => ({}))
+  // plant 필터 적용 (서버사이드 필터링)
+  if (body.plant) {
+    salesOrders.splice(0, salesOrders.length,
+      ...salesOrders.filter((o: any) => o.plant === body.plant)
+    )
+  }
   const condParts: string[] = []
+  if (body.plant)        condParts.push('플랜트: ' + body.plant)
   if (body.orderType)    condParts.push('오더유형: ' + body.orderType)
   if (body.machineNo)    condParts.push('호기: ' + body.machineNo + '호기')
   if (body.sapOrderNo)   condParts.push('SAP오더: ' + body.sapOrderNo)
@@ -742,6 +749,7 @@ app.post('/klean-aps-api/sim-sessions', async (c) => {
     simId           : simSessionSeq++,
     simCode,
     status          : 'CONFIRMED',            // 확정 시점 생성이므로 즉시 CONFIRMED
+    plant           : body.plant        || '',
     machineNo       : body.machineNo    || '',
     basisWeight     : body.basisWeight  || 0,
     dueFrom         : body.dueFrom      || '',
@@ -1971,6 +1979,15 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             <option value="COMPLETED">COMPLETED (생산완료)</option>
           </select>
         </div>
+        <div><label class="field-label">플랜트</label>
+          <select class="inp" id="fi-plant">
+            <option value="">전체</option>
+            <option value="P100">P100</option>
+            <option value="P200">P200</option>
+            <option value="P300">P300</option>
+            <option value="P400">P400</option>
+          </select>
+        </div>
         <div><label class="field-label">납품처</label>
           <input class="inp" id="fi-customerName" placeholder="거래처명 검색">
         </div>
@@ -2111,6 +2128,17 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">플랜트</label>
+            <select class="inp" id="rf-plant" onchange="applyImportFilter()"
+              style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
+              <option value="">전체</option>
+              <option value="P100">P100</option>
+              <option value="P200">P200</option>
+              <option value="P300">P300</option>
+              <option value="P400">P400</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
             <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">비고</label>
             <select class="inp" id="rf-excluded" onchange="applyImportFilter()"
               style="width:100px;height:28px;padding:3px 8px;font-size:12px;">
@@ -2129,7 +2157,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <thead>
             <tr>
               <th class="center" style="width:36px;"><input type="checkbox" id="chk-head-import" onchange="toggleAllImport(this.checked)"></th>
-              <th>판매문서번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th>호기</th>
+              <th>판매문서번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th class="center">플랜트</th><th>호기</th>
               <th class="num">평량(g)</th><th class="num">지폭(mm)</th>
               <th class="num">수량(TON)</th><th class="num">수량(R)</th><th class="num">수량(SOK)</th>
               <th>단위</th><th>자재코드</th><th>생성일</th><th>생성자</th><th>납품요청일</th><th>상태</th><th>비고</th>
@@ -2195,6 +2223,15 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             <option value="COMPLETED">COMPLETED</option>
           </select>
         </div>
+        <div><label class="field-label">플랜트</label>
+          <select class="inp" id="lq-plant" onchange="filterOrderList()">
+            <option value="">전체</option>
+            <option value="P100">P100</option>
+            <option value="P200">P200</option>
+            <option value="P300">P300</option>
+            <option value="P400">P400</option>
+          </select>
+        </div>
         <div><label class="field-label">예외처리</label>
           <select class="inp" id="lq-excluded" onchange="filterOrderList()">
             <option value="">전체</option>
@@ -2234,7 +2271,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <thead>
             <tr>
               <th class="center" style="width:36px;">#</th>
-              <th>오더번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th>호기</th>
+              <th>오더번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th class="center">플랜트</th><th>호기</th>
               <th class="num">평량(g)</th><th class="num">지폭(mm)</th>
               <th class="num">수량(TON)</th><th class="num">수량(R)</th><th class="num">수량(SOK)</th>
               <th>자재코드</th><th>납기일</th><th>상태</th><th>예외</th><th class="center">액션</th>
@@ -3138,6 +3175,16 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         <div class="section-card">
           <div class="section-title"><i class="fas fa-search" style="color:#60a5fa;"></i>조회 조건</div>
           <div class="section-body" style="display:flex;flex-direction:column;gap:10px;">
+            <div class="form-group">
+              <label class="form-label">플랜트</label>
+              <select class="form-select" id="sim-plant">
+                <option value="">전체</option>
+                <option value="P100">P100</option>
+                <option value="P200">P200</option>
+                <option value="P300">P300</option>
+                <option value="P400">P400</option>
+              </select>
+            </div>
             <div class="form-group">
               <label class="form-label">호기</label>
               <select class="form-select" id="sim-machineNo">
@@ -4190,6 +4237,7 @@ function applyImportFilter() {
   const sapOrderNo   = (document.getElementById('rf-sapOrderNo')?.value   || '').trim()
   const orderType    = (document.getElementById('rf-orderType')?.value    || '')
   const customerName = (document.getElementById('rf-customerName')?.value || '').trim()
+  const plant        = (document.getElementById('rf-plant')?.value        || '')
   const machineNo    = (document.getElementById('rf-machineNo')?.value    || '')
   const bw           = Number(document.getElementById('fi-basisWeight')?.value) || 0
   const dateFrom     = (document.getElementById('rf-dateFrom')?.value     || '')
@@ -4203,6 +4251,7 @@ function applyImportFilter() {
     if (sapOrderNo   && !o.sapOrderNo.includes(sapOrderNo))     return false
     if (orderType    && o.orderType !== orderType)              return false
     if (customerName && !o.customerName.includes(customerName)) return false
+    if (plant        && o.plant !== plant)                      return false
     if (machineNo    && o.machineNo !== machineNo)              return false
     if (bw           && o.basisWeight !== bw)                  return false
     if (dateFrom     && o.orderDate < dateFrom)                return false
@@ -4218,7 +4267,7 @@ function applyImportFilter() {
 }
 
 function resetImportResultFilter() {
-  ['rf-sapOrderNo','rf-orderType','rf-customerName','rf-machineNo',
+  ['rf-sapOrderNo','rf-orderType','rf-customerName','rf-plant','rf-machineNo',
    'fi-basisWeight','rf-dateFrom','rf-dateTo','rf-dueFrom','rf-dueTo',
    'rf-createdBy','rf-excluded'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = ''
@@ -4249,6 +4298,7 @@ async function confirmResetAllData() {
 
 async function runRfcSync() {
   const params = {
+    plant       : document.getElementById('fi-plant').value,
     orderType   : document.getElementById('fi-orderType').value,
     sapOrderNo  : document.getElementById('fi-sapOrderNo').value,
     machineNo   : document.getElementById('fi-machineNo').value,
@@ -4344,6 +4394,7 @@ function renderImportTable(list) {
     '<td style="color:var(--text-muted);">'+o.sapItemNo+'</td>' +
     '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
     '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">'+o.customerName+'</td>' +
+    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:#a78bfa;">'+(o.plant||'-')+'</span></td>' +
     '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>' +
     '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
     '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
@@ -4436,7 +4487,7 @@ async function loadOrderList() {
 }
 
 function resetListFilter() {
-  ['lq-sapOrderNo','lq-orderType','lq-customerName','lq-machineNo',
+  ['lq-sapOrderNo','lq-orderType','lq-customerName','lq-plant','lq-machineNo',
    'lq-basisWeight','lq-status','lq-excluded'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = ''
   })
@@ -4447,6 +4498,7 @@ function filterOrderList() {
   const sapOrderNo   = document.getElementById('lq-sapOrderNo').value.trim()
   const orderType    = document.getElementById('lq-orderType').value
   const customerName = document.getElementById('lq-customerName').value.trim()
+  const plant        = (document.getElementById('lq-plant')||{}).value || ''
   const machineNo    = document.getElementById('lq-machineNo').value
   const basisWeight  = document.getElementById('lq-basisWeight').value
   const status       = document.getElementById('lq-status').value
@@ -4456,6 +4508,7 @@ function filterOrderList() {
     if (sapOrderNo   && !o.sapOrderNo.includes(sapOrderNo)) return false
     if (orderType    && o.orderType !== orderType) return false
     if (customerName && !o.customerName.includes(customerName)) return false
+    if (plant        && o.plant !== plant) return false
     if (machineNo    && o.machineNo !== machineNo) return false
     if (basisWeight  && o.basisWeight !== Number(basisWeight)) return false
     if (status       && o.status !== status) return false
@@ -4491,6 +4544,7 @@ function renderListTable(list) {
     '<td style="color:var(--text-muted);font-size:11px;">'+o.sapItemNo+'</td>'+
     '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
     '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:12px;">'+o.customerName+'</td>'+
+    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:#a78bfa;">'+(o.plant||'-')+'</span></td>'+
     '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>'+
     '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>'+
     '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>'+
@@ -5883,6 +5937,7 @@ async function simGenerate() {
   simSetProgress(30, '② 조회 조건 필터링 중...')
   await new Promise(r => setTimeout(r, 120))
 
+  const plant       = (document.getElementById('sim-plant')||{}).value||''
   const machineNo   = (document.getElementById('sim-machineNo')||{}).value||''
   const basisWeight = (document.getElementById('sim-basisWeight')||{}).value||''
   const dueFrom     = (document.getElementById('sim-dueFrom')||{}).value||''
@@ -5891,6 +5946,7 @@ async function simGenerate() {
 
   // DB저장 오더 중 OPEN 상태만 기본 선적용
   let filtered = allOrders.filter(o => o.status === 'OPEN')
+  if (plant)       filtered = filtered.filter(o => o.plant       === plant)
   if (machineNo)   filtered = filtered.filter(o => o.machineNo   === machineNo)
   if (basisWeight) filtered = filtered.filter(o => o.basisWeight === Number(basisWeight))
   if (dueFrom)     filtered = filtered.filter(o => o.dueDate >= dueFrom)
@@ -6165,6 +6221,7 @@ async function simConfirm() {
 
   // ── 세션 생성 + 확정 동시 처리 (확정 조합만 저장)
   try {
+    const plant       = (document.getElementById('sim-plant')||{}).value||''
     const machineNo   = (document.getElementById('sim-machineNo')||{}).value||''
     const basisWeight = (document.getElementById('sim-basisWeight')||{}).value||''
     const dueFrom     = (document.getElementById('sim-dueFrom')||{}).value||''
@@ -6174,6 +6231,7 @@ async function simConfirm() {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify({
+        plant,
         machineNo      : machineNo,
         basisWeight    : basisWeight ? Number(basisWeight) : 0,
         dueFrom,
