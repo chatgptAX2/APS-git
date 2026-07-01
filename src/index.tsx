@@ -1937,6 +1937,15 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       </div>
 
       <div class="filter-grid fg-8" id="import-filter-grid">
+        <div><label class="field-label">플랜트</label>
+          <select class="inp" id="fi-plant">
+            <option value="">전체</option>
+            <option value="P100">P100</option>
+            <option value="P200">P200</option>
+            <option value="P300">P300</option>
+            <option value="P400">P400</option>
+          </select>
+        </div>
         <div><label class="field-label">오더유형</label>
           <select class="inp" id="fi-orderType">
             <option value="">전체</option>
@@ -1977,15 +1986,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             <option value="OPEN">OPEN (미배정)</option>
             <option value="ASSIGNED">ASSIGNED (배정완료)</option>
             <option value="COMPLETED">COMPLETED (생산완료)</option>
-          </select>
-        </div>
-        <div><label class="field-label">플랜트</label>
-          <select class="inp" id="fi-plant">
-            <option value="">전체</option>
-            <option value="P100">P100</option>
-            <option value="P200">P200</option>
-            <option value="P300">P300</option>
-            <option value="P400">P400</option>
           </select>
         </div>
         <div><label class="field-label">납품처</label>
@@ -2070,6 +2070,17 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       <div id="import-filter-bar" style="display:none;padding:10px 16px 10px;border-bottom:1px solid var(--border);background:var(--bg-input);">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
           <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">플랜트</label>
+            <select class="inp" id="rf-plant" onchange="applyImportFilter()"
+              style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
+              <option value="">전체</option>
+              <option value="P100">P100</option>
+              <option value="P200">P200</option>
+              <option value="P300">P300</option>
+              <option value="P400">P400</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
             <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">판매문서번호</label>
             <input class="inp" id="rf-sapOrderNo" placeholder="50137471" oninput="applyImportFilter()"
               style="width:110px;height:28px;padding:3px 8px;font-size:12px;">
@@ -2128,17 +2139,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">플랜트</label>
-            <select class="inp" id="rf-plant" onchange="applyImportFilter()"
-              style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
-              <option value="">전체</option>
-              <option value="P100">P100</option>
-              <option value="P200">P200</option>
-              <option value="P300">P300</option>
-              <option value="P400">P400</option>
-            </select>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:3px;">
             <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">비고</label>
             <select class="inp" id="rf-excluded" onchange="applyImportFilter()"
               style="width:100px;height:28px;padding:3px 8px;font-size:12px;">
@@ -2157,7 +2157,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <thead>
             <tr>
               <th class="center" style="width:36px;"><input type="checkbox" id="chk-head-import" onchange="toggleAllImport(this.checked)"></th>
-              <th>판매문서번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th class="center">플랜트</th><th>호기</th>
+              <th class="center">플랜트</th><th>판매문서번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th>호기</th>
               <th class="num">평량(g)</th><th class="num">지폭(mm)</th>
               <th class="num">수량(TON)</th><th class="num">수량(R)</th><th class="num">수량(SOK)</th>
               <th>단위</th><th>자재코드</th><th>생성일</th><th>생성자</th><th>납품요청일</th><th>상태</th><th>비고</th>
@@ -4390,11 +4390,11 @@ function renderImportTable(list) {
   tbody.innerHTML = list.map(o =>
     '<tr data-id="'+o.orderId+'">' +
     '<td class="center"><input type="checkbox" class="chk-import" value="'+o.orderId+'" onchange="toggleSelectImport('+o.orderId+',this.checked)"></td>' +
+    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:#a78bfa;">'+(o.plant||'-')+'</span></td>' +
     '<td style="color:#60a5fa;font-weight:600;font-family:monospace;">'+o.sapOrderNo+'</td>' +
     '<td style="color:var(--text-muted);">'+o.sapItemNo+'</td>' +
     '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
     '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">'+o.customerName+'</td>' +
-    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:#a78bfa;">'+(o.plant||'-')+'</span></td>' +
     '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>' +
     '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
     '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
