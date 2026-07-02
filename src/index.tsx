@@ -937,11 +937,55 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
 
   if (!upstream.ok) {
     const err = await upstream.text()
-    return c.json({ success: false, message: 'AI API 오류: '+err }, 502)
+    return c.json({ success: false, message: 'AI API \uc624\ub958: '+err }, 502)
   }
 
-  // SSE 그대로 클라이언트에 relay
-  return new Response(upstream.body, {
+  // ── SSE 스트림을 직접 읽어서 클라이언트에 재전송 ──────────────
+  // (upstream.body 직접 relay는 Cloudflare Workers에서 중간 끊김 발생)
+  const upReader = upstream.body!.getReader()
+  const NL_CHAR  = String.fromCharCode(10)
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const enc = new TextEncoder()
+      let buf   = ''
+      let done  = false
+
+      try {
+        while (!done) {
+          const { done: rdDone, value } = await upReader.read()
+          if (rdDone) { done = true; break }
+
+          buf += new TextDecoder().decode(value, { stream: true })
+
+          const lastNL = buf.lastIndexOf(NL_CHAR)
+          if (lastNL === -1) continue
+
+          const chunk = buf.slice(0, lastNL + 1)
+          buf = buf.slice(lastNL + 1)
+
+          for (const line of chunk.split(NL_CHAR)) {
+            const trimmed = line.trim()
+            if (!trimmed) continue
+            // 그대로 전달 (data: ... 형식 유지)
+            controller.enqueue(enc.encode(trimmed + NL_CHAR + NL_CHAR))
+            if (trimmed === 'data: [DONE]') { done = true; break }
+          }
+        }
+      } catch(_) {}
+
+      // 명시적 [DONE] 보장 (upstream이 비정상 종료된 경우에도 클라이언트가 멈추지 않도록)
+      try {
+        controller.enqueue(enc.encode('data: [DONE]' + NL_CHAR + NL_CHAR))
+      } catch(_) {}
+      controller.close()
+    },
+    cancel() {
+      upReader.cancel().catch(() => {})
+    }
+  })
+
+  return new Response(stream, {
     headers: {
       'Content-Type'                : 'text/event-stream',
       'Cache-Control'               : 'no-cache',
@@ -5569,23 +5613,18 @@ async function sendAiMessage() {
   const text  = (input ? input.value : '').trim()
   if (!text) return
 
-  // 시뮬레이션 결과 없으면 경고
-  if (simCombos.length === 0) {
-    toast('시뮬레이션을 먼저 생성해주세요.','warn'); return
-  }
-
-  input.value = ''
-  aiInputResize(input)
+  if (input) { input.value = ''; aiInputResize(input) }
 
   // 사용자 메시지 추가
   aiChatHistory.push({ role:'user', content: text })
   appendAiMsg('user', text, false)
 
-  // AI 응답 스트리밍
+  // AI 응답 스트리밍 시작
   aiStreaming = true
   setAiStatus('thinking')
   const assistantMsgId = appendAiMsg('ai', '', true)
   let fullContent = ''
+  let reader = null
 
   try {
     setAiStatus('streaming')
@@ -5593,40 +5632,50 @@ async function sendAiMessage() {
       method : 'POST',
       headers: { 'Content-Type':'application/json' },
       body   : JSON.stringify({
-        messages   : aiChatHistory.slice(-10),  // 최근 10턴
+        messages   : aiChatHistory.slice(-10),
         simContext : buildSimContext()
       })
     })
 
     if (!r.ok) {
-      const e = await r.json().catch(()=>({message:'알 수 없는 오류'}))
-      throw new Error(e.message || 'HTTP '+r.status)
+      let errMsg = 'HTTP ' + r.status
+      try { const e = await r.json(); errMsg = e.message || errMsg } catch(_) {}
+      throw new Error(errMsg)
     }
 
-    const reader = r.body.getReader()
-    const dec    = new TextDecoder()
-    // 청크 경계에서 잘린 행을 이어붙이기 위한 버퍼
-    let sseBuffer = ''
-    let isDone = false
+    reader = r.body.getReader()
+    const dec = new TextDecoder()
+    const NL  = String.fromCharCode(10)
+    let buf   = ''
 
-    while (!isDone) {
+    // ── SSE 스트림 읽기 ──────────────────────────────────────
+    readLoop: while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      sseBuffer += dec.decode(value, { stream: true })
-      // 완전한 행 단위로만 처리 (마지막 불완전 행은 버퍼에 남김)
-      const NL2 = String.fromCharCode(10)
-      const lastNL = sseBuffer.lastIndexOf(NL2)
-      if (lastNL === -1) continue          // 아직 줄 끝이 없으면 더 기다림
-      const toProcess = sseBuffer.slice(0, lastNL + 1)
-      sseBuffer = sseBuffer.slice(lastNL + 1)
-      const lines = toProcess.split(NL2)
-      for (const line of lines) {
-        if (!line.startsWith('data:')) continue
-        const data = line.slice(5).trim()
-        if (data === '[DONE]') { isDone = true; break }
+
+      buf += dec.decode(value, { stream: true })
+
+      // 완전한 줄 단위로 처리 (마지막 불완전 줄은 버퍼에 남김)
+      const lastNL = buf.lastIndexOf(NL)
+      if (lastNL === -1) continue
+
+      const chunk  = buf.slice(0, lastNL + 1)
+      buf = buf.slice(lastNL + 1)
+
+      for (const line of chunk.split(NL)) {
+        const trimmed = line.trim()
+        if (!trimmed || !trimmed.startsWith('data:')) continue
+        const data = trimmed.slice(5).trim()
+
+        // ── 스트림 종료 ───────────────────────────────────────
+        if (data === '[DONE]') break readLoop
+
         try {
-          const j = JSON.parse(data)
-          const delta = j.choices?.[0]?.delta?.content
+          const j      = JSON.parse(data)
+          const choice = j.choices?.[0]
+          // finish_reason이 있으면 종료 신호
+          if (choice?.finish_reason && choice.finish_reason !== null) break readLoop
+          const delta  = choice?.delta?.content
           if (delta) {
             fullContent += delta
             updateAiBubble(assistantMsgId, fullContent, false)
@@ -5635,11 +5684,18 @@ async function sendAiMessage() {
       }
     }
 
+    // 스트림 정상 종료 — reader 닫기
+    try { await reader.cancel() } catch(_) {}
+
+    if (!fullContent) throw new Error('응답이 비어 있습니다.')
     updateAiBubble(assistantMsgId, fullContent, true)
     aiChatHistory.push({ role:'assistant', content: fullContent })
 
   } catch(e) {
-    updateAiBubble(assistantMsgId, '오류: '+e.message, true)
+    // reader 열려있으면 닫기
+    if (reader) { try { await reader.cancel() } catch(_) {} }
+    const errTxt = (e && e.message) ? e.message : String(e)
+    updateAiBubble(assistantMsgId, '⚠ 오류: ' + errTxt, true)
     aiChatHistory.pop()  // 실패한 user 메시지 제거
   } finally {
     aiStreaming = false
@@ -5648,6 +5704,10 @@ async function sendAiMessage() {
 }
 
 function sendAiQuick(text) {
+  if (aiStreaming) {
+    toast('AI가 응답 중입니다. 잠시 후 다시 시도해주세요.', 'info')
+    return
+  }
   const input = document.getElementById('ai-input')
   if (input) input.value = text
   sendAiMessage()
