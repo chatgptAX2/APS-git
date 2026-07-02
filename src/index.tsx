@@ -942,6 +942,8 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
 
   // ── upstream 청크를 모두 수집 → JSON 응답으로 반환 ──────────
   // (chunked streaming은 wrangler 프록시 환경에서 브라우저 수신 불안정)
+  // 주의: split('\n') 또는 split(`\n`) 은 Vite 빌드 시 백틱 문자열 충돌 발생
+  //       반드시 String.fromCharCode(10) 우회 사용
   const upReader = upstream.body!.getReader()
   const chunks: Uint8Array[] = []
   while (true) {
@@ -949,20 +951,21 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
     if (done) break
     if (value) chunks.push(value)
   }
-  // 전체 SSE 텍스트에서 delta.content 조각을 서버에서 직접 추출
-  const fullSse = chunks.map(c => new TextDecoder().decode(c)).join('')
-  const lines   = fullSse.split('\n')
+  const _S: any = String
+  const NL2: string = _S.fromCharCode(10)
+  const fullSse = chunks.map((ck: Uint8Array) => new TextDecoder().decode(ck)).join('')
+  const lines   = fullSse.split(NL2)
   let fullText  = ''
-  for (const line of lines) {
-    const t = line.trim()
+  for (let li = 0; li < lines.length; li++) {
+    const t = lines[li].trim()
     if (!t.startsWith('data:')) continue
     const d = t.slice(5).trim()
     if (d === '[DONE]') break
     try {
       const j  = JSON.parse(d)
-      const ct = j.choices?.[0]?.delta?.content
+      const ct = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content
       if (ct) fullText += ct
-    } catch (_) {}
+    } catch (_e) {}
   }
   return c.json({ ok: true, content: fullText })
 })
@@ -970,7 +973,16 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
 // ============================================================
 // UI
 // ============================================================
-app.get('*', (c) => c.html(mainHtml))
+// 빌드 시 고정되는 버전 태그 (캐시 버스팅용)
+const _BUILD_TS = Date.now().toString(36)
+
+app.get('*', (c) => {
+  c.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+  c.header('Pragma', 'no-cache')
+  c.header('Expires', '0')
+  c.header('X-Build', _BUILD_TS)
+  return c.html(mainHtml)
+})
 
 const mainHtml = `<!DOCTYPE html>
 <html lang="ko" data-theme="dark">
@@ -5566,8 +5578,6 @@ function markdownToHtml(text) {
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
   s = s.split(dq2).join('&quot;')
-  // bold / italic — 정규식 리터럴 대신 RegExp 생성자 사용
-  // (/\*\*...\*\*/ 패턴이 HTML 템플릿 백틱 내부에서 /** 주석으로 오파싱되는 것 방지)
   var reBold   = new RegExp('\\*\\*(.+?)\\*\\*', 'g')
   var reItalic = new RegExp('\\*([^*]+?)\\*', 'g')
   s = s.replace(reBold,   '<strong>$1</strong>')
@@ -5618,6 +5628,7 @@ async function sendAiMessage() {
 
   try {
     setAiStatus('streaming')
+    console.log('[AI] fetch 시작:', API+'/klean-aps-api/ai-chat')
     const r = await fetch(API+'/klean-aps-api/ai-chat', {
       method : 'POST',
       headers: { 'Content-Type':'application/json' },
@@ -5627,6 +5638,8 @@ async function sendAiMessage() {
       })
     })
 
+    console.log('[AI] fetch 완료, status:', r.status, 'ok:', r.ok)
+
     if (!r.ok) {
       let errMsg = 'HTTP ' + r.status
       try { const e = await r.json(); errMsg = e.message || errMsg } catch(_) {}
@@ -5635,19 +5648,23 @@ async function sendAiMessage() {
 
     // ── JSON 응답에서 content 추출 ────────────────────────────
     var resp = await r.json()
+    console.log('[AI] resp.ok:', resp && resp.ok, '/ content 길이:', resp && resp.content ? resp.content.length : 0)
     fullContent = (resp && resp.content) ? resp.content : ''
 
     if (!fullContent) throw new Error('\uc751\ub2f5\uc774 \ube44\uc5b4 \uc788\uc2b5\ub2c8\ub2e4.')
+    console.log('[AI] updateAiBubble 호출')
     updateAiBubble(assistantMsgId, fullContent, true)
     aiChatHistory.push({ role:'assistant', content: fullContent })
 
   } catch(e) {
     const errTxt = (e && e.message) ? e.message : String(e)
+    console.error('[AI] 오류 발생:', errTxt)
     updateAiBubble(assistantMsgId, '\u26a0 \uc624\ub958: ' + errTxt, true)
     aiChatHistory.pop()
   } finally {
     aiStreaming = false
     setAiStatus('idle')
+    console.log('[AI] 완료, aiStreaming:', aiStreaming)
   }
 }
 
