@@ -3292,6 +3292,13 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <div class="section-title">
             <i class="fas fa-th" style="color:#a78bfa;"></i>지폭조합 결과
             <span id="sim-result-count" class="count-badge" style="margin-left:8px;"></span>
+            <!-- 알고리즘 배지 -->
+            <span style="margin-left:8px;padding:2px 8px;border-radius:4px;
+                         background:#1e1b4b;border:1px solid #7c3aed55;
+                         font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:.4px;
+                         font-family:monospace;">
+              FFD+납기가중치
+            </span>
             <!-- 세션 코드 뱃지 — 확정 후 표시 -->
             <span id="sim-result-simcode"
               style="display:none;margin-left:10px;padding:2px 10px;border-radius:5px;
@@ -5835,61 +5842,177 @@ function isExcludedOrder(o) {
   return null
 }
 
-// 지폭조합 로직 (Mock 시뮬레이션)
+// ═══════════════════════════════════════════════════════════════
+//  FFD + 납기 가중치 알고리즘 (First Fit Decreasing + Due-Date Priority)
+//
+//  [정렬 전략]
+//  1. 납기 긴급도 점수(urgency) 내림차순  — 납기 임박 오더 우선
+//  2. 동점 시 지폭(paperWidth) 내림차순  — FFD: 큰 폭 먼저 배치
+//
+//  [긴급도 점수 계산]
+//  • today 기준 잔여일 = daysLeft
+//  • daysLeft ≤ 0  → 긴급도 1000 (이미 납기 초과, 최우선)
+//  • daysLeft ≤ 3  → 긴급도 500  (D-3 이내)
+//  • daysLeft ≤ 7  → 긴급도 200  (D-7 이내)
+//  • daysLeft ≤ 14 → 긴급도 100  (D-14 이내)
+//  • 그 외         → 긴급도 max(0, 50 - daysLeft)  (점진 감소)
+//
+//  [배치 전략 — Best Fit]
+//  각 오더를 배치할 때 "추가 시 Loss가 가장 작아지는 기존 조합" 에 배치
+//  → 단순 순차 적재(First Fit) 대비 공간 활용률 향상
+//
+//  [제약 조건 — 기존과 동일하게 전부 적용]
+//  • maxWidth / mimi(미미 여유) / maxPok(최대 폭 수)
+//  • noProdLimit: 이 지폭 이하 단독 조합 금지 (폭 수 ≥ 2 강제)
+//  • m2FourPokMin: 2호기 4폭 시 각 폭 최소 지폭
+//  • m3ExcBw / m3ExcMax: 3호기 평량별 예외 최대 지폭
+// ═══════════════════════════════════════════════════════════════
 function runCombinationAlgorithm(orders) {
-  const c = getConstraints()
+  const c   = getConstraints()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // ── 납기 긴급도 점수 ──────────────────────────────────────────
+  function urgencyScore(o) {
+    if (!o.dueDate) return 0
+    const due = new Date(o.dueDate)
+    due.setHours(0, 0, 0, 0)
+    const daysLeft = Math.floor((due - today) / 86400000)
+    if (daysLeft <= 0)  return 1000
+    if (daysLeft <= 3)  return 500
+    if (daysLeft <= 7)  return 200
+    if (daysLeft <= 14) return 100
+    return Math.max(0, 50 - daysLeft)
+  }
+
+  // ── [호기 + 평량] 그룹화 ──────────────────────────────────────
   const grouped = {}
   orders.forEach(o => {
-    const key = o.machineNo + '_' + o.basisWeight
+    const key = (o.machineNo || '') + '_' + o.basisWeight
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
+
   const combos = []
-  let comboIdx = 1
+  let comboIdx  = 1
 
   Object.entries(grouped).forEach(([key, grpOrders]) => {
     const [machineNo, bwStr] = key.split('_')
     const bw = Number(bwStr)
-    const maxW = machineNo === '2'
+
+    // 호기별 제약값
+    const maxW   = machineNo === '2'
       ? c.m2Max
       : (c.m3ExcBw.includes(bw) ? c.m3ExcMax : c.m3Max)
-    const minW = machineNo === '2' ? c.m2Min : c.m3Min
     const maxPok = machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
+    const fourPokMin = machineNo === '2' ? (c.m2FourPokMin || 0) : 0
+    const noProdLim  = c.noprodLimit || 625   // 이 이하 단독 배치 금지
 
-    // 지폭 합산이 범위 안에 들어오도록 그리디 조합
-    let bucket = []
-    let bucketWidth = 0
+    // ── FFD 정렬: 긴급도 DESC → 지폭 DESC ──────────────────────
+    const sorted = [...grpOrders].sort((a, b) => {
+      const ud = urgencyScore(b) - urgencyScore(a)
+      if (ud !== 0) return ud
+      return b.paperWidth - a.paperWidth
+    })
 
-    const flushBucket = () => {
-      if (!bucket.length) return
-      const totalW = bucketWidth + (bucket.length > 1 ? c.mimi * (bucket.length - 1) : 0)
-      const loss   = Math.max(0, maxW - totalW)
-      const lossRate = maxW > 0 ? (loss / maxW * 100) : 0
-      const totalTon = bucket.reduce((s,o) => s + (o.orderQtyTon || 0), 0)
-      combos.push({
-        comboId: comboIdx++,
-        machineNo, basisWeight: bw,
-        orders: [...bucket],
-        widthSum: totalW,
-        maxWidth: maxW,
-        loss, lossRate: lossRate.toFixed(1),
-        totalTon: totalTon.toFixed(3),
-        pokCount: bucket.length
-      })
-      bucket = []; bucketWidth = 0
+    // ── 조합 버킷 목록 (이 그룹 내) ─────────────────────────────
+    // bucket: { orders:[], rawWidth:number (mimi 제외 순수 지폭 합) }
+    const buckets = []
+
+    // 조합 가능 여부 검사 (maxPok, maxW, 4폭 최소 폭 조건)
+    function canFit(bucket, order) {
+      if (bucket.orders.length >= maxPok) return false
+      const newRaw  = bucket.rawWidth + order.paperWidth
+      const newTotalW = newRaw + c.mimi * bucket.orders.length  // 추가 후 mimi 간격 포함
+      if (newTotalW > maxW) return false
+      // 4폭 최소 폭 조건 (2호기): 4폭 편성 시 각 폭 ≥ fourPokMin
+      if (fourPokMin > 0 && bucket.orders.length + 1 === maxPok) {
+        const allWidths = [...bucket.orders.map(o => o.paperWidth), order.paperWidth]
+        if (allWidths.some(w => w < fourPokMin)) return false
+      }
+      return true
     }
 
-    grpOrders.forEach(o => {
-      const w = o.paperWidth
-      const tentativeW = bucketWidth + w + (bucket.length > 0 ? c.mimi : 0)
-      if (bucket.length >= maxPok || tentativeW > maxW) {
-        flushBucket()
+    // 배치 후 Loss 계산 (Best Fit 선택 기준)
+    function calcLoss(bucket, order) {
+      const newRaw    = bucket.rawWidth + order.paperWidth
+      const newTotalW = newRaw + c.mimi * bucket.orders.length
+      return maxW - newTotalW
+    }
+
+    // ── Best Fit Decreasing 배치 ────────────────────────────────
+    sorted.forEach(order => {
+      let bestIdx  = -1
+      let bestLoss = Infinity
+
+      buckets.forEach((bkt, idx) => {
+        if (!canFit(bkt, order)) return
+        const loss = calcLoss(bkt, order)
+        // noProdLimit: 현재 1폭뿐이고 order 추가 시 2폭 → OK
+        // (단독 1폭으로 확정되는 것만 막음 — flush 시 체크)
+        if (loss < bestLoss) { bestLoss = loss; bestIdx = idx }
+      })
+
+      if (bestIdx >= 0) {
+        // 기존 조합에 배치
+        buckets[bestIdx].orders.push(order)
+        buckets[bestIdx].rawWidth += order.paperWidth
+      } else {
+        // 새 조합 Open
+        buckets.push({ orders: [order], rawWidth: order.paperWidth })
       }
-      bucket.push(o)
-      bucketWidth += w
     })
-    flushBucket()
+
+    // ── 버킷 → combos 변환 ──────────────────────────────────────
+    buckets.forEach(bkt => {
+      if (!bkt.orders.length) return
+
+      // noProdLimit 처리: 단독 1폭이고 지폭 ≤ noProdLim 이면 경고 태그만 부여
+      // (실제 생산 결정은 사용자가 하므로 제거하지 않고 flag 추가)
+      const isSingleNarrow =
+        bkt.orders.length === 1 && bkt.orders[0].paperWidth <= noProdLim
+
+      const totalW   = bkt.rawWidth + c.mimi * (bkt.orders.length - 1)
+      const loss     = Math.max(0, maxW - totalW)
+      const lossRate = maxW > 0 ? (loss / maxW * 100) : 0
+      const totalTon = bkt.orders.reduce((s, o) => s + (o.orderQtyTon || 0), 0)
+
+      // 납기 긴급도: 조합 내 가장 높은 점수를 조합 대표값으로
+      const maxUrgency = Math.max(...bkt.orders.map(o => urgencyScore(o)))
+      const daysArr    = bkt.orders
+        .filter(o => o.dueDate)
+        .map(o => Math.floor((new Date(o.dueDate).setHours(0,0,0,0) - today) / 86400000))
+      const minDaysLeft = daysArr.length ? Math.min(...daysArr) : null
+
+      combos.push({
+        comboId     : comboIdx++,
+        machineNo,
+        basisWeight : bw,
+        orders      : [...bkt.orders],
+        widthSum    : totalW,
+        maxWidth    : maxW,
+        loss,
+        lossRate    : lossRate.toFixed(1),
+        totalTon    : totalTon.toFixed(3),
+        pokCount    : bkt.orders.length,
+        // 추가 메타 (UI 표시용)
+        urgency     : maxUrgency,
+        minDaysLeft,
+        isSingleNarrow,
+        algoTag     : 'FFD+DUE'   // 알고리즘 태그
+      })
+    })
   })
+
+  // ── 최종 정렬: 납기 긴급도 높은 조합을 상단에 표시 ───────────
+  combos.sort((a, b) => {
+    const ud = (b.urgency || 0) - (a.urgency || 0)
+    if (ud !== 0) return ud
+    return parseFloat(a.lossRate) - parseFloat(b.lossRate)  // 긴급도 동점 시 Loss 낮은 순
+  })
+  // comboId 재부여 (정렬 후 순번 재정렬)
+  combos.forEach((cb, i) => { cb.comboId = i + 1 })
+
   return combos
 }
 
@@ -5988,7 +6111,7 @@ async function simGenerate() {
   renderSimOrderTable(simOrders)
 
   // ── 4단계: 지폭조합 알고리즘 실행 (80%)
-  simSetProgress(80, '④ 지폭조합 알고리즘 실행 중... ('+simOrders.length+'건)')
+  simSetProgress(80, '④ FFD+납기가중치 알고리즘 실행 중... ('+simOrders.length+'건)')
   await new Promise(r => setTimeout(r, 200))
 
   simCombos = runCombinationAlgorithm(simOrders)
@@ -6100,14 +6223,54 @@ function renderSimResult(combos) {
     ).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
     const cid = 'combo-check-' + combo.comboId
 
-    return '<div id="combo-card-'+combo.comboId+'" style="border:2px solid var(--border);border-radius:10px;margin-bottom:10px;background:var(--bg-input);overflow:hidden;transition:border-color .15s;">'+
+    // ── 납기 긴급도 배지 ──────────────────────────────────────
+    const dl = combo.minDaysLeft
+    let urgencyBadge = ''
+    if (dl !== null && dl !== undefined) {
+      if (dl <= 0) {
+        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;background:#7f1d1d;color:#fca5a5;letter-spacing:.3px;">납기초과 D+'+Math.abs(dl)+'</span>'
+      } else if (dl <= 3) {
+        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;background:#7c2d12;color:#fdba74;letter-spacing:.3px;">긴급 D-'+dl+'</span>'
+      } else if (dl <= 7) {
+        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;background:#713f12;color:#fde68a;letter-spacing:.3px;">주의 D-'+dl+'</span>'
+      } else {
+        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--bg-base);color:var(--text-muted);letter-spacing:.3px;">D-'+dl+'</span>'
+      }
+    }
+
+    // ── 단독 협폭 경고 ────────────────────────────────────────
+    const narrowWarn = combo.isSingleNarrow
+      ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;letter-spacing:.3px;">⚠ 협폭단독</span>'
+      : ''
+
+    // ── 카드 테두리 색 (긴급도 반영) ─────────────────────────
+    const cardBorderColor = (dl !== null && dl !== undefined && dl <= 0)  ? '#f87171'
+                          : (dl !== null && dl !== undefined && dl <= 3)  ? '#fb923c'
+                          : (dl !== null && dl !== undefined && dl <= 7)  ? '#fbbf24'
+                          : 'var(--border)'
+
+    // ── 오더별 납기 D-day 색상 ────────────────────────────────
+    function orderDayColor(dueDate) {
+      if (!dueDate) return 'var(--text-muted)'
+      const today2 = new Date(); today2.setHours(0,0,0,0)
+      const due2   = new Date(dueDate); due2.setHours(0,0,0,0)
+      const d = Math.floor((due2 - today2) / 86400000)
+      if (d <= 0) return '#f87171'
+      if (d <= 3) return '#fb923c'
+      if (d <= 7) return '#fbbf24'
+      return 'var(--text-muted)'
+    }
+
+    return '<div id="combo-card-'+combo.comboId+'" style="border:2px solid '+cardBorderColor+';border-radius:10px;margin-bottom:10px;background:var(--bg-input);overflow:hidden;transition:border-color .15s;">'+
       '<!-- header -->'+
-      '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);">'+
+      '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-wrap:wrap;">'+
         '<!-- checkbox -->'+
         '<label style="display:flex;align-items:center;cursor:pointer;gap:0;" title="이 조합 선택">'+
           '<input type="checkbox" id="'+cid+'" checked onchange="onComboCheckChange('+combo.comboId+')" style="width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;" />'+
         '</label>'+
         '<span style="font-weight:800;font-size:15px;color:#a78bfa;">#'+combo.comboId+'</span>'+
+        urgencyBadge+
+        narrowWarn+
         '<span class="machine-badge" style="font-size:13px;padding:3px 12px;">'+combo.machineNo+'호기</span>'+
         '<span style="font-size:12px;color:var(--text-muted);">평량 <b style="color:var(--text-main);">'+combo.basisWeight+'g/m²</b></span>'+
         '<span style="font-size:12px;color:var(--text-muted);"><b style="color:var(--text-main);">'+combo.pokCount+'</b>폭</span>'+
@@ -6128,19 +6291,20 @@ function renderSimResult(combos) {
               '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">지폭</th>'+
               '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">수량</th>'+
               '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">자재코드</th>'+
-              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">납기일</th>'+
+              '<th style="padding:5px 6px;text-align:center;color:var(--text-muted);">납기일</th>'+
             '</tr>'+
           '</thead>'+
           '<tbody>'+
             combo.orders.map(o => {
               const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
+              const dc = orderDayColor(o.dueDate)
               return '<tr>'+
                 '<td style="padding:5px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
                 '<td style="padding:5px 6px;">'+o.customerName+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm</td>'+
                 '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
                 '<td style="padding:5px 6px;font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-                '<td style="padding:5px 6px;color:var(--text-muted);">'+o.dueDate+'</td>'+
+                '<td style="padding:5px 6px;text-align:center;font-weight:700;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
             }).join('')+
           '</tbody>'+
