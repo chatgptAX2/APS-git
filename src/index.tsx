@@ -5624,11 +5624,11 @@ function markdownToHtml(text) {
   var sq2 = String.fromCharCode(39)
   var lines = s.split(NL)
   var out = lines.map(function(line) {
-    if (line.startsWith('### ')) return '<div style=' + sq2 + 'font-weight:700;font-size:13px;margin:8px 0 3px;' + sq2 + '>' + line.slice(4) + '</div>'
-    if (line.startsWith('## '))  return '<div style=' + sq2 + 'font-weight:700;font-size:14px;margin:10px 0 4px;' + sq2 + '>' + line.slice(3) + '</div>'
-    if (line.startsWith('# '))   return '<div style=' + sq2 + 'font-weight:800;font-size:15px;margin:10px 0 5px;' + sq2 + '>' + line.slice(2) + '</div>'
-    if (line.startsWith('- '))   return '<div style=' + sq2 + 'padding-left:12px;' + sq2 + '>• ' + line.slice(2) + '</div>'
-    if (line.length > 2 && line[0] >= '0' && line[0] <= '9' && line.indexOf('. ') > 0) return '<div style=' + sq2 + 'padding-left:12px;' + sq2 + '>' + line + '</div>'
+    if (line.startsWith('### ')) return '<div style=' + sq2 + 'font-weight:700;font-size:13px;margin:8px 0 3px;color:inherit;' + sq2 + '>' + line.slice(4) + '</div>'
+    if (line.startsWith('## '))  return '<div style=' + sq2 + 'font-weight:700;font-size:14px;margin:10px 0 4px;color:inherit;' + sq2 + '>' + line.slice(3) + '</div>'
+    if (line.startsWith('# '))   return '<div style=' + sq2 + 'font-weight:800;font-size:15px;margin:10px 0 5px;color:inherit;' + sq2 + '>' + line.slice(2) + '</div>'
+    if (line.startsWith('- '))   return '<div style=' + sq2 + 'padding-left:12px;color:inherit;' + sq2 + '>• ' + line.slice(2) + '</div>'
+    if (line.length > 2 && line[0] >= '0' && line[0] <= '9' && line.indexOf('. ') > 0) return '<div style=' + sq2 + 'padding-left:12px;color:inherit;' + sq2 + '>' + line + '</div>'
     if (line === '')              return '<br>'
     return line
   })
