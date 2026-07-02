@@ -628,14 +628,21 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
 
   // ── RFC 이력 기록
   const body: any = await c.req.json().catch(() => ({}))
-  // plant 필터 적용 (서버사이드 필터링)
+  // 서버사이드 필터 적용
   if (body.plant) {
     salesOrders.splice(0, salesOrders.length,
       ...salesOrders.filter((o: any) => o.plant === body.plant)
     )
   }
+  if (body.basisWeight) {
+    const bw = Number(body.basisWeight)
+    salesOrders.splice(0, salesOrders.length,
+      ...salesOrders.filter((o: any) => o.basisWeight === bw)
+    )
+  }
   const condParts: string[] = []
   if (body.plant)        condParts.push('플랜트: ' + body.plant)
+  if (body.basisWeight)  condParts.push('평량: ' + body.basisWeight + 'g/m²')
   if (body.orderType)    condParts.push('오더유형: ' + body.orderType)
   if (body.machineNo)    condParts.push('호기: ' + body.machineNo + '호기')
   if (body.sapOrderNo)   condParts.push('SAP오더: ' + body.sapOrderNo)
@@ -1991,6 +1998,18 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         <div><label class="field-label">납품처</label>
           <input class="inp" id="fi-customerName" placeholder="거래처명 검색">
         </div>
+        <div><label class="field-label">평량 (g/m²)</label>
+          <input class="inp" type="number" id="fi-basisWeight" placeholder="예: 350" min="1"
+            list="bw-list-import-cond" style="width:100%;">
+          <datalist id="bw-list-import-cond">
+            <option value="240"></option>
+            <option value="300"></option>
+            <option value="350"></option>
+            <option value="400"></option>
+            <option value="450"></option>
+            <option value="500"></option>
+          </datalist>
+        </div>
       </div>
 
       <div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">
@@ -2108,7 +2127,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
             <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">평량(g/m²)</label>
-            <input type="number" class="inp" id="fi-basisWeight" placeholder="전체" min="1"
+            <input type="number" class="inp" id="rf-basisWeight" placeholder="전체" min="1"
               list="bw-list-import" oninput="applyImportFilter()"
               style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
             <datalist id="bw-list-import"></datalist>
@@ -4224,9 +4243,9 @@ async function loadDashboard() {
    판매오더 불러오기 — RFC 조회
 ══════════════════════════════════════ */
 function resetImportFilter() {
-  ['fi-orderType','fi-sapOrderNo','fi-machineNo',
+  ['fi-plant','fi-orderType','fi-sapOrderNo','fi-machineNo',
    'fi-dateFrom','fi-dateTo','fi-createdBy','fi-dueFrom','fi-dueTo',
-   'fi-status','fi-customerName'].forEach(id => {
+   'fi-status','fi-customerName','fi-basisWeight'].forEach(id => {
     const el = document.getElementById(id)
     if (el) el.value = ''
   })
@@ -4239,7 +4258,7 @@ function applyImportFilter() {
   const customerName = (document.getElementById('rf-customerName')?.value || '').trim()
   const plant        = (document.getElementById('rf-plant')?.value        || '')
   const machineNo    = (document.getElementById('rf-machineNo')?.value    || '')
-  const bw           = Number(document.getElementById('fi-basisWeight')?.value) || 0
+  const bw           = Number(document.getElementById('rf-basisWeight')?.value) || 0
   const dateFrom     = (document.getElementById('rf-dateFrom')?.value     || '')
   const dateTo       = (document.getElementById('rf-dateTo')?.value       || '')
   const dueFrom      = (document.getElementById('rf-dueFrom')?.value      || '')
@@ -4268,7 +4287,7 @@ function applyImportFilter() {
 
 function resetImportResultFilter() {
   ['rf-sapOrderNo','rf-orderType','rf-customerName','rf-plant','rf-machineNo',
-   'fi-basisWeight','rf-dateFrom','rf-dateTo','rf-dueFrom','rf-dueTo',
+   'rf-basisWeight','rf-dateFrom','rf-dateTo','rf-dueFrom','rf-dueTo',
    'rf-createdBy','rf-excluded'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = ''
   })
@@ -4309,6 +4328,7 @@ async function runRfcSync() {
     dueTo       : document.getElementById('fi-dueTo').value,
     status      : document.getElementById('fi-status').value,
     customerName: document.getElementById('fi-customerName').value,
+    basisWeight : Number(document.getElementById('fi-basisWeight')?.value) || 0,
   }
   const btn     = document.getElementById('btn-rfc')
   const loading = document.getElementById('rfc-loading')
@@ -4470,7 +4490,7 @@ async function saveSelected() {
 // 평량 datalist 동적 업데이트 (실제 데이터에서 추출)
 function updateBwDatalist(orders) {
   const bws = [...new Set(orders.map(o => o.basisWeight).filter(Boolean))].sort((a,b)=>a-b)
-  const ids = ['bw-list-import','bw-list-order','bw-list-prod','bw-list-sim']
+  const ids = ['bw-list-import','bw-list-import-cond','bw-list-order','bw-list-prod','bw-list-sim']
   ids.forEach(id => {
     const dl = document.getElementById(id)
     if (!dl) return
