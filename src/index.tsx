@@ -967,7 +967,18 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
       if (ct) fullText += ct
     } catch (_e) {}
   }
-  return c.json({ ok: true, content: fullText })
+  // novita 프록시가 Content-Length를 잘못 설정하는 문제 우회:
+  // c.json() 대신 Response 직접 생성 + 올바른 Content-Length 명시
+  const respBody = JSON.stringify({ ok: true, content: fullText })
+  const respBytes = new TextEncoder().encode(respBody)
+  return new Response(respBody, {
+    status: 200,
+    headers: {
+      'Content-Type'  : 'application/json; charset=utf-8',
+      'Content-Length': String(respBytes.length),
+      'Cache-Control' : 'no-store',
+    }
+  })
 })
 
 // ============================================================
