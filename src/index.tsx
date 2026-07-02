@@ -5956,6 +5956,7 @@ function runCombinationAlgorithm(orders) {
     const maxW   = machineNo === '2'
       ? c.m2Max
       : (c.m3ExcBw.includes(bw) ? c.m3ExcMax : c.m3Max)
+    const minW   = machineNo === '2' ? (c.m2Min || 0) : (c.m3Min || 0)  // ← 최소 지폭
     const maxPok = machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
     const fourPokMin = machineNo === '2' ? (c.m2FourPokMin || 0) : 0
     const noProdLim  = c.noprodLimit || 625   // 이 이하 단독 배치 금지
@@ -6029,6 +6030,10 @@ function runCombinationAlgorithm(orders) {
       const lossRate = maxW > 0 ? (loss / maxW * 100) : 0
       const totalTon = bkt.orders.reduce((s, o) => s + (o.orderQtyTon || 0), 0)
 
+      // ── 최소 지폭 미달 검사 ─────────────────────────────────────
+      // 조합 확정 시 총 지폭이 해당 호기의 최소 지폭 미만이면 경고 플래그
+      const belowMinWidth = minW > 0 && totalW < minW
+
       // 납기 긴급도: 조합 내 가장 높은 점수를 조합 대표값으로
       const maxUrgency = Math.max(...bkt.orders.map(o => urgencyScore(o)))
       const daysArr    = bkt.orders
@@ -6043,6 +6048,7 @@ function runCombinationAlgorithm(orders) {
         orders      : [...bkt.orders],
         widthSum    : totalW,
         maxWidth    : maxW,
+        minWidth    : minW,         // ← 최소 지폭 저장 (UI 표시용)
         loss,
         lossRate    : lossRate.toFixed(1),
         totalTon    : totalTon.toFixed(3),
@@ -6051,6 +6057,7 @@ function runCombinationAlgorithm(orders) {
         urgency     : maxUrgency,
         minDaysLeft,
         isSingleNarrow,
+        belowMinWidth,              // ← 최소 지폭 미달 경고 플래그
         algoTag     : 'FFD+DUE'   // 알고리즘 태그
       })
     })
@@ -6072,7 +6079,8 @@ function runCombinationAlgorithm(orders) {
     var repackOrders = []  // 편입 실패한 오더들 → 새 조합으로
     poorIdx.forEach(function(pi) {
       var pc = combos[pi]
-      var maxW2 = pc.maxWidth
+      var maxW2  = pc.maxWidth
+      var minW2  = pc.minWidth || 0   // ← 최소 지폭
       var maxPok2 = pc.machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
       var mimi2   = c.mimi
 
@@ -6086,7 +6094,7 @@ function runCombinationAlgorithm(orders) {
           if (gc.basisWeight !== pc.basisWeight) return
           // 폭 수 제한 검사
           if (gc.pokCount >= maxPok2) return
-          // 폭 폭 초과 검사 (mimi 포함)
+          // 최대 지폭 초과 검사 (mimi 포함)
           var newTotalW = gc.widthSum + mimi2 + order.paperWidth
           if (newTotalW > gc.maxWidth) return
           // 4폭 최소 폭 조건 (2호기)
@@ -6106,16 +6114,17 @@ function runCombinationAlgorithm(orders) {
           gc2.widthSum += mimi2 + order.paperWidth
           gc2.pokCount += 1
           var nl = Math.max(0, gc2.maxWidth - gc2.widthSum)
-          gc2.loss     = nl
-          gc2.lossRate = (gc2.maxWidth > 0 ? nl / gc2.maxWidth * 100 : 0).toFixed(1)
-          gc2.totalTon = (parseFloat(gc2.totalTon) + (order.orderQtyTon || 0)).toFixed(3)
+          gc2.loss          = nl
+          gc2.lossRate      = (gc2.maxWidth > 0 ? nl / gc2.maxWidth * 100 : 0).toFixed(1)
+          gc2.totalTon      = (parseFloat(gc2.totalTon) + (order.orderQtyTon || 0)).toFixed(3)
+          gc2.belowMinWidth = (gc2.minWidth || 0) > 0 && gc2.widthSum < (gc2.minWidth || 0)
           // 긴급도 갱신 (편입 오더가 더 긴급하면 반영)
           var incomingUrgency = urgencyScore(order)
           if (incomingUrgency > (gc2.urgency || 0)) gc2.urgency = incomingUrgency
           placed = true
         }
         if (!placed) {
-          repackOrders.push({ order: order, machineNo: pc.machineNo, basisWeight: pc.basisWeight, maxWidth: maxW2 })
+          repackOrders.push({ order: order, machineNo: pc.machineNo, basisWeight: pc.basisWeight, maxWidth: maxW2, minWidth: minW2 })
         }
       })
     })
@@ -6127,21 +6136,24 @@ function runCombinationAlgorithm(orders) {
     repackOrders.forEach(function(item) {
       var loss3 = item.maxWidth - item.order.paperWidth
       var lossRate3 = item.maxWidth > 0 ? loss3 / item.maxWidth * 100 : 0
+      var bw3 = item.order.paperWidth
       combos.push({
-        comboId     : 0,   // 최종 정렬 후 재부여
-        machineNo   : item.machineNo,
-        basisWeight : item.basisWeight,
-        orders      : [item.order],
-        widthSum    : item.order.paperWidth,
-        maxWidth    : item.maxWidth,
-        loss        : loss3,
-        lossRate    : lossRate3.toFixed(1),
-        totalTon    : (item.order.orderQtyTon || 0).toFixed(3),
-        pokCount    : 1,
-        urgency     : urgencyScore(item.order),
-        minDaysLeft : 999,
+        comboId       : 0,   // 최종 정렬 후 재부여
+        machineNo     : item.machineNo,
+        basisWeight   : item.basisWeight,
+        orders        : [item.order],
+        widthSum      : bw3,
+        maxWidth      : item.maxWidth,
+        minWidth      : item.minWidth,
+        loss          : loss3,
+        lossRate      : lossRate3.toFixed(1),
+        totalTon      : (item.order.orderQtyTon || 0).toFixed(3),
+        pokCount      : 1,
+        urgency       : urgencyScore(item.order),
+        minDaysLeft   : 999,
         isSingleNarrow : item.order.paperWidth < (c.noprodLimit || 625),
-        algoTag     : 'REPACK'
+        belowMinWidth  : (item.minWidth || 0) > 0 && bw3 < item.minWidth,  // ← 최소 지폭 미달
+        algoTag       : 'REPACK'
       })
     })
 
@@ -6390,8 +6402,14 @@ function renderSimResult(combos) {
       ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;letter-spacing:.3px;">⚠ 협폭단독</span>'
       : ''
 
-    // ── 카드 테두리 색 (긴급도 반영) ─────────────────────────
-    const cardBorderColor = (dl !== null && dl !== undefined && dl <= 0)  ? '#f87171'
+    // ── 최소 지폭 미달 경고 ───────────────────────────────────
+    const minWidthWarn = combo.belowMinWidth
+      ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#450a0a;color:#fca5a5;letter-spacing:.3px;">⛔ 최소지폭미달 ('+(combo.minWidth||0).toLocaleString()+'mm)</span>'
+      : ''
+
+    // ── 카드 테두리 색 (긴급도 + 최소 지폭 미달 반영) ─────────
+    const cardBorderColor = combo.belowMinWidth               ? '#ef4444'
+                          : (dl !== null && dl !== undefined && dl <= 0)  ? '#f87171'
                           : (dl !== null && dl !== undefined && dl <= 3)  ? '#fb923c'
                           : (dl !== null && dl !== undefined && dl <= 7)  ? '#fbbf24'
                           : 'var(--border)'
@@ -6418,11 +6436,12 @@ function renderSimResult(combos) {
         '<span style="font-weight:800;font-size:15px;color:#a78bfa;">#'+combo.comboId+'</span>'+
         urgencyBadge+
         narrowWarn+
+        minWidthWarn+
         '<span class="machine-badge" style="font-size:13px;padding:3px 12px;">'+combo.machineNo+'호기</span>'+
         '<span style="font-size:12px;color:var(--text-muted);">평량 <b style="color:var(--text-main);">'+combo.basisWeight+'g/m²</b></span>'+
         '<span style="font-size:12px;color:var(--text-muted);"><b style="color:var(--text-main);">'+combo.pokCount+'</b>폭</span>'+
         '<div style="margin-left:auto;display:flex;gap:10px;align-items:center;">'+
-          '<span style="font-size:12px;color:var(--text-muted);">합계 지폭: <b style="color:var(--text-main);">'+combo.widthSum.toLocaleString()+'mm</b> / '+combo.maxWidth.toLocaleString()+'mm</span>'+
+          '<span style="font-size:12px;color:var(--text-muted);">합계 지폭: <b style="color:'+(combo.belowMinWidth?'#f87171':'var(--text-main)')+';">'+combo.widthSum.toLocaleString()+'mm</b>'+(combo.minWidth?(' <span style="color:var(--text-faint);">(최소 '+combo.minWidth.toLocaleString()+'↑</span>'):'')+'/ '+combo.maxWidth.toLocaleString()+'mm</span>'+
           '<span style="font-size:13px;color:'+lossColor+';font-weight:800;">Loss '+combo.lossRate+'%</span>'+
           '<span style="font-size:13px;color:#34d399;font-weight:800;">'+combo.totalTon+'T</span>'+
         '</div>'+
