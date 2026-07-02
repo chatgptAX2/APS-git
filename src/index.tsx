@@ -940,16 +940,31 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
     return c.json({ success: false, message: 'AI API \uc624\ub958: '+err }, 502)
   }
 
-  // ── upstream SSE 전체 텍스트를 그대로 클라이언트에 전달 ──────
-  const rawText = await upstream.text()
-
-  return new Response(rawText, {
-    headers: {
-      'Content-Type'                : 'text/plain; charset=utf-8',
-      'Cache-Control'               : 'no-cache',
-      'Access-Control-Allow-Origin' : '*',
-    }
-  })
+  // ── upstream 청크를 모두 수집 → JSON 응답으로 반환 ──────────
+  // (chunked streaming은 wrangler 프록시 환경에서 브라우저 수신 불안정)
+  const upReader = upstream.body!.getReader()
+  const chunks: Uint8Array[] = []
+  while (true) {
+    const { done, value } = await upReader.read()
+    if (done) break
+    if (value) chunks.push(value)
+  }
+  // 전체 SSE 텍스트에서 delta.content 조각을 서버에서 직접 추출
+  const fullSse = chunks.map(c => new TextDecoder().decode(c)).join('')
+  const lines   = fullSse.split('\n')
+  let fullText  = ''
+  for (const line of lines) {
+    const t = line.trim()
+    if (!t.startsWith('data:')) continue
+    const d = t.slice(5).trim()
+    if (d === '[DONE]') break
+    try {
+      const j  = JSON.parse(d)
+      const ct = j.choices?.[0]?.delta?.content
+      if (ct) fullText += ct
+    } catch (_) {}
+  }
+  return c.json({ ok: true, content: fullText })
 })
 
 // ============================================================
@@ -5448,20 +5463,36 @@ let aiChatHistory = []   // { role:'user'|'assistant', content:'' }
 let aiStreaming   = false
 
 function buildSimContext() {
-  // 현재 시뮬레이션 결과를 AI 컨텍스트로 변환
+  // 현재 시뮬레이션 결과를 AI 컨텍스트로 변환 (경량화: 최대 20개 조합만 전송)
   if (!simCombos || simCombos.length === 0) return null
   const totalOrders = simCombos.reduce((s,c) => s + c.orders.length, 0)
   const totalTon    = simCombos.reduce((s,c) => s + parseFloat(c.totalTon||0), 0).toFixed(3)
   const avgLoss     = simCombos.length > 0
     ? (simCombos.reduce((s,c)=>s+parseFloat(c.lossRate||0),0)/simCombos.length).toFixed(1)
     : '0.0'
+  // 오더 데이터를 최소 필드만 포함하도록 경량화
+  const lightCombos = simCombos.slice(0, 20).map(function(cb) {
+    return {
+      comboId     : cb.comboId,
+      machineNo   : cb.machineNo,
+      basisWeight : cb.basisWeight,
+      widthSum    : cb.widthSum,
+      maxWidth    : cb.maxWidth,
+      pokCount    : cb.pokCount,
+      lossRate    : cb.lossRate,
+      totalTon    : cb.totalTon,
+      orders      : (cb.orders || []).map(function(o) {
+        return { sapOrderNo: o.sapOrderNo, paperWidth: o.paperWidth, dueDate: o.dueDate }
+      })
+    }
+  })
   return {
     totalCombos   : simCombos.length,
     totalOrders,
     totalTon,
     avgLoss,
     excludedCount : simExcluded.length,
-    combos        : simCombos
+    combos        : lightCombos
   }
 }
 
@@ -5599,26 +5630,9 @@ async function sendAiMessage() {
       throw new Error(errMsg)
     }
 
-    // ── 전체 응답 텍스트로 받아서 SSE 파싱 ──────────────────────
-    const respText = await r.text()
-    const _nlCode = 10
-    const _nl = String.fromCharCode(_nlCode)
-    const lines = respText.split(_nl)
-    for (var li = 0; li < lines.length; li++) {
-      var trimmed = lines[li].trim()
-      if (!trimmed || trimmed.indexOf('data:') !== 0) continue
-      var data = trimmed.slice(5).trim()
-      if (data === '[DONE]') break
-      try {
-        var j      = JSON.parse(data)
-        var choice = j.choices && j.choices[0]
-        var delta  = choice && choice.delta && choice.delta.content
-        if (delta) {
-          fullContent += delta
-          updateAiBubble(assistantMsgId, fullContent, false)
-        }
-      } catch(pe) {}
-    }
+    // ── JSON 응답에서 content 추출 ────────────────────────────
+    var resp = await r.json()
+    fullContent = (resp && resp.content) ? resp.content : ''
 
     if (!fullContent) throw new Error('\uc751\ub2f5\uc774 \ube44\uc5b4 \uc788\uc2b5\ub2c8\ub2e4.')
     updateAiBubble(assistantMsgId, fullContent, true)
