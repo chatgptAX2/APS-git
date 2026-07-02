@@ -5978,12 +5978,15 @@ function runCombinationAlgorithm(orders) {
     // bucket: { orders:[], rawWidth:number (mimi 제외 순수 지폭 합) }
     const buckets = []
 
-    // 조합 가능 여부 검사 (maxPok, maxW, 4폭 최소 폭 조건)
+    // 조합 가능 여부 검사 (maxPok, maxW, minW, 4폭 최소 폭 조건)
     function canFit(bucket, order) {
       if (bucket.orders.length >= maxPok) return false
-      const newRaw  = bucket.rawWidth + order.paperWidth
+      const newRaw    = bucket.rawWidth + order.paperWidth
       const newTotalW = newRaw + c.mimi * bucket.orders.length  // 추가 후 mimi 간격 포함
       if (newTotalW > maxW) return false
+      // ── 최소 지폭 검사: 이 오더를 추가하면 더 이상 폭을 넣을 수 없는 경우(마지막 슬롯)
+      // 또는 추가해도 minW 미달인 경우 → 기존 버킷에 편입하지 않고 새 버킷 유도
+      if (minW > 0 && bucket.orders.length + 1 === maxPok && newTotalW < minW) return false
       // 4폭 최소 폭 조건 (2호기): 4폭 편성 시 각 폭 ≥ fourPokMin
       if (fourPokMin > 0 && bucket.orders.length + 1 === maxPok) {
         const allWidths = [...bucket.orders.map(o => o.paperWidth), order.paperWidth]
@@ -6069,105 +6072,159 @@ function runCombinationAlgorithm(orders) {
     })
   })
 
-  // ── [재조합 패스] Loss 높은 조합 해체 후 재배치 ────────────────
-  // Loss율 > REPACK_THRESHOLD 인 조합을 해체하여 여유 있는 조합에 재배치
+  // ── [재조합 패스 v2] Loss 높은 조합 해체 + poorCombo끼리 재조합 ──
   ;(function repackPass() {
     var REPACK_THRESHOLD = 15  // 15% 초과 시 재조합 대상
+
+    // ① poor / good 분류
     var poorIdx = []
     var goodIdx = []
     combos.forEach(function(cb, i) {
       if (parseFloat(cb.lossRate) > REPACK_THRESHOLD) poorIdx.push(i)
       else goodIdx.push(i)
     })
-    if (poorIdx.length === 0) return  // 재조합 불필요
+    if (poorIdx.length === 0) return
 
-    // poorCombos 의 오더를 하나씩 추출해 goodCombos에 Best Fit 시도
-    var repackOrders = []  // 편입 실패한 오더들 → 새 조합으로
+    var mimi2 = c.mimi
+
+    // ② poorCombo 오더 전부 수집 → [machineNo+basisWeight] 키별 풀로 분류
+    // 동시에 goodCombo에 편입 가능한지 먼저 시도
+    var repackPool = {}  // key → { orders:[], maxW, minW, maxPok, fourPokMin }
+
     poorIdx.forEach(function(pi) {
       var pc = combos[pi]
-      var maxW2  = pc.maxWidth
-      var minW2  = pc.minWidth || 0   // ← 최소 지폭
+      var key     = pc.machineNo + '_' + pc.basisWeight
+      var maxW2   = pc.maxWidth
+      var minW2   = pc.minWidth || 0
       var maxPok2 = pc.machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
-      var mimi2   = c.mimi
+      var fp2     = pc.machineNo === '2' ? (c.m2FourPokMin || 0) : 0
+
+      if (!repackPool[key]) {
+        repackPool[key] = { orders: [], maxW: maxW2, minW: minW2, maxPok: maxPok2, fourPokMin: fp2 }
+      }
 
       pc.orders.forEach(function(order) {
-        var placed = false
+        // 먼저 goodCombo에 편입 시도 (Best Fit)
         var bestGi = -1, bestLoss2 = Infinity
         goodIdx.forEach(function(gi) {
           var gc = combos[gi]
-          // 같은 호기 + 평량 조합에만 편입 가능
           if (gc.machineNo !== pc.machineNo) return
           if (gc.basisWeight !== pc.basisWeight) return
-          // 폭 수 제한 검사
           if (gc.pokCount >= maxPok2) return
-          // 최대 지폭 초과 검사 (mimi 포함)
           var newTotalW = gc.widthSum + mimi2 + order.paperWidth
           if (newTotalW > gc.maxWidth) return
-          // 4폭 최소 폭 조건 (2호기)
-          var fourPokMin2 = gc.machineNo === '2' ? (c.m2FourPokMin || 0) : 0
-          if (fourPokMin2 > 0 && gc.pokCount + 1 === maxPok2) {
+          if (fp2 > 0 && gc.pokCount + 1 === maxPok2) {
             var allW2 = gc.orders.map(function(o) { return o.paperWidth }).concat([order.paperWidth])
-            if (allW2.some(function(w) { return w < fourPokMin2 })) return
+            if (allW2.some(function(w) { return w < fp2 })) return
           }
           var newLoss2 = gc.maxWidth - newTotalW
           if (newLoss2 < bestLoss2) { bestLoss2 = newLoss2; bestGi = gi }
         })
 
         if (bestGi >= 0) {
-          // 편입 성공 → goodCombo 업데이트
+          // goodCombo에 편입 성공
           var gc2 = combos[bestGi]
           gc2.orders.push(order)
-          gc2.widthSum += mimi2 + order.paperWidth
-          gc2.pokCount += 1
+          gc2.widthSum  += mimi2 + order.paperWidth
+          gc2.pokCount  += 1
           var nl = Math.max(0, gc2.maxWidth - gc2.widthSum)
           gc2.loss          = nl
           gc2.lossRate      = (gc2.maxWidth > 0 ? nl / gc2.maxWidth * 100 : 0).toFixed(1)
           gc2.totalTon      = (parseFloat(gc2.totalTon) + (order.orderQtyTon || 0)).toFixed(3)
           gc2.belowMinWidth = (gc2.minWidth || 0) > 0 && gc2.widthSum < (gc2.minWidth || 0)
-          // 긴급도 갱신 (편입 오더가 더 긴급하면 반영)
-          var incomingUrgency = urgencyScore(order)
-          if (incomingUrgency > (gc2.urgency || 0)) gc2.urgency = incomingUrgency
-          placed = true
-        }
-        if (!placed) {
-          repackOrders.push({ order: order, machineNo: pc.machineNo, basisWeight: pc.basisWeight, maxWidth: maxW2, minWidth: minW2 })
+          var inU = urgencyScore(order)
+          if (inU > (gc2.urgency || 0)) gc2.urgency = inU
+        } else {
+          // 편입 실패 → repackPool에 쌓아서 나중에 poorCombo끼리 재조합
+          repackPool[key].orders.push(order)
         }
       })
     })
 
-    // poorCombos 제거
-    var keepIdx = {}
-    goodIdx.forEach(function(gi) { keepIdx[gi] = true })
-    // 재조합 실패 오더들 → 새 단독 조합으로 추가
-    repackOrders.forEach(function(item) {
-      var loss3 = item.maxWidth - item.order.paperWidth
-      var lossRate3 = item.maxWidth > 0 ? loss3 / item.maxWidth * 100 : 0
-      var bw3 = item.order.paperWidth
-      combos.push({
-        comboId       : 0,   // 최종 정렬 후 재부여
-        machineNo     : item.machineNo,
-        basisWeight   : item.basisWeight,
-        orders        : [item.order],
-        widthSum      : bw3,
-        maxWidth      : item.maxWidth,
-        minWidth      : item.minWidth,
-        loss          : loss3,
-        lossRate      : lossRate3.toFixed(1),
-        totalTon      : (item.order.orderQtyTon || 0).toFixed(3),
-        pokCount      : 1,
-        urgency       : urgencyScore(item.order),
-        minDaysLeft   : 999,
-        isSingleNarrow : item.order.paperWidth < (c.noprodLimit || 625),
-        belowMinWidth  : (item.minWidth || 0) > 0 && bw3 < item.minWidth,  // ← 최소 지폭 미달
-        algoTag       : 'REPACK'
+    // ③ repackPool 내 오더들을 그룹별로 BFD 재조합 (poorCombo끼리 새 버킷 생성)
+    var newCombos = []
+    Object.keys(repackPool).forEach(function(key) {
+      var pool    = repackPool[key]
+      var orders2 = pool.orders
+      if (!orders2.length) return
+
+      var maxW2   = pool.maxW
+      var minW2   = pool.minW
+      var maxPok2 = pool.maxPok
+      var fp2     = pool.fourPokMin
+      var machNo  = key.split('_')[0]
+      var bw2     = Number(key.split('_')[1])
+
+      // 지폭 큰 순 정렬 (BFD)
+      orders2.sort(function(a, b) { return b.paperWidth - a.paperWidth })
+
+      var rBuckets = []  // { orders:[], rawWidth:number }
+
+      function canFit2(bkt, order) {
+        if (bkt.orders.length >= maxPok2) return false
+        var newTotalW = bkt.rawWidth + order.paperWidth + mimi2 * bkt.orders.length
+        if (newTotalW > maxW2) return false
+        if (fp2 > 0 && bkt.orders.length + 1 === maxPok2) {
+          var allW2 = bkt.orders.map(function(o) { return o.paperWidth }).concat([order.paperWidth])
+          if (allW2.some(function(w) { return w < fp2 })) return false
+        }
+        return true
+      }
+
+      orders2.forEach(function(order) {
+        var bestBi = -1, bestLoss3 = Infinity
+        rBuckets.forEach(function(bkt, bi) {
+          if (!canFit2(bkt, order)) return
+          var newTotalW = bkt.rawWidth + order.paperWidth + mimi2 * bkt.orders.length
+          var loss3 = maxW2 - newTotalW
+          if (loss3 < bestLoss3) { bestLoss3 = loss3; bestBi = bi }
+        })
+        if (bestBi >= 0) {
+          rBuckets[bestBi].orders.push(order)
+          rBuckets[bestBi].rawWidth += order.paperWidth
+        } else {
+          rBuckets.push({ orders: [order], rawWidth: order.paperWidth })
+        }
+      })
+
+      // 버킷 → newCombos 변환
+      rBuckets.forEach(function(bkt) {
+        var totalW3  = bkt.rawWidth + mimi2 * (bkt.orders.length - 1)
+        var loss3    = Math.max(0, maxW2 - totalW3)
+        var lossR3   = maxW2 > 0 ? loss3 / maxW2 * 100 : 0
+        var totTon3  = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
+        var maxUrg3  = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
+        var below3   = minW2 > 0 && totalW3 < minW2
+        var isSN3    = bkt.orders.length === 1 && bkt.orders[0].paperWidth < (c.noprodLimit || 625)
+        newCombos.push({
+          comboId       : 0,
+          machineNo     : machNo,
+          basisWeight   : bw2,
+          orders        : bkt.orders.slice(),
+          widthSum      : totalW3,
+          maxWidth      : maxW2,
+          minWidth      : minW2,
+          loss          : loss3,
+          lossRate      : lossR3.toFixed(1),
+          totalTon      : totTon3.toFixed(3),
+          pokCount      : bkt.orders.length,
+          urgency       : maxUrg3,
+          minDaysLeft   : null,
+          isSingleNarrow: isSN3,
+          belowMinWidth : below3,
+          algoTag       : 'REPACK'
+        })
       })
     })
 
-    // poorCombos 인덱스를 뒤에서부터 제거 (인덱스 밀림 방지)
+    // ④ poorCombo 인덱스 제거 (뒤에서부터)
     var sortedPoorIdx = poorIdx.slice().sort(function(a, b) { return b - a })
     sortedPoorIdx.forEach(function(pi) { combos.splice(pi, 1) })
+
+    // ⑤ 새로 만든 조합 추가
+    newCombos.forEach(function(nc) { combos.push(nc) })
   })()
-  // ── 재조합 패스 종료 ────────────────────────────────────────────
+  // ── 재조합 패스 v2 종료 ─────────────────────────────────────────
 
   // ── 최종 정렬: 납기 긴급도 높은 조합을 상단에 표시 ───────────
   combos.sort((a, b) => {
