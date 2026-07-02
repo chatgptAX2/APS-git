@@ -5566,9 +5566,12 @@ function markdownToHtml(text) {
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
   s = s.split(dq2).join('&quot;')
-  // bold / italic / code
-  s = s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-  s = s.replace(/\*(.+?)\*/g,'<em>$1</em>')
+  // bold / italic — 정규식 리터럴 대신 RegExp 생성자 사용
+  // (/\*\*...\*\*/ 패턴이 HTML 템플릿 백틱 내부에서 /** 주석으로 오파싱되는 것 방지)
+  var reBold   = new RegExp('\\*\\*(.+?)\\*\\*', 'g')
+  var reItalic = new RegExp('\\*([^*]+?)\\*', 'g')
+  s = s.replace(reBold,   '<strong>$1</strong>')
+  s = s.replace(reItalic, '<em>$1</em>')
   var BT = String.fromCharCode(96)
   var sq = String.fromCharCode(39)
   var codeOpen = '<code style=' + sq + 'background:#1e1e2e;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;' + sq + '>'
