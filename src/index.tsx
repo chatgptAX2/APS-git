@@ -5953,6 +5953,7 @@ function runCombinationAlgorithm(orders) {
 
   const combos = []
   let comboIdx  = 1
+  const pendingBelowMin: any = {}  // FFD 1차 패스에서 minW 미달 버킷 격리 { key → { orders, maxW, minW, maxPok, fourPokMin } }
 
   Object.entries(grouped).forEach(([key, grpOrders]) => {
     const [machineNo, bwStr] = key.split('_')
@@ -6010,40 +6011,50 @@ function runCombinationAlgorithm(orders) {
       buckets.forEach((bkt, idx) => {
         if (!canFit(bkt, order)) return
         const loss = calcLoss(bkt, order)
-        // noProdLimit: 현재 1폭뿐이고 order 추가 시 2폭 → OK
-        // (단독 1폭으로 확정되는 것만 막음 — flush 시 체크)
         if (loss < bestLoss) { bestLoss = loss; bestIdx = idx }
       })
 
       if (bestIdx >= 0) {
-        // 기존 조합에 배치
         buckets[bestIdx].orders.push(order)
         buckets[bestIdx].rawWidth += order.paperWidth
       } else {
-        // 새 조합 Open
         buckets.push({ orders: [order], rawWidth: order.paperWidth })
       }
     })
 
     // ── 버킷 → combos 변환 ──────────────────────────────────────
+    // totalW < minW 인 버킷은 combos에 추가하지 않고 pendingBelowMin에 보관
+    // → 재조합 패스에서 모아서 재처리
     buckets.forEach(bkt => {
       if (!bkt.orders.length) return
-
-      // noProdLimit 처리: 단독 1폭이고 지폭 ≤ noProdLim 이면 경고 태그만 부여
-      // (실제 생산 결정은 사용자가 하므로 제거하지 않고 flag 추가)
-      const isSingleNarrow =
-        bkt.orders.length === 1 && bkt.orders[0].paperWidth <= noProdLim
 
       const totalW   = bkt.rawWidth + c.mimi * (bkt.orders.length - 1)
       const loss     = Math.max(0, maxW - totalW)
       const lossRate = maxW > 0 ? (loss / maxW * 100) : 0
       const totalTon = bkt.orders.reduce((s, o) => s + (o.orderQtyTon || 0), 0)
+      const isSingleNarrow = bkt.orders.length === 1 && bkt.orders[0].paperWidth <= noProdLim
 
-      // ── 최소 지폭 미달 검사 ─────────────────────────────────────
-      // 조합 확정 시 총 지폭이 해당 호기의 최소 지폭 미만이면 경고 플래그
+      // ── minW 미달 버킷: 폭을 더 채울 수 없는 상태(꽉 찼거나 추가 시 maxW 초과)에서
+      //   totalW < minW 이면 재조합 대상으로 분리 (combos에 추가 안 함)
+      const isFull = bkt.orders.length >= maxPok   // 폭 수 꽉 참
+      const wouldOverflow = minW > 0 && !isFull && (() => {
+        // 남은 슬롯에 최소 1폭이라도 넣으면 maxW 초과하는지 확인
+        const smallest = Math.min(...bkt.orders.map(o => o.paperWidth))
+        return totalW + c.mimi + smallest > maxW
+      })()
+      const cannotGrow = isFull || wouldOverflow   // 더 이상 채울 수 없는 상태
+
+      if (minW > 0 && cannotGrow && totalW < minW) {
+        // pendingBelowMin에 오더들 추가 (재조합 패스로 위임)
+        const pKey = machineNo + '_' + bw
+        if (!pendingBelowMin[pKey]) {
+          pendingBelowMin[pKey] = { orders: [], maxW, minW, maxPok, fourPokMin }
+        }
+        bkt.orders.forEach(o => pendingBelowMin[pKey].orders.push(o))
+        return  // combos에 추가 안 함
+      }
+
       const belowMinWidth = minW > 0 && totalW < minW
-
-      // 납기 긴급도: 조합 내 가장 높은 점수를 조합 대표값으로
       const maxUrgency = Math.max(...bkt.orders.map(o => urgencyScore(o)))
       const daysArr    = bkt.orders
         .filter(o => o.dueDate)
@@ -6057,17 +6068,16 @@ function runCombinationAlgorithm(orders) {
         orders      : [...bkt.orders],
         widthSum    : totalW,
         maxWidth    : maxW,
-        minWidth    : minW,         // ← 최소 지폭 저장 (UI 표시용)
+        minWidth    : minW,
         loss,
         lossRate    : lossRate.toFixed(1),
         totalTon    : totalTon.toFixed(3),
         pokCount    : bkt.orders.length,
-        // 추가 메타 (UI 표시용)
         urgency     : maxUrgency,
         minDaysLeft,
         isSingleNarrow,
-        belowMinWidth,              // ← 최소 지폭 미달 경고 플래그
-        algoTag     : 'FFD+DUE'   // 알고리즘 태그
+        belowMinWidth,
+        algoTag     : 'FFD+DUE'
       })
     })
   })
@@ -6113,6 +6123,8 @@ function runCombinationAlgorithm(orders) {
           if (gc.pokCount >= maxPok2) return
           var newTotalW = gc.widthSum + mimi2 + order.paperWidth
           if (newTotalW > gc.maxWidth) return
+          // ── goodCombo 편입 시 minW 마지막슬롯 검사: 이걸 넣으면 꽉 차는데 minW 미달이면 거부
+          if (minW2 > 0 && gc.pokCount + 1 === maxPok2 && newTotalW < minW2) return
           if (fp2 > 0 && gc.pokCount + 1 === maxPok2) {
             var allW2 = gc.orders.map(function(o) { return o.paperWidth }).concat([order.paperWidth])
             if (allW2.some(function(w) { return w < fp2 })) return
@@ -6141,6 +6153,16 @@ function runCombinationAlgorithm(orders) {
       })
     })
 
+    // ②-추가: pendingBelowMin 오더들도 repackPool에 병합
+    // (FFD 1차 패스에서 minW 미달로 격리된 버킷들을 재조합 대상에 포함)
+    Object.keys(pendingBelowMin).forEach(function(pKey) {
+      var pb = pendingBelowMin[pKey]
+      if (!repackPool[pKey]) {
+        repackPool[pKey] = { orders: [], maxW: pb.maxW, minW: pb.minW, maxPok: pb.maxPok, fourPokMin: pb.fourPokMin }
+      }
+      pb.orders.forEach(function(o) { repackPool[pKey].orders.push(o) })
+    })
+
     // ③ repackPool 내 오더들을 그룹별로 BFD 재조합 (poorCombo끼리 새 버킷 생성)
     var newCombos = []
     Object.keys(repackPool).forEach(function(key) {
@@ -6164,6 +6186,8 @@ function runCombinationAlgorithm(orders) {
         if (bkt.orders.length >= maxPok2) return false
         var newTotalW = bkt.rawWidth + order.paperWidth + mimi2 * bkt.orders.length
         if (newTotalW > maxW2) return false
+        // ── 마지막 슬롯에서 minW 미달이면 거부 (minW 미달 조합 생성 방지)
+        if (minW2 > 0 && bkt.orders.length + 1 === maxPok2 && newTotalW < minW2) return false
         if (fp2 > 0 && bkt.orders.length + 1 === maxPok2) {
           var allW2 = bkt.orders.map(function(o) { return o.paperWidth }).concat([order.paperWidth])
           if (allW2.some(function(w) { return w < fp2 })) return false
