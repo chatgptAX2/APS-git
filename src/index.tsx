@@ -544,13 +544,19 @@ app.get('/klean-aps-api/sales-orders', (c) => {
 })
 
 // ── POST /sales-orders/save : 선택 항목을 savedOrders에 저장 (DB 저장 확정)
+// replace=true(기본값): 기존 savedOrders를 완전히 교체 → 이번 선택 항목만 시뮬레이션 소스가 됨
+// replace=false: 누적 추가 (명시적으로 false 전달 시)
 app.post('/klean-aps-api/sales-orders/save', async (c) => {
   const body = await c.req.json()
   const ids: number[] = body.orderIds || []
+  const replace: boolean = body.replace !== false  // 기본 true — 교체 모드
   if (!ids.length) return c.json({ success:false, message:'저장할 항목이 없습니다.' }, 400)
 
   const toSave = salesOrders.filter(o => ids.includes(o.orderId))
   if (!toSave.length) return c.json({ success:false, message:'해당 오더를 찾을 수 없습니다.' }, 404)
+
+  // replace=true: 기존 저장 목록 초기화 후 선택 항목만 저장
+  if (replace) savedOrders.length = 0
 
   let addedCount = 0
   let skippedCount = 0
@@ -562,7 +568,6 @@ app.post('/klean-aps-api/sales-orders/save', async (c) => {
     }
     const already = savedOrders.find(s => s.orderId === rec.orderId)
     if (already) {
-      // 이미 저장된 경우 최신 내용으로 덮어쓰기
       Object.assign(already, rec)
       skippedCount++
     } else {
@@ -575,7 +580,7 @@ app.post('/klean-aps-api/sales-orders/save', async (c) => {
     addedCount,
     skippedCount,
     totalSaved: savedOrders.length,
-    message: addedCount + '건 DB 저장 완료 (중복 ' + skippedCount + '건 갱신)'
+    message: addedCount + '건 DB 저장 완료' + (replace ? ' (기존 데이터 교체)' : ' (중복 ' + skippedCount + '건 갱신)')
   })
 })
 
@@ -4508,7 +4513,8 @@ async function saveSelected() {
     const r = await fetch(API+'/klean-aps-api/sales-orders/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderIds: [...selectedImport] })
+      // replace:true — 이전 DB저장 목록을 완전 교체 (선택한 항목만 시뮬레이션 소스로)
+      body: JSON.stringify({ orderIds: [...selectedImport], replace: true })
     })
     const d = await r.json()
     if (!d.success) throw new Error(d.message || '저장 실패')
@@ -4520,7 +4526,7 @@ async function saveSelected() {
       document.getElementById('saved-count-num').textContent = d.totalSaved
     }
 
-    toast(d.message + ' (총 DB저장: '+d.totalSaved+'건)', 'ok')
+    toast(d.message + ' (DB저장: '+d.totalSaved+'건 → 시뮬레이션 대상)', 'ok')
     selectedImport.clear()
     updateSaveBtn()
     toggleAllImport(false)
