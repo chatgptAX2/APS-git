@@ -940,56 +940,13 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
     return c.json({ success: false, message: 'AI API \uc624\ub958: '+err }, 502)
   }
 
-  // ── SSE 스트림을 직접 읽어서 클라이언트에 재전송 ──────────────
-  // (upstream.body 직접 relay는 Cloudflare Workers에서 중간 끊김 발생)
-  const upReader = upstream.body!.getReader()
-  const NL_CHAR  = String.fromCharCode(10)
+  // ── upstream SSE 전체 텍스트를 그대로 클라이언트에 전달 ──────
+  const rawText = await upstream.text()
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const enc = new TextEncoder()
-      let buf   = ''
-      let done  = false
-
-      try {
-        while (!done) {
-          const { done: rdDone, value } = await upReader.read()
-          if (rdDone) { done = true; break }
-
-          buf += new TextDecoder().decode(value, { stream: true })
-
-          const lastNL = buf.lastIndexOf(NL_CHAR)
-          if (lastNL === -1) continue
-
-          const chunk = buf.slice(0, lastNL + 1)
-          buf = buf.slice(lastNL + 1)
-
-          for (const line of chunk.split(NL_CHAR)) {
-            const trimmed = line.trim()
-            if (!trimmed) continue
-            // 그대로 전달 (data: ... 형식 유지)
-            controller.enqueue(enc.encode(trimmed + NL_CHAR + NL_CHAR))
-            if (trimmed === 'data: [DONE]') { done = true; break }
-          }
-        }
-      } catch(_) {}
-
-      // 명시적 [DONE] 보장 (upstream이 비정상 종료된 경우에도 클라이언트가 멈추지 않도록)
-      try {
-        controller.enqueue(enc.encode('data: [DONE]' + NL_CHAR + NL_CHAR))
-      } catch(_) {}
-      controller.close()
-    },
-    cancel() {
-      upReader.cancel().catch(() => {})
-    }
-  })
-
-  return new Response(stream, {
+  return new Response(rawText, {
     headers: {
-      'Content-Type'                : 'text/event-stream',
+      'Content-Type'                : 'text/plain; charset=utf-8',
       'Cache-Control'               : 'no-cache',
-      'X-Content-Type-Options'      : 'nosniff',
       'Access-Control-Allow-Origin' : '*',
     }
   })
@@ -5624,7 +5581,6 @@ async function sendAiMessage() {
   setAiStatus('thinking')
   const assistantMsgId = appendAiMsg('ai', '', true)
   let fullContent = ''
-  let reader = null
 
   try {
     setAiStatus('streaming')
@@ -5643,60 +5599,35 @@ async function sendAiMessage() {
       throw new Error(errMsg)
     }
 
-    reader = r.body.getReader()
-    const dec = new TextDecoder()
-    const NL  = String.fromCharCode(10)
-    let buf   = ''
-
-    // ── SSE 스트림 읽기 ──────────────────────────────────────
-    readLoop: while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buf += dec.decode(value, { stream: true })
-
-      // 완전한 줄 단위로 처리 (마지막 불완전 줄은 버퍼에 남김)
-      const lastNL = buf.lastIndexOf(NL)
-      if (lastNL === -1) continue
-
-      const chunk  = buf.slice(0, lastNL + 1)
-      buf = buf.slice(lastNL + 1)
-
-      for (const line of chunk.split(NL)) {
-        const trimmed = line.trim()
-        if (!trimmed || !trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-
-        // ── 스트림 종료 ───────────────────────────────────────
-        if (data === '[DONE]') break readLoop
-
-        try {
-          const j      = JSON.parse(data)
-          const choice = j.choices?.[0]
-          // finish_reason이 있으면 종료 신호
-          if (choice?.finish_reason && choice.finish_reason !== null) break readLoop
-          const delta  = choice?.delta?.content
-          if (delta) {
-            fullContent += delta
-            updateAiBubble(assistantMsgId, fullContent, false)
-          }
-        } catch(_) {}
-      }
+    // ── 전체 응답 텍스트로 받아서 SSE 파싱 ──────────────────────
+    const respText = await r.text()
+    const _nlCode = 10
+    const _nl = String.fromCharCode(_nlCode)
+    const lines = respText.split(_nl)
+    for (var li = 0; li < lines.length; li++) {
+      var trimmed = lines[li].trim()
+      if (!trimmed || trimmed.indexOf('data:') !== 0) continue
+      var data = trimmed.slice(5).trim()
+      if (data === '[DONE]') break
+      try {
+        var j      = JSON.parse(data)
+        var choice = j.choices && j.choices[0]
+        var delta  = choice && choice.delta && choice.delta.content
+        if (delta) {
+          fullContent += delta
+          updateAiBubble(assistantMsgId, fullContent, false)
+        }
+      } catch(pe) {}
     }
 
-    // 스트림 정상 종료 — reader 닫기
-    try { await reader.cancel() } catch(_) {}
-
-    if (!fullContent) throw new Error('응답이 비어 있습니다.')
+    if (!fullContent) throw new Error('\uc751\ub2f5\uc774 \ube44\uc5b4 \uc788\uc2b5\ub2c8\ub2e4.')
     updateAiBubble(assistantMsgId, fullContent, true)
     aiChatHistory.push({ role:'assistant', content: fullContent })
 
   } catch(e) {
-    // reader 열려있으면 닫기
-    if (reader) { try { await reader.cancel() } catch(_) {} }
     const errTxt = (e && e.message) ? e.message : String(e)
-    updateAiBubble(assistantMsgId, '⚠ 오류: ' + errTxt, true)
-    aiChatHistory.pop()  // 실패한 user 메시지 제거
+    updateAiBubble(assistantMsgId, '\u26a0 \uc624\ub958: ' + errTxt, true)
+    aiChatHistory.pop()
   } finally {
     aiStreaming = false
     setAiStatus('idle')
