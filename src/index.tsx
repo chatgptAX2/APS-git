@@ -925,7 +925,7 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
       'Content-Type' : 'application/json',
     },
     body: JSON.stringify({
-      model      : 'claude-opus-4-8',
+      model      : 'claude-sonnet-4-6',
       stream     : true,
       max_tokens : 2000,
       messages   : [
