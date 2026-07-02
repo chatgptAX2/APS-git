@@ -5589,10 +5589,26 @@ function markdownToHtml(text) {
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
   s = s.split(dq2).join('&quot;')
-  var reBold   = new RegExp('\\*\\*(.+?)\\*\\*', 'g')
-  var reItalic = new RegExp('\\*([^*]+?)\\*', 'g')
-  s = s.replace(reBold,   '<strong>$1</strong>')
-  s = s.replace(reItalic, '<em>$1</em>')
+  // ** bold ** 처리: RegExp 문자열 이스케이프가 백틱 템플릿 안에서 꼬이므로
+  // split 방식으로 완전 우회 (정규식 불사용)
+  var STAR2 = String.fromCharCode(42) + String.fromCharCode(42) // '**'
+  var STAR1 = String.fromCharCode(42)                            // '*'
+  // bold: ** 기준으로 split → 홀수 인덱스가 bold 내용
+  var bParts = s.split(STAR2)
+  var bOut = ''
+  for (var bi = 0; bi < bParts.length; bi++) {
+    if (bi % 2 === 1) { bOut += '<strong>' + bParts[bi] + '</strong>' }
+    else { bOut += bParts[bi] }
+  }
+  s = bOut
+  // italic: 남은 * 기준으로 split → 홀수 인덱스가 italic 내용 (단, ** 제거 후)
+  var iParts = s.split(STAR1)
+  var iOut = ''
+  for (var ii = 0; ii < iParts.length; ii++) {
+    if (ii % 2 === 1) { iOut += '<em>' + iParts[ii] + '</em>' }
+    else { iOut += iParts[ii] }
+  }
+  s = iOut
   var BT = String.fromCharCode(96)
   var sq = String.fromCharCode(39)
   var codeOpen = '<code style=' + sq + 'background:#1e1e2e;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;' + sq + '>'
@@ -5612,7 +5628,7 @@ function markdownToHtml(text) {
     if (line.startsWith('## '))  return '<div style=' + sq2 + 'font-weight:700;font-size:14px;margin:10px 0 4px;' + sq2 + '>' + line.slice(3) + '</div>'
     if (line.startsWith('# '))   return '<div style=' + sq2 + 'font-weight:800;font-size:15px;margin:10px 0 5px;' + sq2 + '>' + line.slice(2) + '</div>'
     if (line.startsWith('- '))   return '<div style=' + sq2 + 'padding-left:12px;' + sq2 + '>• ' + line.slice(2) + '</div>'
-    if (/^\d+\. /.test(line))    return '<div style=' + sq2 + 'padding-left:12px;' + sq2 + '>' + line + '</div>'
+    if (line.length > 2 && line[0] >= '0' && line[0] <= '9' && line.indexOf('. ') > 0) return '<div style=' + sq2 + 'padding-left:12px;' + sq2 + '>' + line + '</div>'
     if (line === '')              return '<br>'
     return line
   })
