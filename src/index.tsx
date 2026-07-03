@@ -5953,7 +5953,7 @@ function runCombinationAlgorithm(orders) {
 
   const combos = []
   let comboIdx  = 1
-  const pendingBelowMin: any = {}  // FFD 1차 패스에서 minW 미달 버킷 격리 { key → { orders, maxW, minW, maxPok, fourPokMin } }
+  var pendingBelowMin = {}  // FFD 1차 패스에서 minW 미달 버킷 격리 { key → { orders, maxW, minW, maxPok, fourPokMin } }
 
   Object.entries(grouped).forEach(([key, grpOrders]) => {
     const [machineNo, bwStr] = key.split('_')
