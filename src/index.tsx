@@ -8408,6 +8408,18 @@ function runCombinationAlgorithm(orders) {
     return 0
   }
 
+  // ── [Fix1] 호기 보완: machineNo 없으면 matCode[1]에서 파싱 ──
+  // matCode 규칙: H2S11… → 2호기, H3S11… → 3호기, F2K11… → 2호기, F3S11… → 3호기
+  // 첫 번째 문자(H/F/S)는 itemType, 두 번째 문자(2/3)는 호기번호
+  function getEffectiveMachineNo(o) {
+    if (o.machineNo && o.machineNo !== '' && o.machineNo !== '0') return o.machineNo
+    if (o.matCode && o.matCode.length >= 2) {
+      var ch = o.matCode.charAt(1)
+      if (ch === '2' || ch === '3') return ch
+    }
+    return o.machineNo || ''
+  }
+
   // ── [호기 + 지종 + 평량] 그룹화 ─────────────────────────────
   function getPaperTypeCode(o) {
     if (o.paperTypeCode) return o.paperTypeCode
@@ -8418,8 +8430,11 @@ function runCombinationAlgorithm(orders) {
   orders.forEach(function(o) {
     var pw = getEffectivePaperWidth(o)
     o._pw = pw  // 유효 지폭 캐시
+    // [Fix1] machineNo 보완 — matCode에서 호기 추출
+    var mn = getEffectiveMachineNo(o)
+    o._machineNoResolved = mn  // 보완된 호기번호 캐시
     var ptCode = getPaperTypeCode(o)
-    var key = (o.machineNo || '') + '_' + ptCode + '_' + (o.basisWeight || '')
+    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '')
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
@@ -8435,6 +8450,12 @@ function runCombinationAlgorithm(orders) {
     var ptCode    = keyParts[1]
     var bwStr     = keyParts[2]
     var bw = Number(bwStr)
+
+    // 호기 미지정 그룹(machineNo='')은 단독 처리 — 조합 불가, 미배치로 남김
+    if (!machineNo || machineNo === '0') {
+      // 해당 오더들은 combos에 추가하지 않고 unassigned에서 '호기 미지정' 사유로 처리
+      return
+    }
 
     // 호기별 제약값
     var maxW   = machineNo === '2'
@@ -8937,11 +8958,24 @@ function runCombinationAlgorithm(orders) {
     return !assignedIds[o.orderId || o.sapOrderNo]
   })
 
-  // ── 미배치 오더에 사유 태깅 ──────────────────────────────────
+  // ── [Fix2+3] 미배치 오더에 정확한 사유 태깅 ────────────────────
+  // 그룹별 지폭 목록을 미리 집계 (Fix3: bestTotal 계산에 사용)
+  var grpWidthMap = {}  // key → 지폭 배열 (이미 배치된 것 포함, 전체 오더 기준)
+  orders.forEach(function(x) {
+    var xmn  = x._machineNoResolved || x.machineNo || ''
+    var xpt  = x.paperTypeCode || (x.matCode && x.matCode.length>=5 ? x.matCode.substring(2,5) : '')
+    var xbw  = x.basisWeight || ''
+    var xkey = xmn + '_' + xpt + '_' + xbw
+    if (!grpWidthMap[xkey]) grpWidthMap[xkey] = []
+    grpWidthMap[xkey].push(x._pw || 0)
+  })
+
   unassigned.forEach(function(o) {
     if (o._unassignedReason) return   // 이미 태깅된 경우 스킵
+
     var pw     = o._pw || o.paperWidth || 0
-    var mn     = o.machineNo || ''
+    // [Fix1] 보완된 호기번호 사용
+    var mn     = o._machineNoResolved || o.machineNo || ''
     var bw     = Number(o.basisWeight) || 0
     var mxW    = mn === '2' ? c.m2Max : (c.m3ExcBw.includes(bw) ? c.m3ExcMax : c.m3Max)
     var mnW    = mn === '2' ? (c.m2Min || 0) : (c.m3Min || 0)
@@ -8949,34 +8983,79 @@ function runCombinationAlgorithm(orders) {
     var noprod = c.noprodLimit || 625
     var mimi_  = c.mimi || 30
 
+    // ① 호기 미지정 — 원본 machineNo가 비어있고 matCode 보완도 실패
+    var origMn = o.machineNo || ''
     if (!mn || mn === '0') {
-      o._unassignedReason = '호기 미지정'
-    } else if (!pw || pw === 0) {
+      o._unassignedReason = '호기 미지정 (자재마스터 등록 필요)'
+      return
+    }
+
+    // [Fix1] machineNo가 원래 비어있었지만 matCode로 보완된 경우 → 별도 태그
+    if ((!origMn || origMn === '' || origMn === '0') && (mn === '2' || mn === '3')) {
+      // 호기는 보완됐지만 SAP 오더에 호기가 미입력된 케이스
+      // 아래 실제 미배치 사유를 찾되, _machineNoFromMatCode 플래그 기록
+      o._machineNoFromMatCode = true
+    }
+
+    // ② 유효 지폭 없음
+    if (!pw || pw === 0) {
       o._unassignedReason = '지폭 정보 없음'
-    } else if (pw > mxW) {
-      o._unassignedReason = '지폭 '+pw+'mm > 최대'+mxW+'mm'
-    } else if (mnW > 0) {
-      // 그룹 내 동일 호기/지종/평량 오더들과 함께도 minW 달성 불가 여부 확인
-      var ptCode_ = o.paperTypeCode || (o.matCode && o.matCode.length>=5 ? o.matCode.substring(2,5) : '')
-      var grpKey_ = mn + '_' + ptCode_ + '_' + bw
-      var sameGrp = orders.filter(function(x) {
-        var xpt = x.paperTypeCode || (x.matCode && x.matCode.length>=5 ? x.matCode.substring(2,5) : '')
-        return (x.machineNo||'') + '_' + xpt + '_' + (x.basisWeight||'') === grpKey_
-      })
-      var bestTotal = sameGrp
-        .map(function(x){return x._pw||0})
-        .sort(function(a,b){return b-a})
-        .slice(0, mxPok)
-        .reduce(function(s,w,i){return s + w + (i>0 ? mimi_ : 0)}, 0)
+      return
+    }
+
+    // ③ 단독 지폭이 최대지폭 초과
+    if (pw > mxW) {
+      o._unassignedReason = '지폭 ' + pw + 'mm > 최대 ' + mxW + 'mm (호기 변경 필요)'
+      return
+    }
+
+    // ④ 협폭 단독 생산 불가 (noProdLimit 이하인데 그룹에 자기 혼자)
+    var ptCode_ = o.paperTypeCode || (o.matCode && o.matCode.length>=5 ? o.matCode.substring(2,5) : '')
+    var grpKey_ = mn + '_' + ptCode_ + '_' + bw
+    var grpWidths = (grpWidthMap[grpKey_] || []).filter(function(w){ return w > 0 })
+    if (grpWidths.length === 1 && pw <= noprod) {
+      o._unassignedReason = '협폭 단독 (' + pw + 'mm ≤ ' + noprod + 'mm, 묶을 오더 없음)'
+      return
+    }
+
+    // ⑤ [Fix3] 그룹 내 최소지폭 달성 불가 판별 (정확한 계산)
+    // 그룹 전체 오더 지폭을 내림차순 정렬 후 상위 maxPok개 선택 → 실제 달성 가능 최대 totalW 계산
+    if (mnW > 0) {
+      var sortedWidths = grpWidths.slice().sort(function(a,b){return b-a})
+      var topN = sortedWidths.slice(0, mxPok)
+      // topN개의 지폭으로 달성 가능한 최대 totalW = 합 + 미미*(폭수-1)
+      var bestTotal = topN.reduce(function(s, w, i) { return s + w + (i > 0 ? mimi_ : 0) }, 0)
       if (bestTotal < mnW) {
-        o._unassignedReason = '그룹 내 최소지폭('+mnW+'mm) 달성불가'
-      } else {
-        o._unassignedReason = '조합 미배치'
+        // 최선 조합으로도 minW 미달 → 물리적으로 불가능
+        o._unassignedReason = '그룹 내 최소지폭(' + mnW + 'mm) 달성불가' +
+          ' [최선=' + bestTotal + 'mm, ' + topN.length + '폭: ' + topN.join('+') + ']'
+        return
       }
-    } else if (pw <= noprod && mxPok === 1) {
-      o._unassignedReason = '협폭 단독('+pw+'mm ≤ '+noprod+'mm)'
+    }
+
+    // ⑥ 단독 1폭 배치 시 minW 달성 불가 (그룹 전체는 가능하지만 이 오더만 남음)
+    if (mnW > 0 && grpWidths.length === 1) {
+      var solo1Pok = pw  // 미미 없음
+      if (solo1Pok < mnW) {
+        o._unassignedReason = '단독 1폭 최소지폭 미달 (' + pw + 'mm < ' + mnW + 'mm)'
+        return
+      }
+    }
+
+    // ⑦ 일반 조합 미배치 — BFD 알고리즘이 버킷에 넣지 못한 경우
+    // 그룹은 있고 제약도 위반 없지만 BFD 단계에서 배치 못함
+    // → 가능한 구체적 이유 표시
+    if (grpWidths.length > 0) {
+      // 단독 배치 시 totalW가 minW를 만족하는지 확인
+      if (mnW > 0 && pw < mnW) {
+        o._unassignedReason = '단독 배치 시 최소지폭 미달 (' + pw + 'mm < ' + mnW + 'mm, 묶을 오더 부족)'
+      } else if (pw > Math.floor(mxW / 1)) {
+        o._unassignedReason = '지폭 과대 (' + pw + 'mm) — 함께 묶을 소폭 오더 부족'
+      } else {
+        o._unassignedReason = '조합 미배치 — 동일 그룹 내 적합한 오더 없음'
+      }
     } else {
-      o._unassignedReason = '조합 미배치'
+      o._unassignedReason = '조합 미배치 — 그룹 오더 없음'
     }
   })
 
@@ -9383,46 +9462,36 @@ function renderSimUnassigned(list) {
     return
   }
 
-  // 미배치 사유 판별 함수
+  // 미배치 사유 판별 함수 — 알고리즘 태깅 우선, 없으면 폴백
   function getUnassignedReason(o) {
-    // 이미 알고리즘이 태깅한 사유가 있으면 그대로 사용
     if (o._unassignedReason) return o._unassignedReason
-    // 호기 미지정
-    if (!o.machineNo || o.machineNo === '' || o.machineNo === '0') return '호기 미지정'
-    // 유효 지폭 없음
-    var pw = o._pw || o.paperWidth || 0
-    if (!pw || pw === 0) return '지폭 정보 없음'
-    // 호기별 제약 가져오기
-    var cst = getConstraints()
-    var bw  = Number(o.basisWeight) || 0
-    var maxW = o.machineNo === '2'
-      ? cst.m2Max
-      : (cst.m3ExcBw && cst.m3ExcBw.includes(bw) ? cst.m3ExcMax : cst.m3Max)
-    var minW = o.machineNo === '2' ? (cst.m2Min || 0) : (cst.m3Min || 0)
-    // 단독으로 최대지폭 초과
-    if (pw > maxW) return '지폭 '+pw+'mm > 최대'+maxW+'mm'
-    // 단독 1폭으로도 최소지폭 달성 불가 (최대폭 1폭 시)
-    var mimi = cst.mimi || 30
-    var maxPok = o.machineNo === '2' ? cst.m2MaxPok : cst.m3MaxPok
-    var bestCase1 = pw + (maxPok - 1) * (Math.floor(maxW / maxPok) + mimi)
-    if (minW > 0 && bestCase1 < minW) return '그룹 내 최소지폭('+minW+'mm) 달성불가'
-    // 협폭 단독
-    var noProdLim = cst.noprodLimit || 625
-    if (pw <= noProdLim && maxPok === 1) return '협폭 단독('+pw+'mm ≤ '+noProdLim+'mm)'
-    // 일반적 미배치
     return '조합 미배치'
   }
 
   // 미배치 사유 색상
   function reasonBadgeStyle(reason) {
-    if (reason.indexOf('호기 미지정') !== -1 || reason.indexOf('지폭 정보 없음') !== -1)
+    // 호기 미지정 / 자재마스터 등록 필요 — 보라
+    if (reason.indexOf('호기 미지정') !== -1 || reason.indexOf('자재마스터') !== -1)
       return 'background:#1e1b4b;color:#c4b5fd;'
-    if (reason.indexOf('최대') !== -1 || reason.indexOf('초과') !== -1)
+    // 지폭 정보 없음 — 회보라
+    if (reason.indexOf('지폭 정보 없음') !== -1)
+      return 'background:#2e1065;color:#d8b4fe;'
+    // 지폭 초과 / 호기 변경 필요 — 빨강
+    if (reason.indexOf('최대') !== -1 || reason.indexOf('초과') !== -1 || reason.indexOf('호기 변경') !== -1)
       return 'background:#450a0a;color:#fca5a5;'
-    if (reason.indexOf('최소지폭') !== -1 || reason.indexOf('달성불가') !== -1)
+    // 그룹 내 최소지폭 달성불가 — 주황 (진한)
+    if (reason.indexOf('달성불가') !== -1)
       return 'background:#431407;color:#fdba74;'
-    if (reason.indexOf('협폭') !== -1)
+    // 단독 / 협폭 / 묶을 오더 없음 — 인디고
+    if (reason.indexOf('협폭') !== -1 || reason.indexOf('묶을 오더 없음') !== -1)
       return 'background:#1e1b4b;color:#a5b4fc;'
+    // 최소지폭 미달 (단독/묶을 오더 부족) — 주황 (연한)
+    if (reason.indexOf('최소지폭') !== -1 || reason.indexOf('오더 부족') !== -1)
+      return 'background:#3c1a06;color:#fb923c;'
+    // 지폭 과대 / 소폭 오더 부족 — 노랑
+    if (reason.indexOf('과대') !== -1 || reason.indexOf('소폭') !== -1)
+      return 'background:#3d2800;color:#fde68a;'
+    // 조합 미배치 — 일반 (회색)
     return 'background:#1c1917;color:#a8a29e;'
   }
 
@@ -9441,10 +9510,18 @@ function renderSimUnassigned(list) {
     var reason = getUnassignedReason(o)
     var ptCode = o.paperTypeCode || (o.matCode && o.matCode.length >= 5 ? o.matCode.substring(2,5) : '-')
     var ptName = PAPER_TYPE_NAMES[ptCode] || ptCode || '-'
+    // 호기 표시: _machineNoResolved 우선 사용 + matCode에서 보완된 경우 * 표시
+    var mnDisplay = o._machineNoResolved || o.machineNo || ''
+    var mnCell = mnDisplay
+      ? ('<span class="machine-badge">' + mnDisplay + '호기</span>'
+          + (o._machineNoFromMatCode
+              ? '<span title="matCode에서 호기 보완" style="font-size:9px;color:#fbbf24;margin-left:2px;vertical-align:super;">*</span>'
+              : ''))
+      : '<span style="color:var(--text-muted);">-</span>'
     return '<tr>'+
       '<td style="font-family:monospace;color:#60a5fa;font-size:11px;">'+o.sapOrderNo+'</td>'+
       '<td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+o.customerName+'">'+o.customerName+'</td>'+
-      '<td class="center"><span class="machine-badge">'+(o.machineNo||'-')+'호기</span></td>'+
+      '<td class="center">'+mnCell+'</td>'+
       '<td class="center"><span style="background:#1e1b4b;color:#c4b5fd;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;">'+ptName+'</span></td>'+
       '<td class="num">'+(o.basisWeight||'-')+'</td>'+
       '<td class="num" style="font-weight:700;color:var(--text-main);">'+(pw ? pw.toLocaleString() : '-')+'</td>'+
