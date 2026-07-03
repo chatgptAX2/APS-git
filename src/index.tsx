@@ -5381,10 +5381,12 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             </label>
           </div>
           <div class="section-body" style="padding-bottom:6px;">
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px;">
               <div class="stat-mini"><div class="sv" id="sr-total"      style="color:#a78bfa;">-</div><div class="sl">조합 수</div></div>
               <div class="stat-mini"><div class="sv" id="sr-orders"     style="color:#60a5fa;">-</div><div class="sl">포함 오더</div></div>
               <div class="stat-mini"><div class="sv" id="sr-ton"        style="color:#34d399;">-</div><div class="sl">합계 TON</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-roll-ton"   style="color:#38bdf8;">-</div><div class="sl">Roll TON</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-sheet-ton"  style="color:#c084fc;">-</div><div class="sl">Sheet TON</div></div>
               <div class="stat-mini"><div class="sv" id="sr-loss"       style="color:#f87171;">-</div><div class="sl">평균 Loss</div></div>
               <div class="stat-mini"><div class="sv" id="sr-unassigned" style="color:#fb923c;">-</div><div class="sl">미배치</div></div>
             </div>
@@ -9265,14 +9267,31 @@ function renderSimResult(combos, unassigned) {
   const avgLoss   = combos.length ? (combos.reduce((s,c) => s + Number(c.lossRate), 0) / combos.length).toFixed(1) : '0.0'
   const unassignedCnt = unassigned ? unassigned.length : 0
 
+  // Roll / Sheet TON 집계
+  // packCode='0' 또는 itemType='H'(반제품) → Roll  /  그 외(A,B,Ream,Bulk) → Sheet
+  var rollTon  = 0
+  var sheetTon = 0
+  combos.forEach(function(c) {
+    c.orders.forEach(function(o) {
+      var pc = o.packCode || parsePackCodeFromMatCode(o.matCode || '')
+      var ton = Number(o.orderQtyTon) || 0
+      if (pc === '0') rollTon  += ton
+      else            sheetTon += ton
+    })
+  })
+
   const elTotal      = document.getElementById('sr-total')
   const elOrders     = document.getElementById('sr-orders')
   const elTon        = document.getElementById('sr-ton')
+  const elRollTon    = document.getElementById('sr-roll-ton')
+  const elSheetTon   = document.getElementById('sr-sheet-ton')
   const elLoss       = document.getElementById('sr-loss')
   const elUnassigned = document.getElementById('sr-unassigned')
   if (elTotal)      elTotal.textContent      = combos.length
   if (elOrders)     elOrders.textContent     = totalOrds
   if (elTon)        elTon.textContent        = totalTon.toFixed(3)
+  if (elRollTon)    elRollTon.textContent    = rollTon.toFixed(3)
+  if (elSheetTon)   elSheetTon.textContent   = sheetTon.toFixed(3)
   if (elLoss)       elLoss.textContent       = avgLoss + '%'
   if (elUnassigned) elUnassigned.textContent = unassignedCnt > 0 ? unassignedCnt + '건' : '없음'
 
@@ -9292,6 +9311,22 @@ function renderSimResult(combos, unassigned) {
       o.paperWidth+'mm</span>'
     ).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
     const cid = 'combo-check-' + combo.comboId
+
+    // ── 조합별 Roll / Sheet TON 집계 ─────────────────────────
+    var comboRollTon  = 0
+    var comboSheetTon = 0
+    combo.orders.forEach(function(o) {
+      var pc  = o.packCode || parsePackCodeFromMatCode(o.matCode || '')
+      var ton = Number(o.orderQtyTon) || 0
+      if (pc === '0') comboRollTon  += ton
+      else            comboSheetTon += ton
+    })
+    var rollSheetHtml = ''
+    if (comboRollTon > 0 || comboSheetTon > 0) {
+      rollSheetHtml =
+        (comboRollTon  > 0 ? '<span style="font-size:11px;color:#38bdf8;font-weight:700;background:#0c2133;padding:2px 7px;border-radius:4px;">Roll '+comboRollTon.toFixed(3)+'T</span>' : '')+
+        (comboSheetTon > 0 ? '<span style="font-size:11px;color:#c084fc;font-weight:700;background:#1a0a2e;padding:2px 7px;border-radius:4px;">Sheet '+comboSheetTon.toFixed(3)+'T</span>' : '')
+    }
 
     // ── 납기 긴급도 배지 ──────────────────────────────────────
     const dl = combo.minDaysLeft
@@ -9359,10 +9394,11 @@ function renderSimResult(combos, unassigned) {
         paperTypeBadge(combo.paperTypeCode)+
         '<span style="font-size:12px;color:var(--text-muted);">평량 <b style="color:var(--text-main);">'+combo.basisWeight+'g/m²</b></span>'+
         '<span style="font-size:12px;color:var(--text-muted);"><b style="color:var(--text-main);">'+combo.pokCount+'</b>폭</span>'+
-        '<div style="margin-left:auto;display:flex;gap:10px;align-items:center;">'+
+        '<div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">'+
           '<span style="font-size:12px;color:var(--text-muted);">합계 지폭: <b style="color:'+(combo.belowMinWidth?'#f87171':'var(--text-main)')+';">'+combo.widthSum.toLocaleString()+'mm</b>'+(combo.minWidth?(' <span style="color:var(--text-faint);">(최소 '+combo.minWidth.toLocaleString()+'↑</span>'):'')+'/ '+combo.maxWidth.toLocaleString()+'mm</span>'+
           '<span style="font-size:13px;color:'+lossColor+';font-weight:800;">Loss '+combo.lossRate+'%</span>'+
-          '<span style="font-size:13px;color:#34d399;font-weight:800;">'+combo.totalTon+'T</span>'+
+          rollSheetHtml+
+          '<span style="font-size:13px;color:#34d399;font-weight:800;border-left:1px solid var(--border);padding-left:8px;">합계 '+combo.totalTon+'T</span>'+
         '</div>'+
       '</div>'+
       '<!-- body -->'+
