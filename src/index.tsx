@@ -8092,8 +8092,31 @@ function runCombinationAlgorithm(orders) {
       if (n >= maxPok) return false
       var newRaw    = currentRaw + newOrder._pw
       var newTotal  = calcTotalW(newRaw, n + 1)
+
+      // ① 최대 지폭 초과 → 항상 거부
       if (newTotal > maxW) return false
-      if (minW > 0 && n + 1 === maxPok && newTotal < minW) return false
+
+      // ② 최소 지폭 검사 (모든 슬롯에서 적용)
+      if (minW > 0) {
+        var newPokCount = n + 1
+        if (newPokCount === maxPok) {
+          // 마지막 슬롯: 완성된 totalW가 minW 미달이면 거부
+          if (newTotal < minW) return false
+        } else {
+          // 중간 슬롯: 남은 슬롯을 최대로 채워도 minW에 못 미치면 거부
+          // 남은 슬롯 * (슬롯당 최대 기여 = (maxW - newTotal) / 남은슬롯) 이 minW-newTotal 보다 작으면 불가
+          // 단순화: 남은 슬롯에 maxW/maxPok 크기 오더가 들어올 수 있다고 가정
+          var slotsLeft = maxPok - newPokCount
+          // 남은 슬롯에 최대로 들어올 수 있는 추가 폭: 각 슬롯마다 (maxW - newTotal - mimi*slotsLeft) 까지
+          // 가장 낙관적으로: 남은 슬롯 * 최대단폭(maxW/maxPok) + 미미
+          // 실용적 근사: 현재 totalW + 남은슬롯 * (maxW/maxPok + mimi) >= minW 이어야 계속 진행 가능
+          var maxPerSlot = Math.floor(maxW / maxPok)
+          var bestCaseTotal = newTotal + slotsLeft * (maxPerSlot + mimi)
+          if (bestCaseTotal < minW) return false
+        }
+      }
+
+      // ③ 4폭 최소 폭 조건 (2호기): 마지막 슬롯에서 모든 폭 ≥ fourPokMin
       if (fourPokMin > 0 && n + 1 === maxPok) {
         var allW = currentOrders.map(function(o) { return o._pw }).concat([newOrder._pw])
         if (allW.some(function(w) { return w < fourPokMin })) return false
@@ -8263,15 +8286,10 @@ function runCombinationAlgorithm(orders) {
       var totalTon = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
       var isSingleNarrow = bkt.orders.length === 1 && bkt.orders[0]._pw <= noProdLim
 
-      // minW 미달 처리
-      var isFull = bkt.orders.length >= maxPok
-      var wouldOverflow = minW > 0 && !isFull && (function() {
-        var smallest = Math.min.apply(null, bkt.orders.map(function(o) { return o._pw }))
-        return totalW + mimi + smallest > maxW
-      })()
-      var cannotGrow = isFull || wouldOverflow
-
-      if (minW > 0 && cannotGrow && totalW < minW) {
+      // ── minW 미달 버킷 처리 ─────────────────────────────────
+      // totalW < minW 인 버킷은 무조건 pendingBelowMin으로 격리
+      // (더 추가 가능 여부에 관계없이: 이미 BFD 패스가 끝난 후이므로 더 이상 오더가 들어오지 않음)
+      if (minW > 0 && totalW < minW) {
         var pKey = machineNo + '_' + ptCode + '_' + bw
         if (!pendingBelowMin[pKey]) {
           pendingBelowMin[pKey] = { orders: [], maxW: maxW, minW: minW, maxPok: maxPok, fourPokMin: fourPokMin }
@@ -8280,7 +8298,7 @@ function runCombinationAlgorithm(orders) {
         return
       }
 
-      var belowMinWidth = minW > 0 && totalW < minW
+      var belowMinWidth = false  // 이 시점에서는 totalW >= minW 보장됨
       var maxUrgency = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
       var daysArr = bkt.orders
         .filter(function(o) { return !!o.dueDate })
@@ -8361,10 +8379,19 @@ function runCombinationAlgorithm(orders) {
           if ((gc.paperTypeCode || '') !== (pc.paperTypeCode || '')) return
           if (gc.basisWeight !== pc.basisWeight) return
           if (gc.pokCount >= maxPok2) return
-          var newTotalW = gc.widthSum + mimi2 + (order._pw || order.paperWidth)
+          var newTotalW  = gc.widthSum + mimi2 + (order._pw || order.paperWidth)
+          var newPokCnt  = gc.pokCount + 1
           if (newTotalW > gc.maxWidth) return
-          if (minW2 > 0 && gc.pokCount + 1 === maxPok2 && newTotalW < minW2) return
-          if (fp2 > 0 && gc.pokCount + 1 === maxPok2) {
+          if (minW2 > 0) {
+            if (newPokCnt === maxPok2) {
+              if (newTotalW < minW2) return
+            } else {
+              var slLeft = maxPok2 - newPokCnt
+              var mps    = Math.floor(gc.maxWidth / maxPok2)
+              if (newTotalW + slLeft * (mps + mimi2) < minW2) return
+            }
+          }
+          if (fp2 > 0 && newPokCnt === maxPok2) {
             var allW2 = gc.orders.map(function(o) { return o._pw || o.paperWidth }).concat([order._pw || order.paperWidth])
             if (allW2.some(function(w) { return w < fp2 })) return
           }
@@ -8428,10 +8455,19 @@ function runCombinationAlgorithm(orders) {
 
       function canFit2(bkt, order) {
         if (bkt.orders.length >= maxPok2) return false
+        var newPok2  = bkt.orders.length + 1
         var newTotal = bkt.rawWidth + order._pw + mimi2 * bkt.orders.length
         if (newTotal > maxW2) return false
-        if (minW2 > 0 && bkt.orders.length + 1 === maxPok2 && newTotal < minW2) return false
-        if (fp2 > 0 && bkt.orders.length + 1 === maxPok2) {
+        if (minW2 > 0) {
+          if (newPok2 === maxPok2) {
+            if (newTotal < minW2) return false
+          } else {
+            var slotsLeft2 = maxPok2 - newPok2
+            var maxPerSlot2 = Math.floor(maxW2 / maxPok2)
+            if (newTotal + slotsLeft2 * (maxPerSlot2 + mimi2) < minW2) return false
+          }
+        }
+        if (fp2 > 0 && newPok2 === maxPok2) {
           var allW2 = bkt.orders.map(function(o) { return o._pw }).concat([order._pw])
           if (allW2.some(function(w) { return w < fp2 })) return false
         }
@@ -8465,13 +8501,15 @@ function runCombinationAlgorithm(orders) {
 
       rBuckets.forEach(function(bkt) {
         var totalW3  = bkt.rawWidth + mimi2 * (bkt.orders.length - 1)
+
+        // repackPass에서도 minW 미달 버킷은 belowMinWidth 경고 표시 (더 이상 격리 불가 — 최후 보루)
+        var below3   = minW2 > 0 && totalW3 < minW2
         var loss3    = Math.max(0, maxW2 - totalW3)
         var lossR3   = maxW2 > 0 ? loss3 / maxW2 * 100 : 0
         var totTon3  = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
         var maxUrg3  = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
-        var below3   = minW2 > 0 && totalW3 < minW2
         var isSN3    = bkt.orders.length === 1 && bkt.orders[0]._pw < (c.noprodLimit || 625)
-        var isZL3    = (loss3 === 0)
+        var isZL3    = (loss3 === 0) && !below3
         newCombos.push({
           comboId       : 0,
           machineNo     : machNo,
