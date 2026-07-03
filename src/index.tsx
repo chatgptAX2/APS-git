@@ -5283,11 +5283,12 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             </label>
           </div>
           <div class="section-body" style="padding-bottom:6px;">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
-              <div class="stat-mini"><div class="sv" id="sr-total"  style="color:#a78bfa;">-</div><div class="sl">조합 수</div></div>
-              <div class="stat-mini"><div class="sv" id="sr-orders" style="color:#60a5fa;">-</div><div class="sl">포함 오더</div></div>
-              <div class="stat-mini"><div class="sv" id="sr-ton"    style="color:#34d399;">-</div><div class="sl">합계 TON</div></div>
-              <div class="stat-mini"><div class="sv" id="sr-loss"   style="color:#f87171;">-</div><div class="sl">평균 Loss</div></div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;">
+              <div class="stat-mini"><div class="sv" id="sr-total"      style="color:#a78bfa;">-</div><div class="sl">조합 수</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-orders"     style="color:#60a5fa;">-</div><div class="sl">포함 오더</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-ton"        style="color:#34d399;">-</div><div class="sl">합계 TON</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-loss"       style="color:#f87171;">-</div><div class="sl">평균 Loss</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-unassigned" style="color:#fb923c;">-</div><div class="sl">미배치</div></div>
             </div>
             <div id="sim-combo-list"></div>
           </div>
@@ -5304,6 +5305,32 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                 <tr><th>오더번호</th><th>납품처</th><th>호기</th><th>평량</th><th>지폭</th><th>수량</th><th>자재코드</th><th>유형</th><th>분리사유</th></tr>
               </thead>
               <tbody id="sim-excl-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 미배치 오더 패널 -->
+        <div class="section-card" id="sim-unassigned-panel" style="display:none;">
+          <div class="section-title" style="color:#fb923c;">
+            <i class="fas fa-exclamation-circle" style="color:#fb923c;"></i>미배치 오더
+            <span id="sim-unassigned-count" class="count-badge" style="margin-left:8px;background:#431407;color:#fb923c;"></span>
+          </div>
+          <!-- 요약 스탯 -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 16px 14px;">
+            <div class="stat-mini"><div class="sv" id="su-count" style="color:#fb923c;">-</div><div class="sl">미배치 건수</div></div>
+            <div class="stat-mini"><div class="sv" id="su-ton"   style="color:#fbbf24;">-</div><div class="sl">합계 TON</div></div>
+            <div class="stat-mini"><div class="sv" id="su-reason-top" style="color:#f87171;font-size:11px;">-</div><div class="sl">주요 사유</div></div>
+          </div>
+          <div style="overflow-x:auto;padding:0 16px 16px;">
+            <table class="data-table" style="font-size:12px;">
+              <thead>
+                <tr>
+                  <th>오더번호</th><th>납품처</th><th>호기</th><th>지종</th>
+                  <th>평량</th><th>지폭</th><th>수량</th><th>자재코드</th>
+                  <th>납기일</th><th>미배치 사유</th>
+                </tr>
+              </thead>
+              <tbody id="sim-unassigned-tbody"></tbody>
             </table>
           </div>
         </div>
@@ -7859,6 +7886,7 @@ let simState = 'idle'
 let simOrders = []      // 현재 시뮬레이션 대상 오더
 let simCombos = []      // 생성된 조합 결과
 let simExcluded = []    // 분리된 예외 오더
+let simUnassigned = []  // 미배치 오더 (조합에 포함되지 못한 오더)
 let currentSimCode = '' // 현재 세션 코드 (S-YYYY-MM-DD-0001)
 
 async function loadSimulation() {
@@ -8552,7 +8580,62 @@ function runCombinationAlgorithm(orders) {
   })
   combos.forEach(function(cb, i) { cb.comboId = i + 1 })
 
-  return combos
+  // ── 미배치 오더 계산 ─────────────────────────────────────────
+  // combos에 포함된 orderId Set을 만들고, 원본 orders와 비교하여 누락된 오더를 반환
+  var assignedIds = {}
+  combos.forEach(function(cb) {
+    cb.orders.forEach(function(o) {
+      assignedIds[o.orderId || o.sapOrderNo] = true
+    })
+  })
+  var unassigned = orders.filter(function(o) {
+    return !assignedIds[o.orderId || o.sapOrderNo]
+  })
+
+  // ── 미배치 오더에 사유 태깅 ──────────────────────────────────
+  unassigned.forEach(function(o) {
+    if (o._unassignedReason) return   // 이미 태깅된 경우 스킵
+    var pw     = o._pw || o.paperWidth || 0
+    var mn     = o.machineNo || ''
+    var bw     = Number(o.basisWeight) || 0
+    var mxW    = mn === '2' ? c.m2Max : (c.m3ExcBw.includes(bw) ? c.m3ExcMax : c.m3Max)
+    var mnW    = mn === '2' ? (c.m2Min || 0) : (c.m3Min || 0)
+    var mxPok  = mn === '2' ? c.m2MaxPok : c.m3MaxPok
+    var noprod = c.noprodLimit || 625
+    var mimi_  = c.mimi || 30
+
+    if (!mn || mn === '0') {
+      o._unassignedReason = '호기 미지정'
+    } else if (!pw || pw === 0) {
+      o._unassignedReason = '지폭 정보 없음'
+    } else if (pw > mxW) {
+      o._unassignedReason = '지폭 '+pw+'mm > 최대'+mxW+'mm'
+    } else if (mnW > 0) {
+      // 그룹 내 동일 호기/지종/평량 오더들과 함께도 minW 달성 불가 여부 확인
+      var ptCode_ = o.paperTypeCode || (o.matCode && o.matCode.length>=5 ? o.matCode.substring(2,5) : '')
+      var grpKey_ = mn + '_' + ptCode_ + '_' + bw
+      var sameGrp = orders.filter(function(x) {
+        var xpt = x.paperTypeCode || (x.matCode && x.matCode.length>=5 ? x.matCode.substring(2,5) : '')
+        return (x.machineNo||'') + '_' + xpt + '_' + (x.basisWeight||'') === grpKey_
+      })
+      var bestTotal = sameGrp
+        .map(function(x){return x._pw||0})
+        .sort(function(a,b){return b-a})
+        .slice(0, mxPok)
+        .reduce(function(s,w,i){return s + w + (i>0 ? mimi_ : 0)}, 0)
+      if (bestTotal < mnW) {
+        o._unassignedReason = '그룹 내 최소지폭('+mnW+'mm) 달성불가'
+      } else {
+        o._unassignedReason = '조합 미배치'
+      }
+    } else if (pw <= noprod && mxPok === 1) {
+      o._unassignedReason = '협폭 단독('+pw+'mm ≤ '+noprod+'mm)'
+    } else {
+      o._unassignedReason = '조합 미배치'
+    }
+  })
+
+  return { combos: combos, unassigned: unassigned }
 }
 
 // 진행률 표시 헬퍼
@@ -8653,14 +8736,17 @@ async function simGenerate() {
   simSetProgress(80, '④ FFD+납기가중치 알고리즘 실행 중... ('+simOrders.length+'건)')
   await new Promise(r => setTimeout(r, 200))
 
-  simCombos = runCombinationAlgorithm(simOrders)
+  const algoResult = runCombinationAlgorithm(simOrders)
+  simCombos     = algoResult.combos
+  simUnassigned = algoResult.unassigned
 
   // ── 5단계: 결과 렌더링 (100%)
   simSetProgress(100, '⑤ 결과 렌더링 완료')
   await new Promise(r => setTimeout(r, 150))
 
-  renderSimResult(simCombos)
+  renderSimResult(simCombos, simUnassigned)
   renderSimExcluded(simExcluded)
+  renderSimUnassigned(simUnassigned)
 
   document.getElementById('sim-result-panel').style.display = 'flex'
   document.getElementById('sim-result-panel').style.flexDirection = 'column'
@@ -8668,6 +8754,10 @@ async function simGenerate() {
     document.getElementById('sim-excl-panel').style.display = 'block'
   } else {
     document.getElementById('sim-excl-panel').style.display = 'none'
+  }
+  const unassignedPanel = document.getElementById('sim-unassigned-panel')
+  if (unassignedPanel) {
+    unassignedPanel.style.display = simUnassigned.length ? 'block' : 'none'
   }
 
   // DB 배너 최신 상태 반영
@@ -8696,7 +8786,8 @@ async function simGenerate() {
   if (genBtn) genBtn.disabled = false
 
   setSimState('generated')
-  toast('지폭조합 시뮬레이션이 생성되었습니다. ('+simCombos.length+'조합 / '+simOrders.length+'건)','ok')
+  var unassignedMsg = simUnassigned.length ? ' / 미배치 '+simUnassigned.length+'건' : ''
+  toast('지폭조합 시뮬레이션이 생성되었습니다. ('+simCombos.length+'조합 / '+simOrders.length+'건'+unassignedMsg+')','ok')
 }
 
 function renderSimOrderTable(list) {
@@ -8744,19 +8835,22 @@ function paperTypeBadge(ptCode) {
   return '<span style="background:#1e1b4b;color:#c4b5fd;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">'+name+'</span>'
 }
 
-function renderSimResult(combos) {
+function renderSimResult(combos, unassigned) {
   const totalTon  = combos.reduce((s,c) => s + Number(c.totalTon), 0)
   const totalOrds = combos.reduce((s,c) => s + c.orders.length, 0)
   const avgLoss   = combos.length ? (combos.reduce((s,c) => s + Number(c.lossRate), 0) / combos.length).toFixed(1) : '0.0'
+  const unassignedCnt = unassigned ? unassigned.length : 0
 
-  const elTotal  = document.getElementById('sr-total')
-  const elOrders = document.getElementById('sr-orders')
-  const elTon    = document.getElementById('sr-ton')
-  const elLoss   = document.getElementById('sr-loss')
-  if (elTotal)  elTotal.textContent  = combos.length
-  if (elOrders) elOrders.textContent = totalOrds
-  if (elTon)    elTon.textContent    = totalTon.toFixed(3)
-  if (elLoss)   elLoss.textContent   = avgLoss + '%'
+  const elTotal      = document.getElementById('sr-total')
+  const elOrders     = document.getElementById('sr-orders')
+  const elTon        = document.getElementById('sr-ton')
+  const elLoss       = document.getElementById('sr-loss')
+  const elUnassigned = document.getElementById('sr-unassigned')
+  if (elTotal)      elTotal.textContent      = combos.length
+  if (elOrders)     elOrders.textContent     = totalOrds
+  if (elTon)        elTon.textContent        = totalTon.toFixed(3)
+  if (elLoss)       elLoss.textContent       = avgLoss + '%'
+  if (elUnassigned) elUnassigned.textContent = unassignedCnt > 0 ? unassignedCnt + '건' : '없음'
 
   const cnt = document.getElementById('sim-result-count')
   if (cnt) cnt.textContent = combos.length + '개 조합'
@@ -8906,6 +9000,113 @@ function renderSimExcluded(list) {
       '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
       '<td><span class="badge b-cancel" style="font-size:10px;">'+o._excludeReason+'</span></td>'+
+      '</tr>'
+  }).join('')
+}
+
+function renderSimUnassigned(list) {
+  // ── 패널 카운트 배지 ─────────────────────────────────────────
+  var countBadge = document.getElementById('sim-unassigned-count')
+  if (countBadge) countBadge.textContent = list.length + '건'
+
+  // ── 요약 스탯 ────────────────────────────────────────────────
+  var totalTon = list.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
+  var elCount  = document.getElementById('su-count')
+  var elTon    = document.getElementById('su-ton')
+  if (elCount) elCount.textContent = list.length + '건'
+  if (elTon)   elTon.textContent   = totalTon > 0 ? totalTon.toFixed(3) + 'T' : '-'
+
+  // ── 주요 사유 집계 ───────────────────────────────────────────
+  var reasonMap = {}
+  list.forEach(function(o) {
+    var r = o._unassignedReason || '조합 미배치'
+    reasonMap[r] = (reasonMap[r] || 0) + 1
+  })
+  var topReason = '-'
+  var topCount  = 0
+  Object.keys(reasonMap).forEach(function(r) {
+    if (reasonMap[r] > topCount) { topCount = reasonMap[r]; topReason = r }
+  })
+  var elReasonTop = document.getElementById('su-reason-top')
+  if (elReasonTop) elReasonTop.textContent = list.length > 0 ? topReason + ' ('+topCount+'건)' : '-'
+
+  // ── 테이블 ───────────────────────────────────────────────────
+  var tbody = document.getElementById('sim-unassigned-tbody')
+  if (!tbody) return
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-faint);">미배치 오더가 없습니다.</td></tr>'
+    return
+  }
+
+  // 미배치 사유 판별 함수
+  function getUnassignedReason(o) {
+    // 이미 알고리즘이 태깅한 사유가 있으면 그대로 사용
+    if (o._unassignedReason) return o._unassignedReason
+    // 호기 미지정
+    if (!o.machineNo || o.machineNo === '' || o.machineNo === '0') return '호기 미지정'
+    // 유효 지폭 없음
+    var pw = o._pw || o.paperWidth || 0
+    if (!pw || pw === 0) return '지폭 정보 없음'
+    // 호기별 제약 가져오기
+    var cst = getConstraints()
+    var bw  = Number(o.basisWeight) || 0
+    var maxW = o.machineNo === '2'
+      ? cst.m2Max
+      : (cst.m3ExcBw && cst.m3ExcBw.includes(bw) ? cst.m3ExcMax : cst.m3Max)
+    var minW = o.machineNo === '2' ? (cst.m2Min || 0) : (cst.m3Min || 0)
+    // 단독으로 최대지폭 초과
+    if (pw > maxW) return '지폭 '+pw+'mm > 최대'+maxW+'mm'
+    // 단독 1폭으로도 최소지폭 달성 불가 (최대폭 1폭 시)
+    var mimi = cst.mimi || 30
+    var maxPok = o.machineNo === '2' ? cst.m2MaxPok : cst.m3MaxPok
+    var bestCase1 = pw + (maxPok - 1) * (Math.floor(maxW / maxPok) + mimi)
+    if (minW > 0 && bestCase1 < minW) return '그룹 내 최소지폭('+minW+'mm) 달성불가'
+    // 협폭 단독
+    var noProdLim = cst.noprodLimit || 625
+    if (pw <= noProdLim && maxPok === 1) return '협폭 단독('+pw+'mm ≤ '+noProdLim+'mm)'
+    // 일반적 미배치
+    return '조합 미배치'
+  }
+
+  // 미배치 사유 색상
+  function reasonBadgeStyle(reason) {
+    if (reason.indexOf('호기 미지정') !== -1 || reason.indexOf('지폭 정보 없음') !== -1)
+      return 'background:#1e1b4b;color:#c4b5fd;'
+    if (reason.indexOf('최대') !== -1 || reason.indexOf('초과') !== -1)
+      return 'background:#450a0a;color:#fca5a5;'
+    if (reason.indexOf('최소지폭') !== -1 || reason.indexOf('달성불가') !== -1)
+      return 'background:#431407;color:#fdba74;'
+    if (reason.indexOf('협폭') !== -1)
+      return 'background:#1e1b4b;color:#a5b4fc;'
+    return 'background:#1c1917;color:#a8a29e;'
+  }
+
+  tbody.innerHTML = list.map(function(o) {
+    var pw   = o._pw || o.paperWidth || 0
+    var q    = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
+    var due  = o.dueDate || '-'
+    // 납기 D-day 색상
+    var dueColor = 'var(--text-muted)'
+    if (o.dueDate) {
+      var today2 = new Date(); today2.setHours(0,0,0,0)
+      var dueD   = new Date(o.dueDate); dueD.setHours(0,0,0,0)
+      var daysLeft = Math.floor((dueD - today2) / 86400000)
+      dueColor = daysLeft <= 0 ? '#f87171' : daysLeft <= 3 ? '#fb923c' : daysLeft <= 7 ? '#fbbf24' : 'var(--text-muted)'
+    }
+    var reason = getUnassignedReason(o)
+    var ptCode = o.paperTypeCode || (o.matCode && o.matCode.length >= 5 ? o.matCode.substring(2,5) : '-')
+    var ptName = PAPER_TYPE_NAMES[ptCode] || ptCode || '-'
+    return '<tr>'+
+      '<td style="font-family:monospace;color:#60a5fa;font-size:11px;">'+o.sapOrderNo+'</td>'+
+      '<td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+o.customerName+'">'+o.customerName+'</td>'+
+      '<td class="center"><span class="machine-badge">'+(o.machineNo||'-')+'호기</span></td>'+
+      '<td class="center"><span style="background:#1e1b4b;color:#c4b5fd;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;">'+ptName+'</span></td>'+
+      '<td class="num">'+(o.basisWeight||'-')+'</td>'+
+      '<td class="num" style="font-weight:700;color:var(--text-main);">'+(pw ? pw.toLocaleString() : '-')+'</td>'+
+      '<td class="num">'+q+'</td>'+
+      '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+      '<td class="center" style="color:'+dueColor+';font-size:11px;">'+due+'</td>'+
+      '<td><span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;'+reasonBadgeStyle(reason)+'">'+reason+'</span></td>'+
       '</tr>'
   }).join('')
 }
