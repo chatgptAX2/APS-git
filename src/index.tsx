@@ -5381,14 +5381,39 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             </label>
           </div>
           <div class="section-body" style="padding-bottom:6px;">
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:12px;">
               <div class="stat-mini"><div class="sv" id="sr-total"      style="color:#a78bfa;">-</div><div class="sl">조합 수</div></div>
               <div class="stat-mini"><div class="sv" id="sr-orders"     style="color:#60a5fa;">-</div><div class="sl">포함 오더</div></div>
               <div class="stat-mini"><div class="sv" id="sr-ton"        style="color:#34d399;">-</div><div class="sl">합계 TON</div></div>
-              <div class="stat-mini"><div class="sv" id="sr-roll-ton"   style="color:#38bdf8;">-</div><div class="sl">Roll TON</div></div>
-              <div class="stat-mini"><div class="sv" id="sr-sheet-ton"  style="color:#c084fc;">-</div><div class="sl">Sheet TON</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-roll-ton"   style="color:#38bdf8;">-<span id="sr-roll-pct" style="font-size:11px;font-weight:400;color:#7dd3fc;margin-left:4px;"></span></div><div class="sl">Roll TON</div></div>
+              <div class="stat-mini"><div class="sv" id="sr-sheet-ton"  style="color:#c084fc;">-<span id="sr-sheet-pct" style="font-size:11px;font-weight:400;color:#d8b4fe;margin-left:4px;"></span></div><div class="sl">Sheet TON</div></div>
               <div class="stat-mini"><div class="sv" id="sr-loss"       style="color:#f87171;">-</div><div class="sl">평균 Loss</div></div>
-              <div class="stat-mini"><div class="sv" id="sr-unassigned" style="color:#fb923c;">-</div><div class="sl">미배치</div></div>
+            </div>
+            <!-- Roll vs Sheet 비율 바 -->
+            <div id="sr-ratio-bar-wrap" style="display:none;margin-bottom:14px;padding:10px 14px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-size:11px;color:#38bdf8;font-weight:700;">
+                  <i class="fas fa-circle" style="font-size:8px;margin-right:4px;"></i>Roll
+                  <span id="sr-bar-roll-pct" style="margin-left:4px;">0%</span>
+                </span>
+                <span style="font-size:10px;color:var(--text-muted);">Roll vs Sheet 비율</span>
+                <span style="font-size:11px;color:#c084fc;font-weight:700;">
+                  Sheet <span id="sr-bar-sheet-pct">0%</span>
+                  <i class="fas fa-circle" style="font-size:8px;margin-left:4px;"></i>
+                </span>
+              </div>
+              <div style="height:12px;border-radius:6px;overflow:hidden;background:var(--bg-base);display:flex;">
+                <div id="sr-bar-roll"  style="height:100%;background:linear-gradient(90deg,#0ea5e9,#38bdf8);transition:width .4s;width:0%;"></div>
+                <div id="sr-bar-sheet" style="height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);transition:width .4s;width:0%;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span id="sr-bar-roll-ton-label"  style="font-size:10px;color:#38bdf8;">0.000T</span>
+                <div class="stat-mini" style="padding:0;background:none;border:none;text-align:center;">
+                  <div class="sv" id="sr-unassigned" style="color:#fb923c;font-size:16px;">-</div>
+                  <div class="sl">미배치</div>
+                </div>
+                <span id="sr-bar-sheet-ton-label" style="font-size:10px;color:#c084fc;">0.000T</span>
+              </div>
             </div>
             <div id="sim-combo-list"></div>
           </div>
@@ -9280,20 +9305,58 @@ function renderSimResult(combos, unassigned) {
     })
   })
 
+  // Roll / Sheet 비율 계산
+  var rsTotal   = rollTon + sheetTon
+  var rollPct   = rsTotal > 0 ? Math.round(rollTon  / rsTotal * 100) : 0
+  var sheetPct  = rsTotal > 0 ? (100 - rollPct)                      : 0
+
   const elTotal      = document.getElementById('sr-total')
   const elOrders     = document.getElementById('sr-orders')
   const elTon        = document.getElementById('sr-ton')
-  const elRollTon    = document.getElementById('sr-roll-ton')
-  const elSheetTon   = document.getElementById('sr-sheet-ton')
   const elLoss       = document.getElementById('sr-loss')
   const elUnassigned = document.getElementById('sr-unassigned')
   if (elTotal)      elTotal.textContent      = combos.length
   if (elOrders)     elOrders.textContent     = totalOrds
   if (elTon)        elTon.textContent        = totalTon.toFixed(3)
-  if (elRollTon)    elRollTon.textContent    = rollTon.toFixed(3)
-  if (elSheetTon)   elSheetTon.textContent   = sheetTon.toFixed(3)
   if (elLoss)       elLoss.textContent       = avgLoss + '%'
   if (elUnassigned) elUnassigned.textContent = unassignedCnt > 0 ? unassignedCnt + '건' : '없음'
+
+  // Roll TON 카드 — 값 + 비율
+  var elRollTon = document.getElementById('sr-roll-ton')
+  var elRollPct = document.getElementById('sr-roll-pct')
+  if (elRollTon) {
+    // 첫 번째 텍스트 노드만 교체 (span 태그 보존)
+    var rollNode = elRollTon.firstChild
+    if (rollNode && rollNode.nodeType === 3) rollNode.nodeValue = rollTon.toFixed(3)
+    else elRollTon.insertBefore(document.createTextNode(rollTon.toFixed(3)), elRollTon.firstChild)
+  }
+  if (elRollPct) elRollPct.textContent = rsTotal > 0 ? '(' + rollPct + '%)' : ''
+
+  // Sheet TON 카드 — 값 + 비율
+  var elSheetTon = document.getElementById('sr-sheet-ton')
+  var elSheetPct = document.getElementById('sr-sheet-pct')
+  if (elSheetTon) {
+    var sheetNode = elSheetTon.firstChild
+    if (sheetNode && sheetNode.nodeType === 3) sheetNode.nodeValue = sheetTon.toFixed(3)
+    else elSheetTon.insertBefore(document.createTextNode(sheetTon.toFixed(3)), elSheetTon.firstChild)
+  }
+  if (elSheetPct) elSheetPct.textContent = rsTotal > 0 ? '(' + sheetPct + '%)' : ''
+
+  // 비율 바 업데이트
+  var barWrap  = document.getElementById('sr-ratio-bar-wrap')
+  var barRoll  = document.getElementById('sr-bar-roll')
+  var barSheet = document.getElementById('sr-bar-sheet')
+  var barRollPct   = document.getElementById('sr-bar-roll-pct')
+  var barSheetPct  = document.getElementById('sr-bar-sheet-pct')
+  var barRollLbl   = document.getElementById('sr-bar-roll-ton-label')
+  var barSheetLbl  = document.getElementById('sr-bar-sheet-ton-label')
+  if (barWrap)  barWrap.style.display  = rsTotal > 0 ? 'block' : 'none'
+  if (barRoll)  barRoll.style.width    = rollPct + '%'
+  if (barSheet) barSheet.style.width   = sheetPct + '%'
+  if (barRollPct)  barRollPct.textContent  = rollPct + '%'
+  if (barSheetPct) barSheetPct.textContent = sheetPct + '%'
+  if (barRollLbl)  barRollLbl.textContent  = rollTon.toFixed(3) + 'T'
+  if (barSheetLbl) barSheetLbl.textContent = sheetTon.toFixed(3) + 'T'
 
   const cnt = document.getElementById('sim-result-count')
   if (cnt) cnt.textContent = combos.length + '개 조합'
@@ -9312,20 +9375,37 @@ function renderSimResult(combos, unassigned) {
     ).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
     const cid = 'combo-check-' + combo.comboId
 
-    // ── 조합별 Roll / Sheet TON 집계 ─────────────────────────
+    // ── 조합별 Roll / Sheet TON 집계 + 비율 ──────────────────
     var comboRollTon  = 0
     var comboSheetTon = 0
     combo.orders.forEach(function(o) {
       var pc  = o.packCode || parsePackCodeFromMatCode(o.matCode || '')
       var ton = Number(o.orderQtyTon) || 0
+      // packCode='0' → Roll(원지/반제품), 'A'(속포장/Ream) or 'B'(벌크/Bulk) or '' → Sheet
       if (pc === '0') comboRollTon  += ton
       else            comboSheetTon += ton
     })
+    var comboRsTotal = comboRollTon + comboSheetTon
+    var comboRollPct  = comboRsTotal > 0 ? Math.round(comboRollTon  / comboRsTotal * 100) : 0
+    var comboSheetPct = comboRsTotal > 0 ? (100 - comboRollPct) : 0
     var rollSheetHtml = ''
-    if (comboRollTon > 0 || comboSheetTon > 0) {
+    if (comboRsTotal > 0) {
       rollSheetHtml =
-        (comboRollTon  > 0 ? '<span style="font-size:11px;color:#38bdf8;font-weight:700;background:#0c2133;padding:2px 7px;border-radius:4px;">Roll '+comboRollTon.toFixed(3)+'T</span>' : '')+
-        (comboSheetTon > 0 ? '<span style="font-size:11px;color:#c084fc;font-weight:700;background:#1a0a2e;padding:2px 7px;border-radius:4px;">Sheet '+comboSheetTon.toFixed(3)+'T</span>' : '')
+        (comboRollTon > 0
+          ? '<span style="font-size:11px;color:#38bdf8;font-weight:700;background:#0c2133;padding:2px 7px;border-radius:4px;">Roll '+comboRollTon.toFixed(3)+'T <span style="font-weight:400;color:#7dd3fc;">('+comboRollPct+'%)</span></span>'
+          : '')+
+        (comboSheetTon > 0
+          ? '<span style="font-size:11px;color:#c084fc;font-weight:700;background:#1a0a2e;padding:2px 7px;border-radius:4px;">Sheet '+comboSheetTon.toFixed(3)+'T <span style="font-weight:400;color:#d8b4fe;">('+comboSheetPct+'%)</span></span>'
+          : '')+
+        // 미니 비율 바 (Roll+Sheet 둘 다 있을 때만)
+        (comboRollTon > 0 && comboSheetTon > 0
+          ? '<div style="display:inline-flex;align-items:center;gap:4px;vertical-align:middle;">'+
+              '<div style="width:60px;height:6px;border-radius:3px;overflow:hidden;background:var(--bg-base);display:flex;">'+
+                '<div style="width:'+comboRollPct+'%;background:#38bdf8;height:100%;"></div>'+
+                '<div style="width:'+comboSheetPct+'%;background:#c084fc;height:100%;"></div>'+
+              '</div>'+
+            '</div>'
+          : '')
     }
 
     // ── 납기 긴급도 배지 ──────────────────────────────────────
