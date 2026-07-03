@@ -7980,41 +7980,44 @@ function isExcludedOrder(o) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  FFD + 납기 가중치 알고리즘 (First Fit Decreasing + Due-Date Priority)
+//  Zero-Loss 우선 지폭조합 알고리즘 v3
 //
-//  [정렬 전략]
-//  1. 납기 긴급도 점수(urgency) 내림차순  — 납기 임박 오더 우선
-//  2. 동점 시 지폭(paperWidth) 내림차순  — FFD: 큰 폭 먼저 배치
+//  [핵심 원칙]
+//  "동일호기 + 동일지종 + 동일평량" 그룹 내에서
+//  지폭 합이 maxWidth에 정확히 맞는 조합(Loss=0)을 최대한 만들고,
+//  나머지는 Best Fit으로 배치한다.
 //
-//  [긴급도 점수 계산]
-//  • today 기준 잔여일 = daysLeft
-//  • daysLeft ≤ 0  → 긴급도 1000 (이미 납기 초과, 최우선)
-//  • daysLeft ≤ 3  → 긴급도 500  (D-3 이내)
-//  • daysLeft ≤ 7  → 긴급도 200  (D-7 이내)
-//  • daysLeft ≤ 14 → 긴급도 100  (D-14 이내)
-//  • 그 외         → 긴급도 max(0, 50 - daysLeft)  (점진 감소)
+//  [알고리즘 3단계]
+//  1단계 — Exact Fit 탐색 (Subset Sum 근사)
+//    • 그룹 내 모든 오더의 지폭으로 합이 maxWidth인 subset을 탐색
+//    • 납기 긴급도 높은 오더를 subset 후보에 우선 포함
+//    • 찾은 subset → 즉시 Zero-loss 버킷으로 확정 (locked)
+//    • 남은 오더로 반복 탐색
+//  2단계 — BFD 패스 (남은 오더 처리)
+//    • Exact Fit을 찾지 못한 오더들은 BFD(Best Fit Decreasing)로 배치
+//    • Exact Fit 선택 기준: loss=0이 되는 버킷 최우선 선택
+//    • 차선: loss가 가장 작은 버킷 선택
+//  3단계 — Zero-loss 잠금 repackPass
+//    • loss=0 조합은 재조합 패스 대상에서 제외 (잠금)
+//    • loss > 임계값인 조합만 재조합 시도
 //
-//  [배치 전략 — Best Fit]
-//  각 오더를 배치할 때 "추가 시 Loss가 가장 작아지는 기존 조합" 에 배치
-//  → 단순 순차 적재(First Fit) 대비 공간 활용률 향상
+//  [지폭 파싱 보완]
+//  • o.paperWidth가 0이거나 없으면 matCode.substring(9,13)에서 파싱
 //
-//  [제약 조건 — 기존과 동일하게 전부 적용]
-//  • maxWidth / mimi(미미 여유) / maxPok(최대 폭 수)
-//  • noProdLimit: 이 지폭 이하 단독 조합 금지 (폭 수 ≥ 2 강제)
-//  • m2FourPokMin: 2호기 4폭 시 각 폭 최소 지폭
-//  • m3ExcBw / m3ExcMax: 3호기 평량별 예외 최대 지폭
+//  [제약 조건]
+//  • maxWidth / mimi / maxPok / minWidth / fourPokMin / noProdLimit
 // ═══════════════════════════════════════════════════════════════
 function runCombinationAlgorithm(orders) {
-  const c   = getConstraints()
-  const today = new Date()
+  var c   = getConstraints()
+  var today = new Date()
   today.setHours(0, 0, 0, 0)
 
   // ── 납기 긴급도 점수 ──────────────────────────────────────────
   function urgencyScore(o) {
     if (!o.dueDate) return 0
-    const due = new Date(o.dueDate)
+    var due = new Date(o.dueDate)
     due.setHours(0, 0, 0, 0)
-    const daysLeft = Math.floor((due - today) / 86400000)
+    var daysLeft = Math.floor((due - today) / 86400000)
     if (daysLeft <= 0)  return 1000
     if (daysLeft <= 3)  return 500
     if (daysLeft <= 7)  return 200
@@ -8022,175 +8025,319 @@ function runCombinationAlgorithm(orders) {
     return Math.max(0, 50 - daysLeft)
   }
 
+  // ── 지폭 파싱 보완: paperWidth 없으면 matCode에서 추출 ───────
+  function getEffectivePaperWidth(o) {
+    if (o.paperWidth && o.paperWidth > 0) return o.paperWidth
+    if (o.matCode && o.matCode.length >= 13) {
+      var w = parseInt(o.matCode.substring(9, 13), 10)
+      if (!isNaN(w) && w > 0) return w
+    }
+    return 0
+  }
+
   // ── [호기 + 지종 + 평량] 그룹화 ─────────────────────────────
-  // 동일 호기 + 동일 지종코드 + 동일 평량인 오더만 같은 조합으로 편성
   function getPaperTypeCode(o) {
     if (o.paperTypeCode) return o.paperTypeCode
     if (o.matCode && o.matCode.length >= 5) return o.matCode.substring(2, 5)
     return ''
   }
-  const grouped = {}
-  orders.forEach(o => {
-    const ptCode = getPaperTypeCode(o)
-    const key = (o.machineNo || '') + '_' + ptCode + '_' + o.basisWeight
+  var grouped = {}
+  orders.forEach(function(o) {
+    var pw = getEffectivePaperWidth(o)
+    o._pw = pw  // 유효 지폭 캐시
+    var ptCode = getPaperTypeCode(o)
+    var key = (o.machineNo || '') + '_' + ptCode + '_' + (o.basisWeight || '')
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
 
-  const combos = []
-  let comboIdx  = 1
-  var pendingBelowMin = {}  // FFD 1차 패스에서 minW 미달 버킷 격리 { key → { orders, maxW, minW, maxPok, fourPokMin } }
+  var combos = []
+  var comboIdx  = 1
+  var pendingBelowMin = {}
 
-  Object.entries(grouped).forEach(([key, grpOrders]) => {
-    // key = "machineNo_paperTypeCode_basisWeight"
-    const keyParts  = key.split('_')
-    const machineNo = keyParts[0]
-    const ptCode    = keyParts[1]   // 지종코드 (3자리, e.g. 'S11','I11','K11')
-    const bwStr     = keyParts[2]
-    const bw = Number(bwStr)
+  Object.keys(grouped).forEach(function(key) {
+    var grpOrders = grouped[key]
+    var keyParts  = key.split('_')
+    var machineNo = keyParts[0]
+    var ptCode    = keyParts[1]
+    var bwStr     = keyParts[2]
+    var bw = Number(bwStr)
 
     // 호기별 제약값
-    const maxW   = machineNo === '2'
+    var maxW   = machineNo === '2'
       ? c.m2Max
       : (c.m3ExcBw.includes(bw) ? c.m3ExcMax : c.m3Max)
-    const minW   = machineNo === '2' ? (c.m2Min || 0) : (c.m3Min || 0)  // ← 최소 지폭
-    const maxPok = machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
-    const fourPokMin = machineNo === '2' ? (c.m2FourPokMin || 0) : 0
-    const noProdLim  = c.noprodLimit || 625   // 이 이하 단독 배치 금지
+    var minW   = machineNo === '2' ? (c.m2Min || 0) : (c.m3Min || 0)
+    var maxPok = machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
+    var fourPokMin = machineNo === '2' ? (c.m2FourPokMin || 0) : 0
+    var noProdLim  = c.noprodLimit || 625
+    var mimi = c.mimi
 
-    // ── FFD 정렬: 긴급도 DESC → 지폭 DESC ──────────────────────
-    const sorted = [...grpOrders].sort((a, b) => {
-      const ud = urgencyScore(b) - urgencyScore(a)
+    // ── 오더 유효 지폭 갱신 + 정렬: 긴급도 DESC → 지폭 DESC ────
+    var sorted = grpOrders.slice().sort(function(a, b) {
+      var ud = urgencyScore(b) - urgencyScore(a)
       if (ud !== 0) return ud
-      return b.paperWidth - a.paperWidth
+      return b._pw - a._pw
     })
 
-    // ── 조합 버킷 목록 (이 그룹 내) ─────────────────────────────
-    // bucket: { orders:[], rawWidth:number (mimi 제외 순수 지폭 합) }
-    const buckets = []
+    // ── 제약 검사 헬퍼 ──────────────────────────────────────────
+    // n폭 버킷에 order를 추가할 때의 totalWidth 계산
+    // totalWidth = rawWidth(지폭합) + mimi*(n폭수-1)
+    function calcTotalW(rawWidth, nOrders) {
+      return rawWidth + mimi * (nOrders - 1)
+    }
 
-    // 조합 가능 여부 검사 (maxPok, maxW, minW, 4폭 최소 폭 조건)
-    function canFit(bucket, order) {
-      if (bucket.orders.length >= maxPok) return false
-      const newRaw    = bucket.rawWidth + order.paperWidth
-      const newTotalW = newRaw + c.mimi * bucket.orders.length  // 추가 후 mimi 간격 포함
-      if (newTotalW > maxW) return false
-      // ── 최소 지폭 검사: 이 오더를 추가하면 더 이상 폭을 넣을 수 없는 경우(마지막 슬롯)
-      // 또는 추가해도 minW 미달인 경우 → 기존 버킷에 편입하지 않고 새 버킷 유도
-      if (minW > 0 && bucket.orders.length + 1 === maxPok && newTotalW < minW) return false
-      // 4폭 최소 폭 조건 (2호기): 4폭 편성 시 각 폭 ≥ fourPokMin
-      if (fourPokMin > 0 && bucket.orders.length + 1 === maxPok) {
-        const allWidths = [...bucket.orders.map(o => o.paperWidth), order.paperWidth]
-        if (allWidths.some(w => w < fourPokMin)) return false
+    function checkConstraints(currentOrders, currentRaw, newOrder) {
+      var n = currentOrders.length  // 추가 전 폭 수
+      if (n >= maxPok) return false
+      var newRaw    = currentRaw + newOrder._pw
+      var newTotal  = calcTotalW(newRaw, n + 1)
+      if (newTotal > maxW) return false
+      if (minW > 0 && n + 1 === maxPok && newTotal < minW) return false
+      if (fourPokMin > 0 && n + 1 === maxPok) {
+        var allW = currentOrders.map(function(o) { return o._pw }).concat([newOrder._pw])
+        if (allW.some(function(w) { return w < fourPokMin })) return false
       }
       return true
     }
 
-    // 배치 후 Loss 계산 (Best Fit 선택 기준)
-    function calcLoss(bucket, order) {
-      const newRaw    = bucket.rawWidth + order.paperWidth
-      const newTotalW = newRaw + c.mimi * bucket.orders.length
-      return maxW - newTotalW
+    // ════════════════════════════════════════════════════════════
+    //  1단계: Exact Fit Subset 탐색
+    //  그룹 내 오더 중 지폭 합이 maxW에 정확히 맞는 subset 탐색
+    //  • 최대 maxPok개 오더
+    //  • 납기 긴급도 높은 오더를 우선 포함
+    //  • DP subset-sum 방식 (오더 수 제한으로 성능 안전)
+    // ════════════════════════════════════════════════════════════
+    var remaining = sorted.slice()  // 아직 배치되지 않은 오더
+    var lockedBuckets = []          // Zero-loss 확정 버킷
+
+    // Exact Fit 탐색 반복 (남은 오더로 계속 시도)
+    var MAX_EXACT_ITER = 50   // 무한루프 방지
+    var exactIter = 0
+    while (remaining.length > 0 && exactIter < MAX_EXACT_ITER) {
+      exactIter++
+      var found = false
+
+      // 폭 수 1 ~ maxPok 순서로 탐색 (작은 폭 수부터 → 정확히 맞는 조합 빠르게 발견)
+      for (var nPok = 1; nPok <= Math.min(maxPok, remaining.length); nPok++) {
+        // remaining 중에서 nPok개를 골라 합 = maxW가 되는 조합 탐색
+        // 오더 수가 많을 때 시간 제한: 후보 오더 최대 20개로 제한
+        var candidates = remaining.slice(0, Math.min(remaining.length, 20))
+
+        // 긴급도 높은 오더를 anchor로 고정하고 나머지 조합 탐색
+        var exactSubset = null
+
+        // nPok=1 특수 케이스: 단일 오더가 정확히 maxW인 경우
+        if (nPok === 1) {
+          for (var ci = 0; ci < candidates.length; ci++) {
+            var ord1 = candidates[ci]
+            if (ord1._pw === maxW) {
+              // 제약 검사 (단독 배치)
+              if (noProdLim > 0 && ord1._pw <= noProdLim) continue  // noProd 제약 걸리면 패스
+              exactSubset = [ord1]
+              break
+            }
+          }
+        }
+
+        // nPok >= 2: DP subset-sum
+        if (!exactSubset && nPok >= 2 && nPok <= candidates.length) {
+          // target = maxW를 nPok 폭 + (nPok-1)개 mimi로 맞춰야 함
+          // rawWidth 합계 target = maxW - mimi*(nPok-1)
+          var rawTarget = maxW - mimi * (nPok - 1)
+          if (rawTarget > 0) {
+            // 조합 탐색 (재귀 → 스택 방식으로 구현, 상한 200번)
+            var subsetResult = null
+            var tryCount = 0
+            var MAX_TRY = 300
+
+            // 스택 기반 조합 탐색
+            // stack item: { chosen: [], startIdx: number, rawSum: number }
+            var stack = [{ chosen: [], startIdx: 0, rawSum: 0 }]
+            while (stack.length > 0 && tryCount < MAX_TRY) {
+              tryCount++
+              var frame = stack.pop()
+              var chosen = frame.chosen
+              var startIdx = frame.startIdx
+              var rawSum = frame.rawSum
+
+              if (chosen.length === nPok) {
+                // 합계 검사
+                if (rawSum === rawTarget) {
+                  // 제약 재검사
+                  var valid = true
+                  var tmpOrds = []
+                  var tmpRaw = 0
+                  for (var vi = 0; vi < chosen.length; vi++) {
+                    if (!checkConstraints(tmpOrds, tmpRaw, chosen[vi])) { valid = false; break }
+                    tmpOrds.push(chosen[vi])
+                    tmpRaw += chosen[vi]._pw
+                  }
+                  if (valid) { subsetResult = chosen.slice(); break }
+                }
+                continue
+              }
+
+              var needed = nPok - chosen.length
+              for (var si = Math.min(startIdx, candidates.length - needed); si >= 0 && si < candidates.length; si++) {
+                var cand = candidates[si]
+                var newRawSum = rawSum + cand._pw
+                if (newRawSum > rawTarget) continue  // 이미 초과
+                if (newRawSum + (needed - 1) * 10 > rawTarget + 500) continue  // 너무 작은 값들만 남음 방지 (heuristic)
+                stack.push({ chosen: chosen.concat([cand]), startIdx: si + 1, rawSum: newRawSum })
+              }
+            }
+            if (subsetResult) exactSubset = subsetResult
+          }
+        }
+
+        if (exactSubset) {
+          // Exact Fit 조합 발견 → locked 버킷으로 확정
+          lockedBuckets.push({ orders: exactSubset, rawWidth: maxW - mimi * (exactSubset.length - 1), locked: true })
+          // remaining에서 사용된 오더 제거
+          exactSubset.forEach(function(usedOrd) {
+            var ri = remaining.indexOf(usedOrd)
+            if (ri >= 0) remaining.splice(ri, 1)
+          })
+          found = true
+          break  // 이번 이터레이션에서 1개 찾았으면 다음 이터레이션으로
+        }
+      }
+
+      if (!found) break  // 더 이상 Exact Fit 없음 → BFD 패스로
     }
 
-    // ── Best Fit Decreasing 배치 ────────────────────────────────
-    sorted.forEach(order => {
-      let bestIdx  = -1
-      let bestLoss = Infinity
+    // ════════════════════════════════════════════════════════════
+    //  2단계: BFD 패스 (남은 오더 처리)
+    //  Exact Fit을 찾지 못한 오더들은 BFD로 배치
+    //  - Exact Fit(loss=0) 버킷 우선 선택
+    //  - 차선: loss 가장 작은 버킷
+    // ════════════════════════════════════════════════════════════
+    var buckets = []  // { orders:[], rawWidth:number, locked:boolean }
 
-      buckets.forEach((bkt, idx) => {
-        if (!canFit(bkt, order)) return
-        const loss = calcLoss(bkt, order)
-        if (loss < bestLoss) { bestLoss = loss; bestIdx = idx }
+    // locked 버킷을 먼저 추가 (재조합 패스에서 보호)
+    lockedBuckets.forEach(function(lb) { buckets.push(lb) })
+
+    // 남은 오더 BFD 배치
+    remaining.forEach(function(order) {
+      var bestIdx  = -1
+      var bestLoss = Infinity
+      var bestIsExact = false
+
+      buckets.forEach(function(bkt, idx) {
+        if (bkt.locked) return  // Zero-loss 잠금 버킷엔 추가 안 함
+        if (!checkConstraints(bkt.orders, bkt.rawWidth, order)) return
+        var newRaw   = bkt.rawWidth + order._pw
+        var newTotal = calcTotalW(newRaw, bkt.orders.length + 1)
+        var loss     = maxW - newTotal
+        var isExact  = (loss === 0)
+        // Exact Fit(loss=0) 우선, 그 다음 loss 최소
+        if (isExact && !bestIsExact) {
+          bestIsExact = true; bestLoss = 0; bestIdx = idx
+        } else if (isExact && bestIsExact) {
+          // 둘 다 exact면 첫 번째 선택 유지
+        } else if (!isExact && !bestIsExact && loss < bestLoss) {
+          bestLoss = loss; bestIdx = idx
+        }
       })
 
       if (bestIdx >= 0) {
         buckets[bestIdx].orders.push(order)
-        buckets[bestIdx].rawWidth += order.paperWidth
+        buckets[bestIdx].rawWidth += order._pw
+        // Exact Fit 달성 시 잠금 처리
+        var bkt = buckets[bestIdx]
+        var total = calcTotalW(bkt.rawWidth, bkt.orders.length)
+        if (total === maxW) bkt.locked = true
       } else {
-        buckets.push({ orders: [order], rawWidth: order.paperWidth })
+        buckets.push({ orders: [order], rawWidth: order._pw, locked: false })
       }
     })
 
     // ── 버킷 → combos 변환 ──────────────────────────────────────
-    // totalW < minW 인 버킷은 combos에 추가하지 않고 pendingBelowMin에 보관
-    // → 재조합 패스에서 모아서 재처리
-    buckets.forEach(bkt => {
+    buckets.forEach(function(bkt) {
       if (!bkt.orders.length) return
 
-      const totalW   = bkt.rawWidth + c.mimi * (bkt.orders.length - 1)
-      const loss     = Math.max(0, maxW - totalW)
-      const lossRate = maxW > 0 ? (loss / maxW * 100) : 0
-      const totalTon = bkt.orders.reduce((s, o) => s + (o.orderQtyTon || 0), 0)
-      const isSingleNarrow = bkt.orders.length === 1 && bkt.orders[0].paperWidth <= noProdLim
+      var totalW   = calcTotalW(bkt.rawWidth, bkt.orders.length)
+      var loss     = Math.max(0, maxW - totalW)
+      var lossRate = maxW > 0 ? (loss / maxW * 100) : 0
+      var totalTon = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
+      var isSingleNarrow = bkt.orders.length === 1 && bkt.orders[0]._pw <= noProdLim
 
-      // ── minW 미달 버킷: 폭을 더 채울 수 없는 상태(꽉 찼거나 추가 시 maxW 초과)에서
-      //   totalW < minW 이면 재조합 대상으로 분리 (combos에 추가 안 함)
-      const isFull = bkt.orders.length >= maxPok   // 폭 수 꽉 참
-      const wouldOverflow = minW > 0 && !isFull && (() => {
-        // 남은 슬롯에 최소 1폭이라도 넣으면 maxW 초과하는지 확인
-        const smallest = Math.min(...bkt.orders.map(o => o.paperWidth))
-        return totalW + c.mimi + smallest > maxW
+      // minW 미달 처리
+      var isFull = bkt.orders.length >= maxPok
+      var wouldOverflow = minW > 0 && !isFull && (function() {
+        var smallest = Math.min.apply(null, bkt.orders.map(function(o) { return o._pw }))
+        return totalW + mimi + smallest > maxW
       })()
-      const cannotGrow = isFull || wouldOverflow   // 더 이상 채울 수 없는 상태
+      var cannotGrow = isFull || wouldOverflow
 
       if (minW > 0 && cannotGrow && totalW < minW) {
-        // pendingBelowMin에 오더들 추가 (재조합 패스로 위임)
-        const pKey = machineNo + '_' + ptCode + '_' + bw
+        var pKey = machineNo + '_' + ptCode + '_' + bw
         if (!pendingBelowMin[pKey]) {
-          pendingBelowMin[pKey] = { orders: [], maxW, minW, maxPok, fourPokMin }
+          pendingBelowMin[pKey] = { orders: [], maxW: maxW, minW: minW, maxPok: maxPok, fourPokMin: fourPokMin }
         }
-        bkt.orders.forEach(o => pendingBelowMin[pKey].orders.push(o))
-        return  // combos에 추가 안 함
+        bkt.orders.forEach(function(o) { pendingBelowMin[pKey].orders.push(o) })
+        return
       }
 
-      const belowMinWidth = minW > 0 && totalW < minW
-      const maxUrgency = Math.max(...bkt.orders.map(o => urgencyScore(o)))
-      const daysArr    = bkt.orders
-        .filter(o => o.dueDate)
-        .map(o => Math.floor((new Date(o.dueDate).setHours(0,0,0,0) - today) / 86400000))
-      const minDaysLeft = daysArr.length ? Math.min(...daysArr) : null
+      var belowMinWidth = minW > 0 && totalW < minW
+      var maxUrgency = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
+      var daysArr = bkt.orders
+        .filter(function(o) { return !!o.dueDate })
+        .map(function(o) { return Math.floor((new Date(o.dueDate).setHours(0,0,0,0) - today) / 86400000) })
+      var minDaysLeft = daysArr.length ? Math.min.apply(null, daysArr) : null
+
+      // Zero-loss 여부 태그
+      var isZeroLoss = (loss === 0)
 
       combos.push({
         comboId       : comboIdx++,
-        machineNo,
+        machineNo     : machineNo,
         paperTypeCode : ptCode,
         basisWeight   : bw,
-        orders        : [...bkt.orders],
+        orders        : bkt.orders.slice(),
         widthSum      : totalW,
         maxWidth      : maxW,
         minWidth      : minW,
-        loss,
+        loss          : loss,
         lossRate      : lossRate.toFixed(1),
         totalTon      : totalTon.toFixed(3),
         pokCount      : bkt.orders.length,
         urgency       : maxUrgency,
-        minDaysLeft,
-        isSingleNarrow,
-        belowMinWidth,
-        algoTag       : 'FFD+DUE'
+        minDaysLeft   : minDaysLeft,
+        isSingleNarrow: isSingleNarrow,
+        belowMinWidth : belowMinWidth,
+        isZeroLoss    : isZeroLoss,
+        algoTag       : isZeroLoss ? 'ZERO-LOSS' : 'BFD+DUE'
       })
     })
   })
 
-  // ── [재조합 패스 v2] Loss 높은 조합 해체 + poorCombo끼리 재조합 ──
+  // ════════════════════════════════════════════════════════════
+  //  3단계: Zero-loss 잠금 repackPass v3
+  //  • loss=0 조합은 repackPass 대상에서 완전 제외
+  //  • loss > 임계값인 조합만 재조합 시도
+  // ════════════════════════════════════════════════════════════
   ;(function repackPass() {
-    var REPACK_THRESHOLD = 15  // 15% 초과 시 재조합 대상
+    var REPACK_THRESHOLD = 15
 
-    // ① poor / good 분류
     var poorIdx = []
     var goodIdx = []
     combos.forEach(function(cb, i) {
-      if (parseFloat(cb.lossRate) > REPACK_THRESHOLD) poorIdx.push(i)
-      else goodIdx.push(i)
+      if (cb.isZeroLoss) {
+        // Zero-loss 조합은 항상 goodIdx (잠금 — 절대 해체하지 않음)
+        goodIdx.push(i)
+      } else if (parseFloat(cb.lossRate) > REPACK_THRESHOLD) {
+        poorIdx.push(i)
+      } else {
+        goodIdx.push(i)
+      }
     })
     if (poorIdx.length === 0) return
 
     var mimi2 = c.mimi
 
-    // ② poorCombo 오더 전부 수집 → [machineNo+지종+basisWeight] 키별 풀로 분류
-    // 동시에 goodCombo에 편입 가능한지 먼저 시도
-    var repackPool = {}  // key → { orders:[], maxW, minW, maxPok, fourPokMin, ptCode }
+    var repackPool = {}
 
     poorIdx.forEach(function(pi) {
       var pc = combos[pi]
@@ -8205,48 +8352,52 @@ function runCombinationAlgorithm(orders) {
       }
 
       pc.orders.forEach(function(order) {
-        // 먼저 goodCombo에 편입 시도 (Best Fit)
-        var bestGi = -1, bestLoss2 = Infinity
+        // goodCombo에 편입 시도 (Best Fit, Exact Fit 우선)
+        var bestGi = -1, bestLoss2 = Infinity, bestIsExact2 = false
         goodIdx.forEach(function(gi) {
           var gc = combos[gi]
+          if (gc.isZeroLoss) return  // Zero-loss 잠금 조합엔 추가 불가
           if (gc.machineNo !== pc.machineNo) return
-          if ((gc.paperTypeCode || '') !== (pc.paperTypeCode || '')) return  // ← 지종코드 일치 필수
+          if ((gc.paperTypeCode || '') !== (pc.paperTypeCode || '')) return
           if (gc.basisWeight !== pc.basisWeight) return
           if (gc.pokCount >= maxPok2) return
-          var newTotalW = gc.widthSum + mimi2 + order.paperWidth
+          var newTotalW = gc.widthSum + mimi2 + (order._pw || order.paperWidth)
           if (newTotalW > gc.maxWidth) return
-          // ── goodCombo 편입 시 minW 마지막슬롯 검사: 이걸 넣으면 꽉 차는데 minW 미달이면 거부
           if (minW2 > 0 && gc.pokCount + 1 === maxPok2 && newTotalW < minW2) return
           if (fp2 > 0 && gc.pokCount + 1 === maxPok2) {
-            var allW2 = gc.orders.map(function(o) { return o.paperWidth }).concat([order.paperWidth])
+            var allW2 = gc.orders.map(function(o) { return o._pw || o.paperWidth }).concat([order._pw || order.paperWidth])
             if (allW2.some(function(w) { return w < fp2 })) return
           }
           var newLoss2 = gc.maxWidth - newTotalW
-          if (newLoss2 < bestLoss2) { bestLoss2 = newLoss2; bestGi = gi }
+          var isExact2 = (newLoss2 === 0)
+          if (isExact2 && !bestIsExact2) {
+            bestIsExact2 = true; bestLoss2 = 0; bestGi = gi
+          } else if (!isExact2 && !bestIsExact2 && newLoss2 < bestLoss2) {
+            bestLoss2 = newLoss2; bestGi = gi
+          }
         })
 
         if (bestGi >= 0) {
-          // goodCombo에 편입 성공
           var gc2 = combos[bestGi]
           gc2.orders.push(order)
-          gc2.widthSum  += mimi2 + order.paperWidth
+          gc2.widthSum  += mimi2 + (order._pw || order.paperWidth)
           gc2.pokCount  += 1
           var nl = Math.max(0, gc2.maxWidth - gc2.widthSum)
           gc2.loss          = nl
           gc2.lossRate      = (gc2.maxWidth > 0 ? nl / gc2.maxWidth * 100 : 0).toFixed(1)
+          gc2.isZeroLoss    = (nl === 0)
+          if (gc2.isZeroLoss) gc2.algoTag = 'ZERO-LOSS'
           gc2.totalTon      = (parseFloat(gc2.totalTon) + (order.orderQtyTon || 0)).toFixed(3)
           gc2.belowMinWidth = (gc2.minWidth || 0) > 0 && gc2.widthSum < (gc2.minWidth || 0)
           var inU = urgencyScore(order)
           if (inU > (gc2.urgency || 0)) gc2.urgency = inU
         } else {
-          // 편입 실패 → repackPool에 쌓아서 나중에 poorCombo끼리 재조합
           repackPool[key].orders.push(order)
         }
       })
     })
 
-    // ②-추가: pendingBelowMin 오더들도 repackPool에 병합
-    // (FFD 1차 패스에서 minW 미달로 격리된 버킷들을 재조합 대상에 포함)
+    // pendingBelowMin 오더들도 repackPool에 병합
     Object.keys(pendingBelowMin).forEach(function(pKey) {
       var pb = pendingBelowMin[pKey]
       if (!repackPool[pKey]) {
@@ -8255,7 +8406,7 @@ function runCombinationAlgorithm(orders) {
       pb.orders.forEach(function(o) { repackPool[pKey].orders.push(o) })
     })
 
-    // ③ repackPool 내 오더들을 그룹별로 BFD 재조합 (poorCombo끼리 새 버킷 생성)
+    // repackPool 내 오더들을 BFD + Exact Fit 우선으로 재조합
     var newCombos = []
     Object.keys(repackPool).forEach(function(key) {
       var pool    = repackPool[key]
@@ -8268,44 +8419,50 @@ function runCombinationAlgorithm(orders) {
       var fp2     = pool.fourPokMin
       var keyParts2 = key.split('_')
       var machNo    = keyParts2[0]
-      var ptCode2   = keyParts2[1]  // 지종코드
+      var ptCode2   = keyParts2[1]
       var bw2       = Number(keyParts2[2])
 
-      // 지폭 큰 순 정렬 (BFD)
-      orders2.sort(function(a, b) { return b.paperWidth - a.paperWidth })
+      orders2.sort(function(a, b) { return b._pw - a._pw })
 
-      var rBuckets = []  // { orders:[], rawWidth:number }
+      var rBuckets = []
 
       function canFit2(bkt, order) {
         if (bkt.orders.length >= maxPok2) return false
-        var newTotalW = bkt.rawWidth + order.paperWidth + mimi2 * bkt.orders.length
-        if (newTotalW > maxW2) return false
-        // ── 마지막 슬롯에서 minW 미달이면 거부 (minW 미달 조합 생성 방지)
-        if (minW2 > 0 && bkt.orders.length + 1 === maxPok2 && newTotalW < minW2) return false
+        var newTotal = bkt.rawWidth + order._pw + mimi2 * bkt.orders.length
+        if (newTotal > maxW2) return false
+        if (minW2 > 0 && bkt.orders.length + 1 === maxPok2 && newTotal < minW2) return false
         if (fp2 > 0 && bkt.orders.length + 1 === maxPok2) {
-          var allW2 = bkt.orders.map(function(o) { return o.paperWidth }).concat([order.paperWidth])
+          var allW2 = bkt.orders.map(function(o) { return o._pw }).concat([order._pw])
           if (allW2.some(function(w) { return w < fp2 })) return false
         }
         return true
       }
 
       orders2.forEach(function(order) {
-        var bestBi = -1, bestLoss3 = Infinity
+        var bestBi = -1, bestLoss3 = Infinity, bestIsExact3 = false
         rBuckets.forEach(function(bkt, bi) {
+          if (bkt.locked) return
           if (!canFit2(bkt, order)) return
-          var newTotalW = bkt.rawWidth + order.paperWidth + mimi2 * bkt.orders.length
-          var loss3 = maxW2 - newTotalW
-          if (loss3 < bestLoss3) { bestLoss3 = loss3; bestBi = bi }
+          var newTotal = bkt.rawWidth + order._pw + mimi2 * bkt.orders.length
+          var loss3 = maxW2 - newTotal
+          var isExact3 = (loss3 === 0)
+          if (isExact3 && !bestIsExact3) {
+            bestIsExact3 = true; bestLoss3 = 0; bestBi = bi
+          } else if (!isExact3 && !bestIsExact3 && loss3 < bestLoss3) {
+            bestLoss3 = loss3; bestBi = bi
+          }
         })
         if (bestBi >= 0) {
           rBuckets[bestBi].orders.push(order)
-          rBuckets[bestBi].rawWidth += order.paperWidth
+          rBuckets[bestBi].rawWidth += order._pw
+          var bkt2 = rBuckets[bestBi]
+          var tot2 = bkt2.rawWidth + mimi2 * (bkt2.orders.length - 1)
+          if (tot2 === maxW2) bkt2.locked = true
         } else {
-          rBuckets.push({ orders: [order], rawWidth: order.paperWidth })
+          rBuckets.push({ orders: [order], rawWidth: order._pw, locked: false })
         }
       })
 
-      // 버킷 → newCombos 변환
       rBuckets.forEach(function(bkt) {
         var totalW3  = bkt.rawWidth + mimi2 * (bkt.orders.length - 1)
         var loss3    = Math.max(0, maxW2 - totalW3)
@@ -8313,7 +8470,8 @@ function runCombinationAlgorithm(orders) {
         var totTon3  = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
         var maxUrg3  = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
         var below3   = minW2 > 0 && totalW3 < minW2
-        var isSN3    = bkt.orders.length === 1 && bkt.orders[0].paperWidth < (c.noprodLimit || 625)
+        var isSN3    = bkt.orders.length === 1 && bkt.orders[0]._pw < (c.noprodLimit || 625)
+        var isZL3    = (loss3 === 0)
         newCombos.push({
           comboId       : 0,
           machineNo     : machNo,
@@ -8331,28 +8489,30 @@ function runCombinationAlgorithm(orders) {
           minDaysLeft   : null,
           isSingleNarrow: isSN3,
           belowMinWidth : below3,
-          algoTag       : 'REPACK'
+          isZeroLoss    : isZL3,
+          algoTag       : isZL3 ? 'ZERO-LOSS' : 'REPACK'
         })
       })
     })
 
-    // ④ poorCombo 인덱스 제거 (뒤에서부터)
+    // poorCombo 인덱스 제거 (뒤에서부터)
     var sortedPoorIdx = poorIdx.slice().sort(function(a, b) { return b - a })
     sortedPoorIdx.forEach(function(pi) { combos.splice(pi, 1) })
 
-    // ⑤ 새로 만든 조합 추가
     newCombos.forEach(function(nc) { combos.push(nc) })
   })()
-  // ── 재조합 패스 v2 종료 ─────────────────────────────────────────
+  // ── repackPass v3 종료 ──────────────────────────────────────
 
-  // ── 최종 정렬: 납기 긴급도 높은 조합을 상단에 표시 ───────────
-  combos.sort((a, b) => {
-    const ud = (b.urgency || 0) - (a.urgency || 0)
+  // ── 최종 정렬: Zero-loss 최상단 → 납기긴급도 → Loss 낮은 순 ──
+  combos.sort(function(a, b) {
+    // Zero-loss 조합 최상단
+    if (a.isZeroLoss && !b.isZeroLoss) return -1
+    if (!a.isZeroLoss && b.isZeroLoss) return 1
+    var ud = (b.urgency || 0) - (a.urgency || 0)
     if (ud !== 0) return ud
-    return parseFloat(a.lossRate) - parseFloat(b.lossRate)  // 긴급도 동점 시 Loss 낮은 순
+    return parseFloat(a.lossRate) - parseFloat(b.lossRate)
   })
-  // comboId 재부여 (정렬 후 순번 재정렬)
-  combos.forEach((cb, i) => { cb.comboId = i + 1 })
+  combos.forEach(function(cb, i) { cb.comboId = i + 1 })
 
   return combos
 }
@@ -8592,6 +8752,11 @@ function renderSimResult(combos) {
       }
     }
 
+    // ── Zero-loss 배지 ───────────────────────────────────────
+    const zeroLossBadge = combo.isZeroLoss
+      ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:#052e16;color:#86efac;letter-spacing:.4px;border:1px solid #166534;">✓ ZERO LOSS</span>'
+      : ''
+
     // ── 단독 협폭 경고 ────────────────────────────────────────
     const narrowWarn = combo.isSingleNarrow
       ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;letter-spacing:.3px;">⚠ 협폭단독</span>'
@@ -8602,11 +8767,12 @@ function renderSimResult(combos) {
       ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#450a0a;color:#fca5a5;letter-spacing:.3px;">⛔ 최소지폭미달 ('+(combo.minWidth||0).toLocaleString()+'mm)</span>'
       : ''
 
-    // ── 카드 테두리 색 (긴급도 + 최소 지폭 미달 반영) ─────────
+    // ── 카드 테두리 색 (Zero-loss > 긴급도 > 최소지폭미달) ────
     const cardBorderColor = combo.belowMinWidth               ? '#ef4444'
                           : (dl !== null && dl !== undefined && dl <= 0)  ? '#f87171'
                           : (dl !== null && dl !== undefined && dl <= 3)  ? '#fb923c'
                           : (dl !== null && dl !== undefined && dl <= 7)  ? '#fbbf24'
+                          : combo.isZeroLoss                 ? '#166534'
                           : 'var(--border)'
 
     // ── 오더별 납기 D-day 색상 ────────────────────────────────
@@ -8629,6 +8795,7 @@ function renderSimResult(combos) {
           '<input type="checkbox" id="'+cid+'" checked onchange="onComboCheckChange('+combo.comboId+')" style="width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;" />'+
         '</label>'+
         '<span style="font-weight:800;font-size:15px;color:#a78bfa;">#'+combo.comboId+'</span>'+
+        zeroLossBadge+
         urgencyBadge+
         narrowWarn+
         minWidthWarn+
