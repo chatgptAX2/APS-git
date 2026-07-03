@@ -561,10 +561,13 @@ app.post('/klean-aps-api/sales-orders/save', async (c) => {
   let addedCount = 0
   let skippedCount = 0
   for (const o of toSave) {
-    // machineNo가 비어있으면 자재코드에서 추출
+    // machineNo / packCode가 비어있으면 자재코드에서 자동 추출
     const rec: any = { ...o }
     if (!rec.machineNo && rec.matCode) {
       rec.machineNo = parseMachineNoFromMatCode(rec.matCode)
+    }
+    if (!rec.packCode && rec.matCode) {
+      rec.packCode = parsePackCodeFromMatCode(rec.matCode)
     }
     const already = savedOrders.find(s => s.orderId === rec.orderId)
     if (already) {
@@ -601,13 +604,42 @@ app.patch('/klean-aps-api/sales-orders/:id/include', (c) => {
   return c.json({ success:true, data:o })
 })
 
-// ── 자재코드 MID(2,1) → 생산호기 파싱
-// 자재코드 규칙: LEFT(1)=품목유형, MID(2,1)=생산호기(1/2/3), ...
-// 예: H3S11350-09400000 → index[1] = '3' → '3'호기
+// ── 자재코드 파싱 규칙 ────────────────────────────────────────────
+// LEFT(1)    = 품목유형   F=제품 / H=반제품
+// MID(2,1)   = 생산호기   1=1호기 / 2=2호기 / 3=3호기
+// MID(3,3)   = 지종코드   원지 종류 식별 코드 (3자리)
+// MID(6,3)   = 평량       g/m²
+// MID(9,1)   = 구분자     '-'
+// MID(10,4)  = 지폭       mm
+// MID(14,4)  = 지장       mm
+// RIGHT(1)   = 포장방법   A=속포장 / B=벌크 / 0=Roll
+//
+// 예: H3S11350-09400000  → 호기=3, 평량=350, 지폭=0940, 지장=0000, 포장=0(Roll)
+//     F3ST1400-07400495B → 호기=3, 평량=400, 지폭=0740, 지장=0495, 포장=B(Bulk)
+//     F2K11240-05300935A → 호기=2, 평량=240, 지폭=0530, 지장=0935, 포장=A(속포장)
+// ─────────────────────────────────────────────────────────────────
+
+// MID(2,1) → 생산호기 파싱
 function parseMachineNoFromMatCode(matCode: string): string {
   if (!matCode || matCode.length < 2) return ''
   const ch = matCode.charAt(1)  // MID(2,1) = 0-based index 1
   return (ch === '1' || ch === '2' || ch === '3') ? ch : ''
+}
+
+// RIGHT(1) → 포장방법 코드 파싱
+// 반환: 'A'=속포장(Ream) / 'B'=벌크(Bulk) / '0'=Roll / ''=불명
+function parsePackCodeFromMatCode(matCode: string): string {
+  if (!matCode || matCode.length < 1) return ''
+  const ch = matCode.charAt(matCode.length - 1)  // RIGHT(1)
+  return (ch === 'A' || ch === 'B' || ch === '0') ? ch : ''
+}
+
+// packCode → 표시 라벨
+function packCodeLabel(packCode: string): string {
+  if (packCode === '0') return 'Roll'
+  if (packCode === 'B') return 'Bulk'
+  if (packCode === 'A') return '속포장'
+  return packCode || '-'
 }
 
 app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
@@ -616,11 +648,14 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
   // 이미 불러온 경우 중복 방지 (재불러오기는 덮어쓰기)
   salesOrders.length = 0
   // 엑셀 데이터를 딥카피해서 런타임 배열에 로드
-  // machineNo가 비어있으면 자재코드 MID(2,1)에서 자동 추출
+  // machineNo / packCode가 비어있으면 자재코드에서 자동 추출
   for (const o of EXCEL_SALES_ORDERS_DATA) {
     const rec: any = { ...o }
     if (!rec.machineNo && rec.matCode) {
       rec.machineNo = parseMachineNoFromMatCode(rec.matCode)
+    }
+    if (!rec.packCode && rec.matCode) {
+      rec.packCode = parsePackCodeFromMatCode(rec.matCode)
     }
     salesOrders.push(rec)
   }
@@ -2223,7 +2258,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <th class="center">플랜트</th><th>판매문서번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th>호기</th>
               <th class="num">평량(g)</th><th class="num">지폭(mm)</th>
               <th class="num">수량(TON)</th><th class="num">수량(R)</th><th class="num">수량(SOK)</th>
-              <th>단위</th><th>자재코드</th><th>생성일</th><th>생성자</th><th>납품요청일</th><th>상태</th><th>비고</th>
+              <th>단위</th><th class="center">포장</th><th>자재코드</th><th>생성일</th><th>생성자</th><th>납품요청일</th><th>상태</th><th>비고</th>
             </tr>
           </thead>
           <tbody id="import-tbody">
@@ -2337,7 +2372,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <th>오더번호</th><th>항목</th><th>오더유형</th><th>납품처</th><th class="center">플랜트</th><th>호기</th>
               <th class="num">평량(g)</th><th class="num">지폭(mm)</th>
               <th class="num">수량(TON)</th><th class="num">수량(R)</th><th class="num">수량(SOK)</th>
-              <th>자재코드</th><th>납기일</th><th>상태</th><th>예외</th><th class="center">액션</th>
+              <th class="center">포장</th><th>자재코드</th><th>납기일</th><th>상태</th><th>예외</th><th class="center">액션</th>
             </tr>
           </thead>
           <tbody id="list-tbody">
@@ -3321,7 +3356,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <thead>
                 <tr>
                   <th style="width:32px;"></th>
-                  <th>오더번호</th><th>납품처</th><th class="center">호기</th><th class="center">평량</th><th class="center">지폭</th><th class="center">수량</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
+                  <th>오더번호</th><th>납품처</th><th class="center">호기</th><th class="center">평량</th><th class="center">지폭</th><th class="center">수량</th><th class="center">포장</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
                 </tr>
               </thead>
               <tbody id="sim-order-tbody">
@@ -4473,6 +4508,7 @@ function renderImportTable(list) {
     '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>' +
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>' +
     '<td><span class="badge b-'+(o.unit==='TON'?'ton':o.unit==='R'?'r':'sok')+'">'+o.unit+'</span></td>' +
+    '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>' +
     '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
     '<td style="color:var(--text-muted);font-size:11px;">'+o.orderDate+'</td>' +
     '<td style="color:var(--text-muted);font-size:11px;">'+o.createdBy+'</td>' +
@@ -4623,6 +4659,7 @@ function renderListTable(list) {
     '<td class="num">'+(o.orderQtyTon!=null ? '<span class="badge b-ton">'+o.orderQtyTon.toFixed(3)+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
+    '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
     '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
     '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:11px;font-weight:600;">'+o.dueDate+'</td>'+
     '<td>'+renderStatusBadge(o.status)+'</td>'+
@@ -6426,6 +6463,7 @@ function renderSimOrderTable(list) {
       '<td class="center" style="font-weight:700;">'+o.basisWeight+'</td>' +
       '<td class="center" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
       '<td class="center">'+qtyStr+'</td>' +
+      '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>' +
       '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
       '<td style="font-size:11px;color:var(--text-muted);">'+o.dueDate+'</td>' +
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
@@ -6543,6 +6581,7 @@ function renderSimResult(combos) {
               '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">납품처</th>'+
               '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">지폭</th>'+
               '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">수량</th>'+
+              '<th style="padding:5px 6px;text-align:center;color:var(--text-muted);">포장</th>'+
               '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">자재코드</th>'+
               '<th style="padding:5px 6px;text-align:center;color:var(--text-muted);">납기일</th>'+
             '</tr>'+
@@ -6556,6 +6595,7 @@ function renderSimResult(combos) {
                 '<td style="padding:5px 6px;">'+o.customerName+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm</td>'+
                 '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
+                '<td style="padding:5px 6px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
                 '<td style="padding:5px 6px;font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
                 '<td style="padding:5px 6px;text-align:center;font-weight:700;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
@@ -6885,6 +6925,13 @@ function renderJumboOrders(list) {
 function renderOrderTypeBadge(t) {
   const m = {내수:'b-domestic',수출:'b-export',일본수출:'b-japan',특수지:'b-special'}
   return '<span class="badge '+(m[t]||'b-domestic')+'">'+t+'</span>'
+}
+function renderPackBadge(packCode) {
+  // packCode: '0'=Roll / 'B'=Bulk / 'A'=속포장 / ''=미상
+  if (packCode === '0') return '<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;">Roll</span>'
+  if (packCode === 'B') return '<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#1a2e1a;color:#86efac;border:1px solid #16a34a;">Bulk</span>'
+  if (packCode === 'A') return '<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#2d1f3d;color:#c4b5fd;border:1px solid #7c3aed;">속포장</span>'
+  return '<span style="color:var(--border);">-</span>'
 }
 function renderStatusBadge(s) {
   const m = {OPEN:'b-open',ASSIGNED:'b-assigned',COMPLETED:'b-complete',CANCELLED:'b-cancel'}
