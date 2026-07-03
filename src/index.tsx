@@ -19,6 +19,11 @@ function parsePackCodeFromMatCode(matCode: string): string {
   const ch = matCode.charAt(matCode.length - 1)
   return (ch === 'A' || ch === 'B' || ch === '0') ? ch : ''
 }
+function parsePaperTypeCodeFromMatCode(matCode: string): string {
+  // MID(3,3) = index 2~4 (3자리) = 지종코드
+  if (!matCode || matCode.length < 5) return ''
+  return matCode.substring(2, 5)
+}
 
 // ============================================================
 // Mock 데이터
@@ -41,6 +46,126 @@ const machines: any[] = [
     description: '크라프트 / 중량지 / 특수지',
     note: '300/500/550g/m² 평량은 최대지폭 3,410mm 적용',
   },
+]
+
+// ============================================================
+// 자재마스터 임시 데이터 (DBdata.xlsx 자재마스터 시트, 114건)
+// ============================================================
+const MAT_MASTER_DATA: any[] = [
+  { matId:1, plant:'P100', matCode:'H3S11350-09400000', desc:'SC Manila 350GSM 0940*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0940', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:2, plant:'P100', matCode:'H3S11350-07880000', desc:'SC Manila 350GSM 0788*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0788', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:3, plant:'P100', matCode:'H2S11240-07880000', desc:'SC Manila 240GSM 0788*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0788', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:4, plant:'P100', matCode:'H2S11240-09500000', desc:'SC Manila 240GSM 0950*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0950', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:5, plant:'P100', matCode:'H3S11400-08890000', desc:'SC Manila 400GSM 0889*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0889', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:6, plant:'P100', matCode:'F3ST1400-07400495B', desc:'FT PACK 400GSM 0740*0495 BULK (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:73.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'ST1', paperTypeName:'FT PACK', basisWeight:'400', paperWidth:'0740', paperLength:'0495', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:7, plant:'P100', matCode:'F3ST1400-07200465B', desc:'FT PACK 400GSM 0720*0465 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:67.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'ST1', paperTypeName:'FT PACK', basisWeight:'400', paperWidth:'0720', paperLength:'0465', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:8, plant:'P100', matCode:'F3ST1350-07200465B', desc:'FT PACK 350GSM 0720*0465 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:59.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'ST1', paperTypeName:'FT PACK', basisWeight:'350', paperWidth:'0720', paperLength:'0465', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:9, plant:'P100', matCode:'F3ST1350-07450485B', desc:'FT PACK 350GSM 0745*0485 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'ST1', paperTypeName:'FT PACK', basisWeight:'350', paperWidth:'0745', paperLength:'0485', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:10, plant:'P100', matCode:'H3S11400-10200000', desc:'SC Manila 400GSM 1020*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'1020', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:11, plant:'P100', matCode:'H3S11400-10910000', desc:'SC Manila 400GSM 1091*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'1091', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:12, plant:'P100', matCode:'H3S11400-09400000', desc:'SC Manila 400GSM 0940*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0940', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:13, plant:'P100', matCode:'H2S11300-08890000', desc:'SC Manila 300GSM 0889*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'300', paperWidth:'0889', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:14, plant:'P100', matCode:'H2S11300-08400000', desc:'SC Manila 300GSM 0840*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'300', paperWidth:'0840', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:15, plant:'P100', matCode:'F3S11400-07000570B', desc:'SC Manila 400GSM 0700*0570 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0700', paperLength:'0570', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:16, plant:'P100', matCode:'F3S11500-07881091B', desc:'SC Manila 500GSM 0788*1091 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'500', paperWidth:'0788', paperLength:'1091', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:17, plant:'P100', matCode:'F3S11400-11940889A', desc:'SC Manila 400GSM 1194*0889 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'1194', paperLength:'0889', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:18, plant:'P100', matCode:'F3S11450-10550785B', desc:'SC Manila 450GSM 1055*0785 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'450', paperWidth:'1055', paperLength:'0785', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:19, plant:'P100', matCode:'F3I11350-08891194A', desc:'IVory 350GSM 0889*1194 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'350', paperWidth:'0889', paperLength:'1194', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:20, plant:'P100', matCode:'F3I11450-07881091A', desc:'IVory 450GSM 0788*1091 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'450', paperWidth:'0788', paperLength:'1091', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:21, plant:'P100', matCode:'F3S11400-07881091A', desc:'SC Manila 400GSM 0788*1091 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:172.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0788', paperLength:'1091', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:22, plant:'P100', matCode:'F2K11240-05300935A', desc:'Kraft(무,단) 240GSM 0530*0935 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:59.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'K11', paperTypeName:'Kraft(무,단)', basisWeight:'240', paperWidth:'0530', paperLength:'0935', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:23, plant:'P100', matCode:'F3I11350-11940889A', desc:'IVory 350GSM 1194*0889 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:186.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'350', paperWidth:'1194', paperLength:'0889', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:24, plant:'P100', matCode:'F3I11450-08891194A', desc:'IVory 450GSM 0889*1194 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:239.0, convR:1.0, convTon:null, convSok:10.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'450', paperWidth:'0889', paperLength:'1194', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:25, plant:'P100', matCode:'F2S11240-07000850B', desc:'SC Manila 240GSM 0700*0850 Bulk (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:71.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0700', paperLength:'0850', packCode:'B', machineNo:'2', prodType:'Bulk' },
+  { matId:26, plant:'P100', matCode:'F2K11240-07200995A', desc:'Kraft(무,단) 240GSM 0720*0995 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:86.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'K11', paperTypeName:'Kraft(무,단)', basisWeight:'240', paperWidth:'0720', paperLength:'0995', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:27, plant:'P100', matCode:'F2S11300-06400940A', desc:'SC Manila 300GSM 0640*0940 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:90.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'300', paperWidth:'0640', paperLength:'0940', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:28, plant:'P100', matCode:'F3S11400-09650665B', desc:'SC Manila 400GSM 0965*0665 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0965', paperLength:'0665', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:29, plant:'P100', matCode:'F3S11400-04800680A', desc:'SC Manila 400GSM 0480*0680 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0480', paperLength:'0680', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:30, plant:'P100', matCode:'F3S11400-09600610B', desc:'SC Manila 400GSM 0960*0610 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0960', paperLength:'0610', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:31, plant:'P100', matCode:'F3I11400-06400940A', desc:'IVory 400GSM 0640*0940 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:120.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0640', paperLength:'0940', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:32, plant:'P100', matCode:'F3S11400-07500450B', desc:'SC Manila 400GSM 0750*0450 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:68.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0750', paperLength:'0450', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:33, plant:'P100', matCode:'F3S11400-07850555B', desc:'SC Manila 400GSM 0785*0555 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:87.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0785', paperLength:'0555', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:34, plant:'P100', matCode:'F2S11240-07300720A', desc:'SC Manila 240GSM 0730*0720 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:63.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0730', paperLength:'0720', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:35, plant:'P100', matCode:'S0RP1295-08891194A', desc:'RIV(상) F1 295GSM 0889*1194 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'295', paperWidth:'0889', paperLength:'1194', packCode:'A', machineNo:'0', prodType:'Ream' },
+  { matId:36, plant:'P100', matCode:'F2S11240-09400640A', desc:'SC Manila 240GSM 0940*0640 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:72.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0940', paperLength:'0640', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:37, plant:'P100', matCode:'F3I11350-05200670A', desc:'IVory 350GSM 0520*0670 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:61.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'350', paperWidth:'0520', paperLength:'0670', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:38, plant:'P100', matCode:'S0RP1325-07871092A', desc:'RIV(상) F1 325GSM 0787*1092 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'325', paperWidth:'0787', paperLength:'1092', packCode:'A', machineNo:'0', prodType:'Ream' },
+  { matId:39, plant:'P100', matCode:'S0RP1325-10920787A', desc:'RIV(상) F1 325GSM 1092*0787 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'325', paperWidth:'1092', paperLength:'0787', packCode:'A', machineNo:'0', prodType:'Ream' },
+  { matId:40, plant:'P100', matCode:'F2S11240-09800760A', desc:'SC Manila 240GSM 0980*0760 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0980', paperLength:'0760', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:41, plant:'P100', matCode:'F3I11400-05450788A', desc:'IVory 400GSM 0545*0788 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:86.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0545', paperLength:'0788', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:42, plant:'P100', matCode:'H3S11400-11940000', desc:'SC Manila 400GSM 1194*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'1194', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:43, plant:'P100', matCode:'H3S11400-11000000', desc:'SC Manila 400GSM 1100*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'1100', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:44, plant:'P100', matCode:'H3S11400-09000000', desc:'SC Manila 400GSM 0900*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0900', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:45, plant:'P100', matCode:'F2S11240-06400940A', desc:'SC Manila 240GSM 0640*0940 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:72.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0640', paperLength:'0940', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:46, plant:'P100', matCode:'F3S11240-09850720A', desc:'SC Manila 240GSM 0985*0720 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:85.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0985', paperLength:'0720', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:47, plant:'P100', matCode:'F2S11240-06450840A', desc:'SC Manila 240GSM 0645*0840 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0645', paperLength:'0840', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:48, plant:'P100', matCode:'F3S11350-10910788A', desc:'SC Manila 350GSM 1091*0788 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'1091', paperLength:'0788', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:49, plant:'P100', matCode:'H3S11400-08400000', desc:'SC Manila 400GSM 0840*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0840', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:50, plant:'P100', matCode:'F3S11300-08891194A', desc:'SC Manila 300GSM 0889*1194 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'300', paperWidth:'0889', paperLength:'1194', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:51, plant:'P100', matCode:'H3S11350-05450000', desc:'SC Manila 350GSM 0545*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0545', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:52, plant:'P100', matCode:'F2KS1400-07100845B', desc:'S-Kraft (FSC) 400GSM 0710*0845 Bulk (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:120.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'KS1', paperTypeName:'Kraft(유)', basisWeight:'400', paperWidth:'0710', paperLength:'0845', packCode:'B', machineNo:'2', prodType:'Bulk' },
+  { matId:53, plant:'P100', matCode:'F2S11300-04700600A', desc:'SC Manila 300GSM 0470*0600 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:42.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'300', paperWidth:'0470', paperLength:'0600', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:54, plant:'P100', matCode:'F3S11350-06400940A', desc:'SC Manila 350GSM 0640*0940 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0640', paperLength:'0940', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:55, plant:'P100', matCode:'F3I11400-08900640A', desc:'IVory 400GSM 0890*0640 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0890', paperLength:'0640', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:56, plant:'P100', matCode:'F3SM1280-07881091A', desc:'KSC (FSC) 280GSM 0788*1091 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'SM1', paperTypeName:'KSC(FSC)', basisWeight:'280', paperWidth:'0788', paperLength:'1091', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:57, plant:'P100', matCode:'F3I11350-09400640A', desc:'IVory 350GSM 0940*0640 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'350', paperWidth:'0940', paperLength:'0640', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:58, plant:'P100', matCode:'S0RP1270-09400640A', desc:'RIV(상) F1 270GSM 0940*0640 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'270', paperWidth:'0940', paperLength:'0640', packCode:'A', machineNo:'0', prodType:'Ream' },
+  { matId:59, plant:'P100', matCode:'F3I11400-07881091A', desc:'IVory 400GSM 0788*1091 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0788', paperLength:'1091', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:60, plant:'P100', matCode:'F3I11300-09400640A', desc:'IVory 300GSM 0940*0640 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'300', paperWidth:'0940', paperLength:'0640', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:61, plant:'P100', matCode:'F3S11400-08100640B', desc:'SC Manila 400GSM 0810*0640 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:104.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0810', paperLength:'0640', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:62, plant:'P100', matCode:'S0RP1295-10920787A', desc:'RIV(상) F1 295GSM 1092*0787 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'295', paperWidth:'1092', paperLength:'0787', packCode:'A', machineNo:'0', prodType:'Ream' },
+  { matId:63, plant:'P100', matCode:'F2S11300-06200800A', desc:'SC Manila 300GSM 0620*0800 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:74.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'300', paperWidth:'0620', paperLength:'0800', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:64, plant:'P100', matCode:'F3S11350-05350730B', desc:'SC Manila 350GSM 0535*0730 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:68.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0535', paperLength:'0730', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:65, plant:'P100', matCode:'F3S11350-05700795B', desc:'SC Manila 350GSM 0570*0795 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:79.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0570', paperLength:'0795', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:66, plant:'P100', matCode:'F3S11450-08950610B', desc:'SC Manila 450GSM 0895*0610 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:123.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'450', paperWidth:'0895', paperLength:'0610', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:67, plant:'P100', matCode:'F3S11400-08850615B', desc:'SC Manila 400GSM 0885*0615 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0885', paperLength:'0615', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:68, plant:'P100', matCode:'F3S11400-08650610A', desc:'SC Manila 400GSM 0865*0610 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0865', paperLength:'0610', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:69, plant:'P100', matCode:'F3S11350-05000660A', desc:'SC Manila 350GSM 0500*0660 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0500', paperLength:'0660', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:70, plant:'P100', matCode:'F3S11400-08450640A', desc:'SC Manila 400GSM 0845*0640 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0845', paperLength:'0640', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:71, plant:'P100', matCode:'F3S71350-09800545B', desc:'FSC SC 350GSM 0980*0545 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:93.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S71', paperTypeName:'Simili', basisWeight:'350', paperWidth:'0980', paperLength:'0545', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:72, plant:'P100', matCode:'F3S11350-05950965B', desc:'SC Manila 350GSM 0595*0965 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:100.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0595', paperLength:'0965', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:73, plant:'P100', matCode:'H2S11300-05450000', desc:'SC Manila 300GSM 0545*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'300', paperWidth:'0545', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:74, plant:'P100', matCode:'F3S11350-09400640A', desc:'SC Manila 350GSM 0940*0640 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:105.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0940', paperLength:'0640', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:75, plant:'P100', matCode:'F3SM1280-06500950B', desc:'KSC (FSC) 280GSM 0650*0950 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:86.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'SM1', paperTypeName:'KSC(FSC)', basisWeight:'280', paperWidth:'0650', paperLength:'0950', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:76, plant:'P100', matCode:'F3SM1280-08600725B', desc:'KSC (FSC) 280GSM 0860*0725 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:87.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'SM1', paperTypeName:'KSC(FSC)', basisWeight:'280', paperWidth:'0860', paperLength:'0725', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:77, plant:'P100', matCode:'H3I11450-11900000', desc:'IVory 450GSM 1190*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'450', paperWidth:'1190', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:78, plant:'P100', matCode:'F3S11400-08650610B', desc:'SC Manila 400GSM 0865*0610 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0865', paperLength:'0610', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:79, plant:'P100', matCode:'H3AL1220-19000000', desc:'KSC (3인치)(FSC Recycled) 220GSM 1900*0000', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'AL1', paperTypeName:'ACB-L', basisWeight:'220', paperWidth:'1900', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:80, plant:'P100', matCode:'H3AL1220-20000000', desc:'KSC (3인치)(FSC Recycled) 220GSM 2000*0000', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'AL1', paperTypeName:'ACB-L', basisWeight:'220', paperWidth:'2000', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:81, plant:'P100', matCode:'F3I11300-07500570A', desc:'IVory 300GSM 0750*0570 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:64.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'300', paperWidth:'0750', paperLength:'0570', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:82, plant:'P100', matCode:'F3S11450-07880545A', desc:'SC Manila 450GSM 0788*0545 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:97.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'450', paperWidth:'0788', paperLength:'0545', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:83, plant:'P100', matCode:'F3SN1300-05950760B', desc:'SC 라면외지 300GSM 0595*0760 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:68.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'SN1', paperTypeName:'SC 라면외지', basisWeight:'300', paperWidth:'0595', paperLength:'0760', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:84, plant:'P100', matCode:'F2S11240-05400900A', desc:'SC Manila 240GSM 0540*0900 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:58.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0540', paperLength:'0900', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:85, plant:'P100', matCode:'F3I11300-07881091A', desc:'IVory 300GSM 0788*1091 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:129.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'300', paperWidth:'0788', paperLength:'1091', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:86, plant:'P100', matCode:'F3I11400-08891194A', desc:'IVory 400GSM 0889*1194 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:212.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0889', paperLength:'1194', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:87, plant:'P100', matCode:'F3I11400-05950790B', desc:'IVory 400GSM 0595*0790 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:94.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0595', paperLength:'0790', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:88, plant:'P100', matCode:'F3S11350-08900680B', desc:'SC Manila 350GSM 0890*0680 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0890', paperLength:'0680', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:89, plant:'P100', matCode:'F3S11350-08900680A', desc:'SC Manila 350GSM 0890*0680 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0890', paperLength:'0680', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:90, plant:'P100', matCode:'F3S11400-06500900B', desc:'SC Manila 400GSM 0650*0900 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'400', paperWidth:'0650', paperLength:'0900', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:91, plant:'P100', matCode:'F3I11300-08891194A', desc:'IVory 300GSM 0889*1194 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:159.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'300', paperWidth:'0889', paperLength:'1194', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:92, plant:'P100', matCode:'S0RP1295-04600770A', desc:'RIV(상) F1 295GSM 0460*0770 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'295', paperWidth:'0460', paperLength:'0770', packCode:'A', machineNo:'0', prodType:'Ream' },
+  { matId:93, plant:'P100', matCode:'F3I11400-05950790A', desc:'IVory 400GSM 0595*0790 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:94.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0595', paperLength:'0790', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:94, plant:'P100', matCode:'H3IR1400-04800000', desc:'GS IVory 400GSM 0480*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'IR1', paperTypeName:'Ivory-R', basisWeight:'400', paperWidth:'0480', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:95, plant:'P100', matCode:'H2S11240-08500000', desc:'SC Manila 240GSM 0850*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0850', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:96, plant:'P100', matCode:'H2S11240-08000000', desc:'SC Manila 240GSM 0800*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0800', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:97, plant:'P100', matCode:'F2S11240-05201020A', desc:'SC Manila 240GSM 0520*1020 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:64.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0520', paperLength:'1020', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:98, plant:'P100', matCode:'H3S11450-05850000', desc:'SC Manila 450GSM 0585*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'450', paperWidth:'0585', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:99, plant:'P100', matCode:'F3I11400-07900615A', desc:'IVory 400GSM 0790*0615 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'0790', paperLength:'0615', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:100, plant:'P100', matCode:'F3I11350-06700545A', desc:'IVory 350GSM 0670*0545 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'350', paperWidth:'0670', paperLength:'0545', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:101, plant:'P100', matCode:'H2K11240-05450000', desc:'Kraft(무,단) 240GSM 0545*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'K11', paperTypeName:'Kraft(무,단)', basisWeight:'240', paperWidth:'0545', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:102, plant:'P100', matCode:'H3I11300-10910000', desc:'IVory 300GSM 1091*0000 Roll (3)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'300', paperWidth:'1091', paperLength:'0000', packCode:'0', machineNo:'3', prodType:'Roll' },
+  { matId:103, plant:'P100', matCode:'F3I11300-04850780A', desc:'IVory 300GSM 0485*0780 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:57.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'300', paperWidth:'0485', paperLength:'0780', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:104, plant:'P100', matCode:'F3I11400-10910788A', desc:'IVory 400GSM 1091*0788 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:172.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'400', paperWidth:'1091', paperLength:'0788', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:105, plant:'P100', matCode:'F3SN1280-06500810B', desc:'SC 라면외지 280GSM 0650*0810 Bulk (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:74.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'SN1', paperTypeName:'SC 라면외지', basisWeight:'280', paperWidth:'0650', paperLength:'0810', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:106, plant:'P100', matCode:'F3I11350-07881091A', desc:'IVory 350GSM 0788*1091 Ream (3)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:151.0, convR:1.0, convTon:null, convSok:5.0, convEa:500.0, paperTypeCode:'I11', paperTypeName:'Ivory', basisWeight:'350', paperWidth:'0788', paperLength:'1091', packCode:'A', machineNo:'3', prodType:'Ream' },
+  { matId:107, plant:'P100', matCode:'F2A11220-06001105B', desc:'ACB 220GSM 0600*1105 Bulk (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:73.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'A11', paperTypeName:'ACB', basisWeight:'220', paperWidth:'0600', paperLength:'1105', packCode:'B', machineNo:'2', prodType:'Bulk' },
+  { matId:108, plant:'P100', matCode:'F3S11350-09000630B', desc:'SC Manila 350 GSM 0900 * 0630 Bulk ( 3 )', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'350', paperWidth:'0900', paperLength:'0630', packCode:'B', machineNo:'3', prodType:'Bulk' },
+  { matId:109, plant:'P100', matCode:'F2KS1400-06850585A', desc:'S-Kraft (FSC) 400GSM 0685*0585 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'KS1', paperTypeName:'Kraft(유)', basisWeight:'400', paperWidth:'0685', paperLength:'0585', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:110, plant:'P100', matCode:'H2S11240-08890000', desc:'SC Manila 240GSM 0889*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0889', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:111, plant:'P100', matCode:'H2S11240-08400000', desc:'SC Manila 240GSM 0840*0000 Roll (2)', baseUnit:'KG', itemGroup:'HALB', itemType:'H', itemTypeName:'반제품', convKg:1.0, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0840', paperLength:'0000', packCode:'0', machineNo:'2', prodType:'Roll' },
+  { matId:112, plant:'P100', matCode:'S0RP1270-08891194A', desc:'RIV(상) F1 270GSM 0889*1194 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'270', paperWidth:'0889', paperLength:'1194', packCode:'A', machineNo:'0', prodType:'Ream' },
+  { matId:113, plant:'P100', matCode:'F2S11240-09450950A', desc:'SC Manila 240GSM 0945*0950 Ream (2)', baseUnit:'R', itemGroup:'FERT', itemType:'F', itemTypeName:'제품', convKg:108.0, convR:1.0, convTon:null, convSok:4.0, convEa:500.0, paperTypeCode:'S11', paperTypeName:'SC Manila', basisWeight:'240', paperWidth:'0945', paperLength:'0950', packCode:'A', machineNo:'2', prodType:'Ream' },
+  { matId:114, plant:'P100', matCode:'S0RP1295-07871092A', desc:'RIV(상) F1 295GSM 0787*1092 Ream', baseUnit:'R', itemGroup:'HAWA', itemType:'S', itemTypeName:'상품', convKg:null, convR:null, convTon:null, convSok:null, convEa:null, paperTypeCode:'RP1', paperTypeName:'RIV(상)F1', basisWeight:'295', paperWidth:'0787', paperLength:'1092', packCode:'A', machineNo:'0', prodType:'Ream' }
 ]
 
 const EXCEL_SALES_ORDERS_DATA = [
@@ -2083,6 +2208,26 @@ function generateSimCode(): string {
 // ============================================================
 app.get('/klean-aps-api/machines', (c) => c.json({ success:true, data:machines }))
 
+// 자재마스터 목록 조회 (필터: matCode, paperTypeCode, machineNo, packCode, prodType)
+app.get('/klean-aps-api/mat-master', (c) => {
+  const q         = c.req.query('q')          || ''
+  const typeCode  = c.req.query('typeCode')   || ''
+  const machineNo = c.req.query('machineNo')  || ''
+  const packCode  = c.req.query('packCode')   || ''
+  const prodType  = c.req.query('prodType')   || ''
+  const plant     = c.req.query('plant')      || ''
+
+  let data = MAT_MASTER_DATA as any[]
+  if (q)         data = data.filter(m => m.matCode.includes(q) || m.desc.toLowerCase().includes(q.toLowerCase()))
+  if (typeCode)  data = data.filter(m => m.paperTypeCode === typeCode)
+  if (machineNo) data = data.filter(m => m.machineNo === machineNo)
+  if (packCode)  data = data.filter(m => m.packCode === packCode)
+  if (prodType)  data = data.filter(m => m.prodType === prodType)
+  if (plant)     data = data.filter(m => m.plant === plant)
+
+  return c.json({ success:true, total: MAT_MASTER_DATA.length, count: data.length, data })
+})
+
 // 점보롤 오더 목록
 app.get('/klean-aps-api/jumbo-orders', (c) => c.json({ success:true, data:jumboOrders }))
 
@@ -2331,6 +2476,9 @@ app.post('/klean-aps-api/sales-orders/save', async (c) => {
     if (!rec.packCode && rec.matCode) {
       rec.packCode = parsePackCodeFromMatCode(rec.matCode)
     }
+    if (!rec.paperTypeCode && rec.matCode) {
+      rec.paperTypeCode = parsePaperTypeCodeFromMatCode(rec.matCode)
+    }
     const already = savedOrders.find(s => s.orderId === rec.orderId)
     if (already) {
       Object.assign(already, rec)
@@ -2395,6 +2543,9 @@ app.post('/klean-aps-api/sales-orders/rfc-sync', async (c) => {
     }
     if (!rec.packCode && rec.matCode) {
       rec.packCode = parsePackCodeFromMatCode(rec.matCode)
+    }
+    if (!rec.paperTypeCode && rec.matCode) {
+      rec.paperTypeCode = parsePaperTypeCodeFromMatCode(rec.matCode)
     }
     salesOrders.push(rec)
   }
@@ -3718,6 +3869,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     <div class="nav-item" id="nav-rfc-log"      onclick="goPage('rfc-log')">     <i class="fas fa-exchange-alt"></i>RFC 통신결과</div>
     <div class="nav-item" id="nav-constraint"   onclick="goPage('constraint')">  <i class="fas fa-sliders-h"></i>제약조건 설정</div>
     <div class="nav-item" id="nav-machine"      onclick="goPage('machine')">     <i class="fas fa-cog"></i>기계 마스터</div>
+    <div class="nav-item" id="nav-mat-master"   onclick="goPage('mat-master')">  <i class="fas fa-boxes"></i>자재 마스터</div>
   </nav>
 
   <div class="sidebar-footer">
@@ -5508,6 +5660,73 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
   </div>
 </div><!-- /page-jumbo-list -->
 
+<!-- ══════════════ 자재 마스터 페이지 ══════════════ -->
+<div id="page-mat-master" style="display:none;height:100%;flex-direction:column;">
+  <div style="padding:16px 20px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <h2 style="font-size:16px;font-weight:700;margin:0;color:var(--text);">
+      <i class="fas fa-boxes" style="color:#6366f1;margin-right:6px;"></i>자재 마스터
+    </h2>
+    <span id="mat-total-badge" style="background:#e0e7ff;color:#4338ca;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">114건</span>
+    <div style="flex:1;"></div>
+    <!-- 검색 필터 -->
+    <input id="mat-q"         type="text"   placeholder="자재코드 / 자재내역 검색"
+           style="border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;width:220px;background:var(--bg-input);color:var(--text);"
+           oninput="loadMatMaster()">
+    <select id="mat-machineNo" onchange="loadMatMaster()"
+            style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;background:var(--bg-input);color:var(--text);">
+      <option value="">호기 전체</option>
+      <option value="2">2호기</option>
+      <option value="3">3호기</option>
+    </select>
+    <select id="mat-prodType" onchange="loadMatMaster()"
+            style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;background:var(--bg-input);color:var(--text);">
+      <option value="">제품유형 전체</option>
+      <option value="Roll">Roll (롤)</option>
+      <option value="Ream">Ream (연)</option>
+      <option value="Bulk">Bulk</option>
+    </select>
+    <select id="mat-packCode" onchange="loadMatMaster()"
+            style="border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;background:var(--bg-input);color:var(--text);">
+      <option value="">포장 전체</option>
+      <option value="A">A (연포장)</option>
+      <option value="B">B (벌크)</option>
+      <option value="0">0 (롤/무포장)</option>
+    </select>
+    <button onclick="loadMatMaster(true)"
+            style="background:#6366f1;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;">
+      <i class="fas fa-sync-alt"></i> 새로고침
+    </button>
+  </div>
+  <div style="flex:1;overflow:auto;padding:12px 16px;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:var(--bg-sidebar);position:sticky;top:0;z-index:1;">
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border);width:40px;">No</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);">자재코드</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);">자재내역</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border);">플랜트</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border);">호기</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border);">지종</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border);">평량</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border);">폭(mm)</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border);">장(mm)</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border);">포장</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border);">제품유형</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border);">기본단위</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border);">환산(KG)</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border);">환산(R)</th>
+        </tr>
+      </thead>
+      <tbody id="mat-tbody">
+        <tr><td colspan="14" style="text-align:center;padding:40px;color:#9ca3af;">로딩 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="mat-footer" style="padding:8px 16px;border-top:1px solid var(--border);font-size:12px;color:#6b7280;background:var(--bg-sidebar);">
+    조회 결과: <strong id="mat-count-txt">0</strong>건 / 전체 <strong>114</strong>건
+  </div>
+</div><!-- /page-mat-master -->
+
   </div><!-- /page-content-wrap -->
 </div><!-- /main-area -->
 </div><!-- /flex -->
@@ -5551,6 +5770,7 @@ const PAGE_NAMES = {
   'constraint'  : '제약조건 설정',
   'machine'     : '기계 마스터',
   'jumbo-list'  : '점보롤 생산오더',
+  'mat-master'  : '자재 마스터',
 }
 
 /* ══════════════════════════════════════
@@ -6015,7 +6235,7 @@ function toggleTheme() {
 /* ══════════════════════════════════════
    페이지 전환
 ══════════════════════════════════════ */
-const PAGES = ['dashboard','order-import','order-list','prod-list','prod-cancel','simulation','sim-history','rfc-log','constraint','machine','jumbo-list']
+const PAGES = ['dashboard','order-import','order-list','prod-list','prod-cancel','simulation','sim-history','rfc-log','constraint','machine','jumbo-list','mat-master']
 
 function goPage(p) {
   PAGES.forEach(id => {
@@ -6038,6 +6258,7 @@ function goPage(p) {
   if (p === 'machine')     loadMachine()
   if (p === 'jumbo-list')  loadJumboList()
   if (p === 'rfc-log')     loadRfcLog()
+  if (p === 'mat-master')  loadMatMaster()
   // AI 패널: 시뮬레이션 페이지에서만 표시
   syncAiPanel(p)
 }
@@ -6897,6 +7118,88 @@ async function cancelJumboOrder(id) {
 /* ══════════════════════════════════════
    기계 마스터
 ══════════════════════════════════════ */
+
+/* ══════════════════════════════════════
+   자재 마스터
+══════════════════════════════════════ */
+async function loadMatMaster(reset) {
+  if (reset) {
+    var qEl = document.getElementById('mat-q')
+    var mEl = document.getElementById('mat-machineNo')
+    var pEl = document.getElementById('mat-prodType')
+    var ckEl = document.getElementById('mat-packCode')
+    if (qEl)  qEl.value  = ''
+    if (mEl)  mEl.value  = ''
+    if (pEl)  pEl.value  = ''
+    if (ckEl) ckEl.value = ''
+  }
+  var q         = (document.getElementById('mat-q')         || {value:''}).value.trim()
+  var machineNo = (document.getElementById('mat-machineNo') || {value:''}).value
+  var prodType  = (document.getElementById('mat-prodType')  || {value:''}).value
+  var packCode  = (document.getElementById('mat-packCode')  || {value:''}).value
+
+  var params = new URLSearchParams()
+  if (q)         params.set('q', q)
+  if (machineNo) params.set('machineNo', machineNo)
+  if (prodType)  params.set('prodType', prodType)
+  if (packCode)  params.set('packCode', packCode)
+
+  var tbody    = document.getElementById('mat-tbody')
+  var countTxt = document.getElementById('mat-count-txt')
+  var badge    = document.getElementById('mat-total-badge')
+  if (tbody) tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:30px;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> 로딩 중...</td></tr>'
+
+  try {
+    var res  = await fetch('/klean-aps-api/mat-master?' + params.toString())
+    var json = await res.json()
+    if (!json.success) throw new Error('API 오류')
+    var rows = json.data || []
+    if (badge) badge.textContent = json.total + '건'
+    if (countTxt) countTxt.textContent = rows.length
+
+    var prodTypeBadge = function(pt) {
+      var colors = { Roll:'#dbeafe:#1d4ed8', Ream:'#dcfce7:#166534', Bulk:'#fef9c3:#854d0e', Sheet:'#f3e8ff:#7e22ce' }
+      var c = (colors[pt] || '#f3f4f6:#374151').split(':')
+      return '<span style="background:'+c[0]+';color:'+c[1]+';padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;">'+pt+'</span>'
+    }
+    var packBadge = function(pc) {
+      if (pc === 'A') return '<span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;">A</span>'
+      if (pc === 'B') return '<span style="background:#fef9c3;color:#854d0e;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;">B</span>'
+      return '<span style="background:#f3f4f6;color:#6b7280;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;">0</span>'
+    }
+
+    if (!rows.length) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:40px;color:#9ca3af;">검색 결과가 없습니다.</td></tr>'
+      return
+    }
+
+    var html = ''
+    for (var i = 0; i < rows.length; i++) {
+      var m  = rows[i]
+      var bg = i % 2 === 0 ? '' : 'background:var(--bg-sidebar);'
+      html += '<tr style="'+bg+'">' +
+        '<td style="padding:6px 10px;text-align:center;color:#9ca3af;">'+(i+1)+'</td>' +
+        '<td style="padding:6px 10px;font-family:monospace;font-size:12px;color:#4338ca;">'+m.matCode+'</td>' +
+        '<td style="padding:6px 10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+m.desc+'">'+m.desc+'</td>' +
+        '<td style="padding:6px 10px;text-align:center;">'+m.plant+'</td>' +
+        '<td style="padding:6px 10px;text-align:center;font-weight:600;">'+m.machineNo+'호기</td>' +
+        '<td style="padding:6px 10px;text-align:center;font-size:12px;">'+m.paperTypeName+'</td>' +
+        '<td style="padding:6px 10px;text-align:right;font-weight:600;">'+m.basisWeight+'</td>' +
+        '<td style="padding:6px 10px;text-align:right;">'+m.paperWidth+'</td>' +
+        '<td style="padding:6px 10px;text-align:right;">'+m.paperLength+'</td>' +
+        '<td style="padding:6px 10px;text-align:center;">'+packBadge(m.packCode)+'</td>' +
+        '<td style="padding:6px 10px;text-align:center;">'+prodTypeBadge(m.prodType)+'</td>' +
+        '<td style="padding:6px 10px;text-align:center;">'+m.baseUnit+'</td>' +
+        '<td style="padding:6px 10px;text-align:right;color:#6b7280;">'+(m.convKg != null ? m.convKg : '-')+'</td>' +
+        '<td style="padding:6px 10px;text-align:right;color:#6b7280;">'+(m.convR  != null ? m.convR  : '-')+'</td>' +
+      '</tr>'
+    }
+    if (tbody) tbody.innerHTML = html
+  } catch(e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:30px;color:#ef4444;">오류: '+e.message+'</td></tr>'
+  }
+}
+
 async function loadMachine() {
   try {
     const res = await fetch('/klean-aps-api/machines')
@@ -7719,10 +8022,17 @@ function runCombinationAlgorithm(orders) {
     return Math.max(0, 50 - daysLeft)
   }
 
-  // ── [호기 + 평량] 그룹화 ──────────────────────────────────────
+  // ── [호기 + 지종 + 평량] 그룹화 ─────────────────────────────
+  // 동일 호기 + 동일 지종코드 + 동일 평량인 오더만 같은 조합으로 편성
+  function getPaperTypeCode(o) {
+    if (o.paperTypeCode) return o.paperTypeCode
+    if (o.matCode && o.matCode.length >= 5) return o.matCode.substring(2, 5)
+    return ''
+  }
   const grouped = {}
   orders.forEach(o => {
-    const key = (o.machineNo || '') + '_' + o.basisWeight
+    const ptCode = getPaperTypeCode(o)
+    const key = (o.machineNo || '') + '_' + ptCode + '_' + o.basisWeight
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
@@ -7732,7 +8042,11 @@ function runCombinationAlgorithm(orders) {
   var pendingBelowMin = {}  // FFD 1차 패스에서 minW 미달 버킷 격리 { key → { orders, maxW, minW, maxPok, fourPokMin } }
 
   Object.entries(grouped).forEach(([key, grpOrders]) => {
-    const [machineNo, bwStr] = key.split('_')
+    // key = "machineNo_paperTypeCode_basisWeight"
+    const keyParts  = key.split('_')
+    const machineNo = keyParts[0]
+    const ptCode    = keyParts[1]   // 지종코드 (3자리, e.g. 'S11','I11','K11')
+    const bwStr     = keyParts[2]
     const bw = Number(bwStr)
 
     // 호기별 제약값
@@ -7822,7 +8136,7 @@ function runCombinationAlgorithm(orders) {
 
       if (minW > 0 && cannotGrow && totalW < minW) {
         // pendingBelowMin에 오더들 추가 (재조합 패스로 위임)
-        const pKey = machineNo + '_' + bw
+        const pKey = machineNo + '_' + ptCode + '_' + bw
         if (!pendingBelowMin[pKey]) {
           pendingBelowMin[pKey] = { orders: [], maxW, minW, maxPok, fourPokMin }
         }
@@ -7838,22 +8152,23 @@ function runCombinationAlgorithm(orders) {
       const minDaysLeft = daysArr.length ? Math.min(...daysArr) : null
 
       combos.push({
-        comboId     : comboIdx++,
+        comboId       : comboIdx++,
         machineNo,
-        basisWeight : bw,
-        orders      : [...bkt.orders],
-        widthSum    : totalW,
-        maxWidth    : maxW,
-        minWidth    : minW,
+        paperTypeCode : ptCode,
+        basisWeight   : bw,
+        orders        : [...bkt.orders],
+        widthSum      : totalW,
+        maxWidth      : maxW,
+        minWidth      : minW,
         loss,
-        lossRate    : lossRate.toFixed(1),
-        totalTon    : totalTon.toFixed(3),
-        pokCount    : bkt.orders.length,
-        urgency     : maxUrgency,
+        lossRate      : lossRate.toFixed(1),
+        totalTon      : totalTon.toFixed(3),
+        pokCount      : bkt.orders.length,
+        urgency       : maxUrgency,
         minDaysLeft,
         isSingleNarrow,
         belowMinWidth,
-        algoTag     : 'FFD+DUE'
+        algoTag       : 'FFD+DUE'
       })
     })
   })
@@ -7873,20 +8188,20 @@ function runCombinationAlgorithm(orders) {
 
     var mimi2 = c.mimi
 
-    // ② poorCombo 오더 전부 수집 → [machineNo+basisWeight] 키별 풀로 분류
+    // ② poorCombo 오더 전부 수집 → [machineNo+지종+basisWeight] 키별 풀로 분류
     // 동시에 goodCombo에 편입 가능한지 먼저 시도
-    var repackPool = {}  // key → { orders:[], maxW, minW, maxPok, fourPokMin }
+    var repackPool = {}  // key → { orders:[], maxW, minW, maxPok, fourPokMin, ptCode }
 
     poorIdx.forEach(function(pi) {
       var pc = combos[pi]
-      var key     = pc.machineNo + '_' + pc.basisWeight
+      var key     = pc.machineNo + '_' + (pc.paperTypeCode || '') + '_' + pc.basisWeight
       var maxW2   = pc.maxWidth
       var minW2   = pc.minWidth || 0
       var maxPok2 = pc.machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
       var fp2     = pc.machineNo === '2' ? (c.m2FourPokMin || 0) : 0
 
       if (!repackPool[key]) {
-        repackPool[key] = { orders: [], maxW: maxW2, minW: minW2, maxPok: maxPok2, fourPokMin: fp2 }
+        repackPool[key] = { orders: [], maxW: maxW2, minW: minW2, maxPok: maxPok2, fourPokMin: fp2, ptCode: pc.paperTypeCode || '' }
       }
 
       pc.orders.forEach(function(order) {
@@ -7895,6 +8210,7 @@ function runCombinationAlgorithm(orders) {
         goodIdx.forEach(function(gi) {
           var gc = combos[gi]
           if (gc.machineNo !== pc.machineNo) return
+          if ((gc.paperTypeCode || '') !== (pc.paperTypeCode || '')) return  // ← 지종코드 일치 필수
           if (gc.basisWeight !== pc.basisWeight) return
           if (gc.pokCount >= maxPok2) return
           var newTotalW = gc.widthSum + mimi2 + order.paperWidth
@@ -7950,8 +8266,10 @@ function runCombinationAlgorithm(orders) {
       var minW2   = pool.minW
       var maxPok2 = pool.maxPok
       var fp2     = pool.fourPokMin
-      var machNo  = key.split('_')[0]
-      var bw2     = Number(key.split('_')[1])
+      var keyParts2 = key.split('_')
+      var machNo    = keyParts2[0]
+      var ptCode2   = keyParts2[1]  // 지종코드
+      var bw2       = Number(keyParts2[2])
 
       // 지폭 큰 순 정렬 (BFD)
       orders2.sort(function(a, b) { return b.paperWidth - a.paperWidth })
@@ -7999,6 +8317,7 @@ function runCombinationAlgorithm(orders) {
         newCombos.push({
           comboId       : 0,
           machineNo     : machNo,
+          paperTypeCode : ptCode2,
           basisWeight   : bw2,
           orders        : bkt.orders.slice(),
           widthSum      : totalW3,
@@ -8215,6 +8534,18 @@ function simToggleAll(checked) {
   document.querySelectorAll('.sim-chk').forEach(c => c.checked = checked)
 }
 
+// 지종코드 → 지종명 매핑 (클라이언트 공용)
+var PAPER_TYPE_NAMES = {
+  'S11':'SC Manila', 'I11':'Ivory', 'K11':'Kraft(무,단)', 'KS1':'Kraft(유)',
+  'ST1':'FT PACK', 'SM1':'KSC(FSC)', 'SN1':'SC 라면외지', 'SR1':'GS Manila',
+  'RP1':'RIV(상)F1', 'A11':'ACB', 'AL1':'ACB-L', 'S71':'Simili', 'IR1':'Ivory-R'
+}
+function paperTypeBadge(ptCode) {
+  if (!ptCode) return ''
+  var name = PAPER_TYPE_NAMES[ptCode] || ptCode
+  return '<span style="background:#1e1b4b;color:#c4b5fd;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">'+name+'</span>'
+}
+
 function renderSimResult(combos) {
   const totalTon  = combos.reduce((s,c) => s + Number(c.totalTon), 0)
   const totalOrds = combos.reduce((s,c) => s + c.orders.length, 0)
@@ -8302,6 +8633,7 @@ function renderSimResult(combos) {
         narrowWarn+
         minWidthWarn+
         '<span class="machine-badge" style="font-size:13px;padding:3px 12px;">'+combo.machineNo+'호기</span>'+
+        paperTypeBadge(combo.paperTypeCode)+
         '<span style="font-size:12px;color:var(--text-muted);">평량 <b style="color:var(--text-main);">'+combo.basisWeight+'g/m²</b></span>'+
         '<span style="font-size:12px;color:var(--text-muted);"><b style="color:var(--text-main);">'+combo.pokCount+'</b>폭</span>'+
         '<div style="margin-left:auto;display:flex;gap:10px;align-items:center;">'+
