@@ -2912,6 +2912,101 @@ app.post('/klean-aps-api/ai-chat', async (c) => {
 })
 
 // ============================================================
+// AI 재조합 파싱 API — 프롬프트 → 필터/제약 JSON 추출
+// ============================================================
+app.post('/klean-aps-api/ai-recombine-parse', async (c) => {
+  const body      = await c.req.json()
+  const userPrompt = body.prompt  || ''
+  const simCtx     = body.simContext || null
+
+  const API_KEY  = (c.env as any)?.GSK_TOKEN || ''
+  const BASE_URL = 'https://www.genspark.ai/api/llm_proxy/v1'
+  if (!API_KEY) return c.json({ ok: false, message: 'API 키 없음' }, 500)
+
+  const _S2: any = String
+  const NL3: string = _S2.fromCharCode(10)
+
+  // 컨텍스트 요약 (간결)
+  let ctxSummary = ''
+  if (simCtx) {
+    ctxSummary = NL3 + '=== 현재 시뮬레이션 ===' + NL3 +
+      '총 ' + simCtx.totalCombos + '개 조합 / ' + simCtx.totalOrders + '건 / ' +
+      simCtx.totalTon + 'TON / 평균 Loss ' + simCtx.avgLoss + '%' + NL3 +
+      '미배치 오더 수: ' + (simCtx.unassignedCount || 0) + '건'
+  }
+
+  const sysLines = [
+    '당신은 제지 생산 계획 시스템의 AI입니다.',
+    '사용자의 재조합 요청을 분석하여 반드시 아래 JSON 형식만 출력하세요. 설명 없이 JSON만 출력.',
+    '',
+    '출력 형식 (주석 제거된 순수 JSON):',
+    '{',
+    '  "recombine": true,',
+    '  "description": "한 줄 요약",',
+    '  "filters": {',
+    '    "machineNo": "2" or "3" or null,',
+    '    "maxDaysLeft": 숫자 or null,',
+    '    "minDaysLeft": 숫자 or null,',
+    '    "basisWeight": 숫자 or null,',
+    '    "paperTypeCode": "S11" or null,',
+    '    "includeUnassigned": true or false,',
+    '    "onlyUnassigned": false',
+    '  },',
+    '  "overrideConstraints": {',
+    '    "m2Max": null,',
+    '    "m2Min": null,',
+    '    "m3Max": null,',
+    '    "m3Min": null,',
+    '    "maxPok": null,',
+    '    "mimi": null',
+    '  },',
+    '  "sortBy": "urgency" or "loss" or "width"',
+    '}',
+    '',
+    '규칙:',
+    '- null 값은 현재 기본값 유지를 의미',
+    '- machineNo는 "2" 또는 "3" (문자열)',
+    '- maxDaysLeft: N일 이하 납기 (D-N 이내), 예: 3 → 납기 3일 이하만',
+    '- includeUnassigned: 미배치 오더도 함께 재조합할지 (기본 false)',
+    '- onlyUnassigned: 미배치 오더만 재조합할지',
+    ctxSummary
+  ]
+
+  const upstream2 = await fetch(BASE_URL + '/chat/completions', {
+    method : 'POST',
+    headers: { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model      : 'claude-sonnet-4-6',
+      stream     : false,
+      max_tokens : 800,
+      messages   : [
+        { role: 'system', content: sysLines.join(NL3) },
+        { role: 'user',   content: userPrompt }
+      ]
+    })
+  })
+
+  if (!upstream2.ok) {
+    const err2 = await upstream2.text()
+    return c.json({ ok: false, message: 'AI 오류: ' + err2 }, 502)
+  }
+
+  const j2: any = await upstream2.json()
+  const rawText = (j2.choices && j2.choices[0] && j2.choices[0].message && j2.choices[0].message.content) || ''
+
+  // JSON 블록 추출
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return c.json({ ok: false, message: '파싱 실패: ' + rawText }, 422)
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0])
+    return c.json({ ok: true, data: parsed })
+  } catch (pe) {
+    return c.json({ ok: false, message: 'JSON 파싱 오류', raw: rawText }, 422)
+  }
+})
+
+// ============================================================
 // UI
 // ============================================================
 // 빌드 시 고정되는 버전 태그 (캐시 버스팅용)
@@ -3831,6 +3926,9 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 .ai-typing-cursor { display:inline-block; width:2px; height:14px; background:#a78bfa; margin-left:2px; animation:blink .7s step-end infinite; vertical-align:text-bottom; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 @keyframes fadeInUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+/* 재조합 바 */
+#ai-recombine-bar { transition:opacity .25s; }
+#ai-recombine-bar[style*="flex"] { animation: fadeInUp .25s ease; }
 </style>
 </head>
 <body>
@@ -5440,11 +5538,46 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       <button class="ai-quick-btn" onclick="sendAiQuick('2호기와 3호기의 부하 분산이 적절한지 분석하고 개선안을 제시해주세요.')">
         <i class="fas fa-balance-scale"></i> 호기 부하분산
       </button>
+      <!-- 재조합 전용 빠른버튼 -->
+      <div style="width:100%;height:1px;background:var(--border);margin:4px 0 2px;"></div>
+      <span style="font-size:10px;font-weight:700;color:#34d399;letter-spacing:.4px;align-self:center;"><i class="fas fa-sync-alt" style="margin-right:3px;"></i>재조합</span>
+      <button class="ai-quick-btn" style="border-color:#34d39944;color:#34d399;" onclick="sendAiRecombineQuick('납기 D-3 이하 오더만 우선 재조합해줘')">
+        <i class="fas fa-fire"></i> 긴급 D-3 재조합
+      </button>
+      <button class="ai-quick-btn" style="border-color:#34d39944;color:#34d399;" onclick="sendAiRecombineQuick('2호기 오더만 다시 재조합해줘')">
+        <i class="fas fa-industry"></i> 2호기만 재조합
+      </button>
+      <button class="ai-quick-btn" style="border-color:#34d39944;color:#34d399;" onclick="sendAiRecombineQuick('3호기 오더만 다시 재조합해줘')">
+        <i class="fas fa-industry"></i> 3호기만 재조합
+      </button>
+      <button class="ai-quick-btn" style="border-color:#fb923c44;color:#fb923c;" onclick="sendAiRecombineQuick('미배치 오더들을 포함해서 전체 다시 재조합해줘')">
+        <i class="fas fa-exclamation-circle"></i> 미배치 포함 재조합
+      </button>
+      <button class="ai-quick-btn" style="border-color:#fb923c44;color:#fb923c;" onclick="sendAiRecombineQuick('미배치 오더들만 따로 재조합해줘')">
+        <i class="fas fa-exclamation-triangle"></i> 미배치만 재조합
+      </button>
+    </div>
+
+    <!-- ── AI 재조합 적용 바 (AI가 재조합 파라미터 파싱 완료 시 표시) ── -->
+    <div id="ai-recombine-bar" style="display:none;margin:6px 0 4px;padding:10px 14px;border-radius:8px;border:1px solid #34d39966;background:linear-gradient(90deg,#052e1699,#0f2d1a99);gap:10px;align-items:center;flex-wrap:wrap;">
+      <i class="fas fa-sync-alt" style="color:#34d399;font-size:13px;flex-shrink:0;"></i>
+      <div style="flex:1;min-width:0;">
+        <div id="ai-recombine-desc" style="font-size:12px;font-weight:700;color:#34d399;">재조합 준비 완료</div>
+        <div id="ai-recombine-detail" style="font-size:11px;color:#86efac;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      </div>
+      <button id="ai-recombine-apply-btn" onclick="applyAiRecombine()"
+        style="padding:6px 16px;border-radius:6px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+        <i class="fas fa-play"></i> 재조합 적용
+      </button>
+      <button onclick="hideAiRecombineBar()"
+        style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;flex-shrink:0;">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
 
     <!-- 입력창 -->
     <div style="display:flex;gap:8px;align-items:flex-end;">
-      <textarea id="ai-input" placeholder="제지 생산 계획에 대해 자유롭게 질문하세요... (Shift+Enter: 줄바꿈 / Enter: 전송)"
+      <textarea id="ai-input" placeholder="재조합 조건을 자유롭게 입력하세요 (예: 납기 D-3 이하만, 2호기만, 미배치 포함 등) — Shift+Enter: 줄바꿈 / Enter: 전송"
         style="flex:1;resize:none;height:44px;max-height:160px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:13px;font-family:inherit;line-height:1.5;outline:none;overflow-y:hidden;"
         onkeydown="aiInputKeydown(event)" oninput="aiInputResize(this)"></textarea>
       <button id="ai-send-btn" onclick="sendAiMessage()" style="height:44px;padding:0 20px;border-radius:8px;border:none;background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity .2s;">
@@ -7622,12 +7755,13 @@ function buildSimContext() {
     }
   })
   return {
-    totalCombos   : simCombos.length,
+    totalCombos    : simCombos.length,
     totalOrders,
     totalTon,
     avgLoss,
-    excludedCount : simExcluded.length,
-    combos        : lightCombos
+    excludedCount  : simExcluded.length,
+    unassignedCount: simUnassigned ? simUnassigned.length : 0,
+    combos         : lightCombos
   }
 }
 
@@ -7747,7 +7881,19 @@ function markdownToHtml(text) {
   return out.join('<br>')
 }
 
-async function sendAiMessage() {
+// 재조합 의도 키워드 판별
+function isRecombineIntent(text) {
+  var kw = ['재조합','다시 조합','조합 다시','다시조합','재생성','다시 생성','재실행',
+            '다시 해줘','다시해줘','다시 실행','호기만','만 재','만 다시',
+            '미배치','미 배치','조건 변경','조건 바꿔','조건을 바꿔']
+  var t = text.toLowerCase()
+  for (var i = 0; i < kw.length; i++) {
+    if (t.indexOf(kw[i]) !== -1) return true
+  }
+  return false
+}
+
+async function sendAiMessage(forceRecombine) {
   if (aiStreaming) return
   const input = document.getElementById('ai-input')
   const text  = (input ? input.value : '').trim()
@@ -7755,11 +7901,13 @@ async function sendAiMessage() {
 
   if (input) { input.value = ''; aiInputResize(input) }
 
+  // 재조합 의도 감지 — 시뮬레이션이 생성된 상태에서만 동작
+  var doRecombine = (forceRecombine === true || isRecombineIntent(text)) && simState === 'generated'
+
   // 사용자 메시지 추가
   aiChatHistory.push({ role:'user', content: text })
   appendAiMsg('user', text, false)
 
-  // AI 응답 스트리밍 시작
   aiStreaming = true
   setAiStatus('thinking')
   const assistantMsgId = appendAiMsg('ai', '', true)
@@ -7767,8 +7915,9 @@ async function sendAiMessage() {
 
   try {
     setAiStatus('streaming')
-    console.log('[AI] fetch 시작:', API+'/klean-aps-api/ai-chat')
-    const r = await fetch(API+'/klean-aps-api/ai-chat', {
+
+    // ── 재조합 의도 감지 시: 파싱 API + 대화 API 병렬 호출 ────
+    var chatFetch = fetch(API+'/klean-aps-api/ai-chat', {
       method : 'POST',
       headers: { 'Content-Type':'application/json' },
       body   : JSON.stringify({
@@ -7777,33 +7926,53 @@ async function sendAiMessage() {
       })
     })
 
-    console.log('[AI] fetch 완료, status:', r.status, 'ok:', r.ok)
+    var parseFetch = null
+    if (doRecombine) {
+      var ctx4parse = buildSimContext()
+      if (ctx4parse) ctx4parse.unassignedCount = simUnassigned ? simUnassigned.length : 0
+      parseFetch = fetch(API+'/klean-aps-api/ai-recombine-parse', {
+        method : 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body   : JSON.stringify({ prompt: text, simContext: ctx4parse })
+      })
+    }
 
+    // ── 대화 응답 처리 ────────────────────────────────────────
+    const r = await chatFetch
     if (!r.ok) {
       let errMsg = 'HTTP ' + r.status
       try { const e = await r.json(); errMsg = e.message || errMsg } catch(_) {}
       throw new Error(errMsg)
     }
-
-    // ── JSON 응답에서 content 추출 ────────────────────────────
     var resp = await r.json()
-    console.log('[AI] resp.ok:', resp && resp.ok, '/ content 길이:', resp && resp.content ? resp.content.length : 0)
     fullContent = (resp && resp.content) ? resp.content : ''
-
-    if (!fullContent) throw new Error('\uc751\ub2f5\uc774 \ube44\uc5b4 \uc788\uc2b5\ub2c8\ub2e4.')
-    console.log('[AI] updateAiBubble 호출')
+    if (!fullContent) throw new Error('응답이 비어 있습니다.')
     updateAiBubble(assistantMsgId, fullContent, true)
     aiChatHistory.push({ role:'assistant', content: fullContent })
+
+    // ── 재조합 파싱 결과 처리 (병렬) ─────────────────────────
+    if (parseFetch) {
+      try {
+        var pr = await parseFetch
+        if (pr.ok) {
+          var pj = await pr.json()
+          if (pj.ok && pj.data && pj.data.recombine) {
+            showAiRecombineBar(pj.data)
+          }
+        }
+      } catch(pe) {
+        console.warn('[AI Recombine Parse] 파싱 실패 (무시):', pe)
+      }
+    }
 
   } catch(e) {
     const errTxt = (e && e.message) ? e.message : String(e)
     console.error('[AI] 오류 발생:', errTxt)
-    updateAiBubble(assistantMsgId, '\u26a0 \uc624\ub958: ' + errTxt, true)
+    updateAiBubble(assistantMsgId, '⚠ 오류: ' + errTxt, true)
     aiChatHistory.pop()
   } finally {
     aiStreaming = false
     setAiStatus('idle')
-    console.log('[AI] 완료, aiStreaming:', aiStreaming)
   }
 }
 
@@ -7814,7 +7983,7 @@ function sendAiQuick(text) {
   }
   const input = document.getElementById('ai-input')
   if (input) input.value = text
-  sendAiMessage()
+  sendAiMessage(false)
 }
 
 /* ── AI 패널 펼치기 / 접기 ── */
@@ -7862,8 +8031,184 @@ function clearAiChat() {
     hist.innerHTML = ''
     if (empty) { empty.style.display=''; hist.appendChild(empty) }
   }
+  hideAiRecombineBar()
   setAiStatus('idle')
   toast('대화가 초기화되었습니다.','info')
+}
+
+/* ══════════════════════════════════════════
+   AI 재조합 — 파라미터 파싱 + 실행
+══════════════════════════════════════════ */
+var _aiRecombineParams = null   // 마지막으로 파싱된 재조합 파라미터
+
+function hideAiRecombineBar() {
+  var bar = document.getElementById('ai-recombine-bar')
+  if (bar) bar.style.display = 'none'
+  _aiRecombineParams = null
+}
+
+function showAiRecombineBar(params) {
+  _aiRecombineParams = params
+  var bar    = document.getElementById('ai-recombine-bar')
+  var desc   = document.getElementById('ai-recombine-desc')
+  var detail = document.getElementById('ai-recombine-detail')
+  if (!bar) return
+
+  // 요약 텍스트 생성
+  var descText = params.description || '재조합 준비 완료'
+  var parts = []
+  var f = params.filters || {}
+  if (f.machineNo)      parts.push(f.machineNo + '호기')
+  if (f.maxDaysLeft != null)  parts.push('D-' + f.maxDaysLeft + ' 이내')
+  if (f.minDaysLeft != null)  parts.push('D-' + f.minDaysLeft + ' 이상')
+  if (f.basisWeight)    parts.push(f.basisWeight + 'g/m²')
+  if (f.paperTypeCode)  parts.push(f.paperTypeCode)
+  if (f.onlyUnassigned) parts.push('미배치만')
+  else if (f.includeUnassigned) parts.push('미배치 포함')
+  var oc = params.overrideConstraints || {}
+  if (oc.m2Max) parts.push('2호기 최대 ' + oc.m2Max + 'mm')
+  if (oc.m3Max) parts.push('3호기 최대 ' + oc.m3Max + 'mm')
+  if (oc.mimi != null) parts.push('미미 ' + oc.mimi + 'mm')
+
+  if (desc)   desc.textContent   = descText
+  if (detail) detail.textContent = parts.length ? '적용 조건: ' + parts.join(' / ') : '기본 제약 유지'
+
+  bar.style.display = 'flex'
+  // 패널이 접혀있으면 자동으로 열기
+  if (!aiPanelOpen) toggleAiPanel()
+}
+
+// 재조합 전용 빠른 버튼: AI에게 바로 재조합 요청
+async function sendAiRecombineQuick(prompt) {
+  if (aiStreaming) { toast('AI가 응답 중입니다. 잠시 후 다시 시도해주세요.', 'info'); return }
+  if (simState !== 'generated') {
+    toast('먼저 시뮬레이션을 생성해주세요.', 'warn')
+    return
+  }
+  // AI 입력창에 텍스트 설정 후 전송 (재조합 의도 플래그와 함께)
+  var input = document.getElementById('ai-input')
+  if (input) input.value = prompt
+  await sendAiMessage(true)
+}
+
+// 재조합 파라미터 파싱 후 실제 알고리즘 재실행
+async function applyAiRecombine() {
+  if (!_aiRecombineParams) { toast('재조합 파라미터가 없습니다.', 'warn'); return }
+  if (simState !== 'generated') { toast('먼저 시뮬레이션을 생성해주세요.', 'warn'); return }
+
+  var params = _aiRecombineParams
+  var f      = params.filters || {}
+  var oc     = params.overrideConstraints || {}
+
+  // ── 1. 오더 풀 결정 ──────────────────────────────────────────
+  var basePool = simOrders.slice()
+  if (f.onlyUnassigned) {
+    basePool = simUnassigned.slice()
+  } else if (f.includeUnassigned) {
+    // 미배치 오더 추가 (중복 방지)
+    var assignedSet = {}
+    simOrders.forEach(function(o) { assignedSet[o.orderId || o.sapOrderNo] = true })
+    var extra = simUnassigned.filter(function(o) { return !assignedSet[o.orderId || o.sapOrderNo] })
+    basePool = simOrders.concat(extra)
+  }
+
+  // ── 2. 필터 적용 ─────────────────────────────────────────────
+  var today3 = new Date(); today3.setHours(0,0,0,0)
+  var filtered2 = basePool.filter(function(o) {
+    if (f.machineNo && o.machineNo !== f.machineNo) return false
+    if (f.basisWeight && Number(o.basisWeight) !== Number(f.basisWeight)) return false
+    if (f.paperTypeCode) {
+      var ptc = o.paperTypeCode || (o.matCode && o.matCode.length >= 5 ? o.matCode.substring(2,5) : '')
+      if (ptc !== f.paperTypeCode) return false
+    }
+    if (f.maxDaysLeft != null || f.minDaysLeft != null) {
+      if (!o.dueDate) return false
+      var dueD2 = new Date(o.dueDate); dueD2.setHours(0,0,0,0)
+      var dl2   = Math.floor((dueD2 - today3) / 86400000)
+      if (f.maxDaysLeft != null && dl2 > f.maxDaysLeft) return false
+      if (f.minDaysLeft != null && dl2 < f.minDaysLeft) return false
+    }
+    return true
+  })
+
+  if (!filtered2.length) {
+    toast('조건에 해당하는 오더가 없습니다.', 'warn')
+    return
+  }
+
+  // ── 3. 제약 임시 오버라이드 적용 ─────────────────────────────
+  var prevOverride = null
+  if (Object.keys(oc).some(function(k) { return oc[k] != null })) {
+    var saved2 = JSON.parse(localStorage.getItem('klean-aps-constraints') || '{}')
+    prevOverride = JSON.parse(JSON.stringify(saved2))   // 백업
+    if (oc.m2Max)  saved2['m2-max']    = oc.m2Max
+    if (oc.m2Min)  saved2['m2-min']    = oc.m2Min
+    if (oc.m3Max)  saved2['m3-max']    = oc.m3Max
+    if (oc.m3Min)  saved2['m3-min']    = oc.m3Min
+    if (oc.maxPok) { saved2['m2-maxpok'] = oc.maxPok; saved2['m3-maxpok'] = oc.maxPok }
+    if (oc.mimi != null) saved2['mimi'] = oc.mimi
+    localStorage.setItem('klean-aps-constraints', JSON.stringify(saved2))
+  }
+
+  // ── 4. 알고리즘 실행 ─────────────────────────────────────────
+  toast('AI 조건으로 재조합 중... (' + filtered2.length + '건)', 'info')
+  var applyBtn = document.getElementById('ai-recombine-apply-btn')
+  if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = '실행 중...' }
+
+  await new Promise(function(r) { setTimeout(r, 50) })
+
+  var newResult = runCombinationAlgorithm(filtered2)
+
+  // ── 5. 제약 원복 ─────────────────────────────────────────────
+  if (prevOverride !== null) {
+    localStorage.setItem('klean-aps-constraints', JSON.stringify(prevOverride))
+  }
+
+  // ── 6. 결과 병합 결정 ────────────────────────────────────────
+  // 필터가 전체 오더면 simCombos 교체, 일부 필터면 기존 조합 유지 + 새 조합 prepend
+  var isPartialFilter = !!(f.machineNo || f.maxDaysLeft != null || f.basisWeight || f.paperTypeCode || f.onlyUnassigned)
+
+  if (isPartialFilter && !f.onlyUnassigned) {
+    // 필터된 오더의 기존 조합을 제거하고 새 조합으로 교체
+    var recomboIds = {}
+    filtered2.forEach(function(o) { recomboIds[o.orderId || o.sapOrderNo] = true })
+    var kept = simCombos.filter(function(cb) {
+      return !cb.orders.some(function(o) { return recomboIds[o.orderId || o.sapOrderNo] })
+    })
+    var merged = newResult.combos.concat(kept)
+    // comboId 재부여
+    merged.forEach(function(cb, i) { cb.comboId = i + 1 })
+    simCombos     = merged
+    simUnassigned = newResult.unassigned
+  } else {
+    simCombos     = newResult.combos
+    simUnassigned = newResult.unassigned
+  }
+
+  // ── 7. 렌더링 갱신 ───────────────────────────────────────────
+  renderSimResult(simCombos, simUnassigned)
+  renderSimUnassigned(simUnassigned)
+  var unassignedPanel = document.getElementById('sim-unassigned-panel')
+  if (unassignedPanel) unassignedPanel.style.display = simUnassigned.length ? 'block' : 'none'
+
+  if (applyBtn) {
+    applyBtn.disabled = false
+    applyBtn.innerHTML = '<i class="fas fa-check"></i> 적용 완료'
+    setTimeout(function() {
+      if (applyBtn) applyBtn.innerHTML = '<i class="fas fa-play"></i> 재조합 적용'
+    }, 2000)
+  }
+
+  // AI 채팅에 결과 메시지 추가
+  var resultMsg = 'AI 재조합 완료: ' + simCombos.length + '개 조합 / ' + filtered2.length + '건 처리 / 미배치 ' + simUnassigned.length + '건'
+  appendAiMsg('ai', resultMsg, false)
+  aiChatHistory.push({ role: 'assistant', content: resultMsg })
+
+  // 결과 패널 스크롤
+  var resultPanel = document.getElementById('sim-result-panel')
+  if (resultPanel) resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  toast('AI 재조합 완료: ' + simCombos.length + '개 조합 생성', 'ok')
 }
 
 function aiInputKeydown(e) {
