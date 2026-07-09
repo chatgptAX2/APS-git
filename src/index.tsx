@@ -2447,7 +2447,20 @@ app.get('/klean-aps-api/sales-orders', (c) => {
     if (excludedFilter === 'false' &&  o.isExcluded) return false
     return true
   })
-  return c.json({ success:true, data:list, total:list.length })
+
+  // orderQtyTon이 null인 오더(시트/속포장/Bulk)를 위해
+  // 자재마스터의 convKg로 R → TON 환산값 _orderQtyTonCalc 추가
+  const enriched = list.map(o => {
+    if (o.orderQtyTon != null) return o  // TON이 이미 있으면 그대로
+    if (!o.orderQtyR) return o           // R도 없으면 스킵
+    const mat = MAT_MASTER_DATA.find((m: any) => m.matCode === o.matCode)
+    const convKg = mat ? mat.convKg : null
+    if (!convKg) return o
+    const calcTon = Math.round(o.orderQtyR * convKg) / 1000  // kg → ton, 소수 3자리
+    return { ...o, _orderQtyTonCalc: calcTon }
+  })
+
+  return c.json({ success:true, data:enriched, total:enriched.length })
 })
 
 // ── POST /sales-orders/save : 선택 항목을 savedOrders에 저장 (DB 저장 확정)
@@ -9286,22 +9299,42 @@ function paperTypeBadge(ptCode) {
   return '<span style="background:#1e1b4b;color:#c4b5fd;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">'+name+'</span>'
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Roll / Sheet 판별 헬퍼
+//   Roll  : packCode='0' OR prodType='Roll' OR matCode 첫글자='H'(반제품)
+//   Sheet : packCode='A'(속포장/Ream) OR packCode='B'(벌크/Bulk) OR 그 외
+// ─────────────────────────────────────────────────────────────────
+function isRollOrder(o) {
+  var pc = o.packCode || parsePackCodeFromMatCode(o.matCode || '')
+  if (pc === '0') return true                          // packCode 명시 Roll
+  if (pc === 'A' || pc === 'B') return false           // 속포장/벌크 → Sheet
+  // packCode 없거나 불명확 → prodType/matCode로 보조 판별
+  if (o.prodType === 'Roll') return true
+  if (o.matCode && o.matCode.charAt(0) === 'H') return true  // 반제품(H) → Roll
+  return false  // 기본 Sheet
+}
+
+// 오더의 실효 TON 반환 (orderQtyTon 우선, 없으면 _orderQtyTonCalc, 없으면 0)
+function getOrderTon(o) {
+  if (o.orderQtyTon != null && o.orderQtyTon > 0) return Number(o.orderQtyTon)
+  if (o._orderQtyTonCalc != null && o._orderQtyTonCalc > 0) return Number(o._orderQtyTonCalc)
+  return 0
+}
+
 function renderSimResult(combos, unassigned) {
   const totalTon  = combos.reduce((s,c) => s + Number(c.totalTon), 0)
   const totalOrds = combos.reduce((s,c) => s + c.orders.length, 0)
   const avgLoss   = combos.length ? (combos.reduce((s,c) => s + Number(c.lossRate), 0) / combos.length).toFixed(1) : '0.0'
   const unassignedCnt = unassigned ? unassigned.length : 0
 
-  // Roll / Sheet TON 집계
-  // packCode='0' 또는 itemType='H'(반제품) → Roll  /  그 외(A,B,Ream,Bulk) → Sheet
+  // Roll / Sheet TON 집계 (isRollOrder + getOrderTon 사용)
   var rollTon  = 0
   var sheetTon = 0
   combos.forEach(function(c) {
     c.orders.forEach(function(o) {
-      var pc = o.packCode || parsePackCodeFromMatCode(o.matCode || '')
-      var ton = Number(o.orderQtyTon) || 0
-      if (pc === '0') rollTon  += ton
-      else            sheetTon += ton
+      var ton = getOrderTon(o)
+      if (isRollOrder(o)) rollTon  += ton
+      else                sheetTon += ton
     })
   })
 
@@ -9379,11 +9412,9 @@ function renderSimResult(combos, unassigned) {
     var comboRollTon  = 0
     var comboSheetTon = 0
     combo.orders.forEach(function(o) {
-      var pc  = o.packCode || parsePackCodeFromMatCode(o.matCode || '')
-      var ton = Number(o.orderQtyTon) || 0
-      // packCode='0' → Roll(원지/반제품), 'A'(속포장/Ream) or 'B'(벌크/Bulk) or '' → Sheet
-      if (pc === '0') comboRollTon  += ton
-      else            comboSheetTon += ton
+      var ton = getOrderTon(o)
+      if (isRollOrder(o)) comboRollTon  += ton
+      else                comboSheetTon += ton
     })
     var comboRsTotal = comboRollTon + comboSheetTon
     var comboRollPct  = comboRsTotal > 0 ? Math.round(comboRollTon  / comboRsTotal * 100) : 0
