@@ -5344,30 +5344,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       <!-- 우: 메인 콘텐츠 -->
       <div style="display:flex;flex-direction:column;gap:12px;">
 
-        <!-- 대상 오더 목록 -->
-        <div class="section-card" id="sim-order-panel">
-          <div class="section-title">
-            <i class="fas fa-list-ul" style="color:#60a5fa;"></i>대상 오더 목록
-            <span id="sim-order-count" class="count-badge" style="margin-left:8px;">-</span>
-            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;cursor:pointer;">
-              <input type="checkbox" id="sim-chk-all" onchange="simToggleAll(this.checked)"> 전체선택
-            </label>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="data-table" style="font-size:12px;">
-              <thead>
-                <tr>
-                  <th style="width:32px;"></th>
-                  <th>오더번호</th><th>납품처</th><th class="center">호기</th><th class="center">평량</th><th class="center">지폭</th><th class="center">수량</th><th class="center">포장</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
-                </tr>
-              </thead>
-              <tbody id="sim-order-tbody">
-                <tr><td colspan="11" class="empty-state">조회 조건을 설정하고 생성 버튼을 눌러주세요.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <!-- 조합 결과 -->
         <div class="section-card" id="sim-result-panel" style="display:none;">
           <div class="section-title">
@@ -5518,6 +5494,30 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
             <!-- SAP 전송 결과 로그 -->
             <div id="sim-jumbo-rfc-log" style="display:none;margin-top:12px;padding:12px 14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);font-size:11px;font-family:monospace;color:var(--text-muted);line-height:1.8;max-height:160px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <!-- 대상 오더 목록 (결과 확인 후 참고용 — 하단 배치) -->
+        <div class="section-card" id="sim-order-panel">
+          <div class="section-title">
+            <i class="fas fa-list-ul" style="color:#60a5fa;"></i>대상 오더 목록
+            <span id="sim-order-count" class="count-badge" style="margin-left:8px;">-</span>
+            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;cursor:pointer;">
+              <input type="checkbox" id="sim-chk-all" onchange="simToggleAll(this.checked)"> 전체선택
+            </label>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="width:32px;"></th>
+                  <th>오더번호</th><th>납품처</th><th class="center">호기</th><th class="center">평량</th><th class="center">지폭</th><th class="center">수량</th><th class="center">포장</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
+                </tr>
+              </thead>
+              <tbody id="sim-order-tbody">
+                <tr><td colspan="11" class="empty-state">조회 조건을 설정하고 생성 버튼을 눌러주세요.</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -9223,6 +9223,12 @@ async function simGenerate() {
   if (unassignedPanel) {
     unassignedPanel.style.display = simUnassigned.length ? 'block' : 'none'
   }
+
+  // 생성 완료 후 조합 결과 패널 최상단으로 스크롤
+  setTimeout(function() {
+    var resultPanel = document.getElementById('sim-result-panel')
+    if (resultPanel) resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 300)
 
   // DB 배너 최신 상태 반영
   const openCnt = allOrders.filter(o => o.status==='OPEN' && !o.isExcluded).length
