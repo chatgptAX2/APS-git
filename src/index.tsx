@@ -9625,34 +9625,133 @@ function getLengthLimit(machineObj, basisWeightNum) {
   return best
 }
 
-// 배폭생산 가능 여부 판별
-// 조건: 지폭이 noProdLimit 이하 AND 기계가 할당된 오더
+// ═══════════════════════════════════════════════════════════════
+// N폭 배폭생산 헬퍼 시스템 (v2)
+//
+// 배폭생산 개념:
+//   협폭(noProdLimit 이하) 오더 N개를 점보롤 1개에 묶어 생산 후 재단
+//   점보롤 지폭 = Σ(각 폭 지폭) + 미미(30mm) × (N-1)
+//   생산 길이   = 해당 평량 최대길이(또는 밀롤 적치용) ÷ N
+//
+// 규칙 (이미지 기준):
+//   ① 배폭 시 미미 30mm 반드시 각 폭 사이마다 반영
+//   ② 1~4폭 모두 가능 (maxPok 이하)
+//   ③ 2호기 4폭: 최소 1폭은 반드시 630mm 이상 (fourPokMinWidth)
+//   ④ 889mm 이하 단독: 2폭 생산 불가 → 배폭 필수
+//   ⑤ 889mm 이하 2폭: 5톤 이하만 배폭 가능 (limit889Double)
+//   ⑥ 545mm 미만: 1폭 불가 → 반드시 배폭
+//   ⑦ 625 이하만 있어도 두폭이 하나라도 존재하면 조합 가능
+//      예: (620×2)+30+620 조합 가능
+//      예: (505×2)+30+570+570 가능 (지폭 Loss 감수)
+//   ⑧ 625 이하만 있고 두폭도 없으면 → 생산 불가
+// ═══════════════════════════════════════════════════════════════
+
+// ── 단일 오더의 배폭 가능 여부 (협폭 판별) ────────────────────
+// 지폭이 noProdLimit(기본 625mm) 이하면 배폭 후보
 function canDoubleWidth(order, machineObj) {
   if (!machineObj) return false
   var pw = order._pw || order.paperWidth || 0
   var noprod = machineObj.noProdLimit || 625
-  // 협폭(noProdLimit 이하)이어야 배폭 가능
   return pw > 0 && pw <= noprod
 }
 
-// 배폭생산 시 점보롤 지폭 계산 (지폭 × 2 + 미미)
-function getDoubleWidthJumboWidth(order, machineObj) {
-  var pw   = order._pw || order.paperWidth || 0
+// ── N폭 배폭 점보롤 지폭 계산 ────────────────────────────────
+// orders: 오더 배열(N개), machineObj: 기계 오브젝트
+// 공식: Σ(각 폭 지폭) + 미미 × (N-1)
+// 미미는 각 폭 사이마다 1번씩, N폭이면 (N-1)번
+function calcNWidthJumboWidth(orders, machineObj) {
   var mimi = (machineObj && machineObj.mimi != null) ? machineObj.mimi : 30
-  return pw * 2 + mimi
+  var n = orders.length
+  if (n === 0) return 0
+  var widthSum = 0
+  for (var i = 0; i < n; i++) {
+    widthSum += (orders[i]._pw || orders[i].paperWidth || 0)
+  }
+  return widthSum + mimi * (n - 1)
 }
 
-// 배폭생산 시 생산 길이 계산 (최대길이 또는 밀롤 적치용 ÷ 2)
-// milrolLen 있으면 milrolLen ÷ 2, 없으면 maxLen ÷ 2
-function getDoubleWidthProdLength(order, machineObj) {
-  var bw = Number(order.basisWeight) || 0
+// ── N폭 배폭 생산 길이 계산 ───────────────────────────────────
+// 생산 길이 = (milrolLen || maxLen) ÷ N
+// N이 클수록 생산 길이 단축
+function calcNWidthProdLength(orders, machineObj) {
+  if (!orders || orders.length === 0) return null
+  var bw = Number(orders[0].basisWeight) || 0
   var ll = getLengthLimit(machineObj, bw)
   if (!ll) return null
   var baseLen = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
-  return Math.floor(baseLen / 2)
+  return Math.floor(baseLen / orders.length)
 }
 
-// 오더에 배폭생산 메타 정보 주입 (_isDoubleWidth, _jumboWidth, _prodLength)
+// ── N폭 배폭 가능 여부 검증 ───────────────────────────────────
+// orders: 배폭에 묶을 오더 배열
+// machineObj: 기계 오브젝트
+// constraints: getConstraints() 반환값 (선택)
+// 반환: { ok: bool, reason: string }
+function validateNWidthGroup(orders, machineObj, constraints) {
+  var c = constraints || getConstraints()
+  var mimi = (machineObj && machineObj.mimi != null) ? machineObj.mimi : 30
+  var maxPok = machineObj ? (machineObj.maxPok || 4) : 4
+  var fourPokMin = machineObj ? (machineObj.fourPokMinWidth || 0) : 0
+  var n = orders.length
+  if (n === 0) return { ok: false, reason: '오더 없음' }
+  if (n > maxPok) return { ok: false, reason: '최대 '+maxPok+'폭 초과 ('+n+'폭 요청)' }
+
+  var maxW = machineObj ? (machineObj.maxWidth || 9999) : 9999
+
+  // 각 오더 지폭 수집
+  var widths = orders.map(function(o) { return o._pw || o.paperWidth || 0 })
+  var widthSum = widths.reduce(function(a,b){return a+b}, 0)
+  var jumboW = widthSum + mimi * (n - 1)
+
+  // ① 점보롤 지폭이 기계 최대 지폭 초과
+  if (jumboW > maxW) {
+    return { ok: false, reason: '점보롤 지폭 '+jumboW+'mm > 최대 '+maxW+'mm' }
+  }
+
+  // ② 2호기 4폭 조건: 최소 1폭은 fourPokMinWidth(630mm) 이상
+  if (fourPokMin > 0 && n === maxPok) {
+    var hasWide = widths.some(function(w){ return w >= fourPokMin })
+    if (!hasWide) {
+      return { ok: false, reason: '4폭 조건: 1폭 이상이 '+fourPokMin+'mm 이상이어야 함 (현재 최대 '+Math.max.apply(null,widths)+'mm)' }
+    }
+  }
+
+  // ③ 889mm 이하 2폭: 5톤(limit889Double) 이하만 배폭 가능
+  var limit889 = c.limit889Double != null ? c.limit889Double : 5
+  if (n === 2) {
+    var allBelow889 = widths.every(function(w){ return w <= 889 })
+    if (allBelow889) {
+      var totalTon = orders.reduce(function(s,o){ return s + (getOrderTon(o)||0) }, 0)
+      if (totalTon > limit889) {
+        return { ok: false, reason: '889mm 이하 2폭 배폭: '+totalTon.toFixed(2)+'T > '+limit889+'T 한도 초과' }
+      }
+    }
+  }
+
+  // ④ 625 이하(noProdLimit)만 있는 경우: 두폭(협폭×2) 조합이 없으면 생산 불가
+  var noprod = c.noprodLimit || 625
+  var allNarrow = widths.every(function(w){ return w <= noprod })
+  if (allNarrow && n === 1) {
+    // 단독 협폭 → 생산 불가 (두폭이 있어야 함)
+    return { ok: false, reason: '협폭 단독 생산 불가 ('+widths[0]+'mm ≤ '+noprod+'mm) — 배폭 파트너 필요' }
+  }
+
+  return { ok: true, reason: '' }
+}
+
+// ── 이하위 호환: 단일 오더 2폭 배폭 계산 (기존 API 유지) ─────
+function getDoubleWidthJumboWidth(order, machineObj) {
+  return calcNWidthJumboWidth([order], machineObj) + ((machineObj && machineObj.mimi!=null)?machineObj.mimi:30)
+  // 실제로는 2폭: 지폭×2 + 미미×1
+  // → 위 공식이 n=1일 때 widthSum+mimi*(1-1)=widthSum이 되므로 별도로 +mimi
+}
+
+function getDoubleWidthProdLength(order, machineObj) {
+  return calcNWidthProdLength([order, order], machineObj)  // 2폭 기준
+}
+
+// ── 단일 오더에 배폭생산 메타 주입 (기존 API 유지 + N폭 확장) ─
+// 단독 협폭 오더(1개)가 2폭 배폭 가능한지 판단하여 메타 주입
 function enrichDoubleWidthInfo(order, allMachines) {
   var mNo = order._machineNoResolved || order.machineNo || ''
   var machineObj = null
@@ -9662,17 +9761,58 @@ function enrichDoubleWidthInfo(order, allMachines) {
   if (!machineObj) return order
   var isDW = canDoubleWidth(order, machineObj)
   if (!isDW) return order
-  var jumboW   = getDoubleWidthJumboWidth(order, machineObj)
-  var prodLen  = getDoubleWidthProdLength(order, machineObj)
-  var bw       = Number(order.basisWeight) || 0
-  var ll       = getLengthLimit(machineObj, bw)
+
+  // 2폭 기준: 지폭×2 + 미미×1
+  var mimi = machineObj.mimi != null ? machineObj.mimi : 30
+  var pw = order._pw || order.paperWidth || 0
+  var jumboW = pw * 2 + mimi
+
+  // 생산 길이: maxLen(또는 milrolLen) ÷ 2
+  var bw = Number(order.basisWeight) || 0
+  var ll = getLengthLimit(machineObj, bw)
+  var prodLen = ll ? Math.floor((ll.milrolLen != null ? ll.milrolLen : ll.maxLen) / 2) : null
+
   return Object.assign({}, order, {
     _isDoubleWidth: true,
+    _nWidth:        2,           // 폭 수
     _jumboWidth:    jumboW,
     _prodLength:    prodLen,
     _lengthLimit:   ll,
     _machineObj:    machineObj,
   })
+}
+
+// ── N폭 배폭 그룹에 메타 주입 ─────────────────────────────────
+// orders: 배폭으로 묶은 N개 오더 배열
+// 반환: { ok, nWidth, jumboWidth, prodLength, reason } 오브젝트
+function enrichNWidthGroupInfo(orders, allMachines, constraints) {
+  if (!orders || orders.length === 0) return { ok: false, reason: '오더 없음' }
+  var mNo = (orders[0]._machineNoResolved || orders[0].machineNo || '')
+  var machineObj = null
+  for (var i = 0; i < (allMachines||[]).length; i++) {
+    if (allMachines[i].machineNo === String(mNo)) { machineObj = allMachines[i]; break }
+  }
+  if (!machineObj) return { ok: false, reason: '기계 정보 없음' }
+
+  var valid = validateNWidthGroup(orders, machineObj, constraints)
+  if (!valid.ok) return { ok: false, reason: valid.reason }
+
+  var n = orders.length
+  var mimi = machineObj.mimi != null ? machineObj.mimi : 30
+  var widths = orders.map(function(o){ return o._pw || o.paperWidth || 0 })
+  var widthSum = widths.reduce(function(a,b){return a+b},0)
+  var jumboW = widthSum + mimi * (n - 1)
+  var prodLen = calcNWidthProdLength(orders, machineObj)
+
+  return {
+    ok:         true,
+    nWidth:     n,
+    jumboWidth: jumboW,
+    prodLength: prodLen,
+    widths:     widths,
+    mimi:       mimi,
+    reason:     ''
+  }
 }
 
 function renderSimResult(combos, unassigned) {
