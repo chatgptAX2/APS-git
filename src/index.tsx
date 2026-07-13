@@ -4893,9 +4893,9 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <table class="data-table" style="font-size:12px;margin-bottom:2px;">
             <thead><tr><th>항목</th><th>기준</th><th>비고</th></tr></thead>
             <tbody>
-              <tr><td>545mm 미만</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 불가</span></td><td style="color:var(--text-faint);">배폭 필수</td></tr>
-              <tr><td>889mm 초과</td><td><span class="badge b-cancel" style="font-size:10px;">2폭 불가</span></td><td style="color:var(--text-faint);">-</td></tr>
-              <tr><td>889mm 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭</td><td style="color:var(--text-faint);">-</td></tr>
+              <tr><td>545mm 미만</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 불가</span></td><td style="color:var(--text-faint);">반드시 배폭으로 검토</td></tr>
+              <tr><td>889mm 이하</td><td><span class="badge b-cancel" style="font-size:10px;">단독 2폭 생산 불가</span></td><td style="color:#fbbf24;font-weight:700;">5톤 이상은 배폭 불가</td></tr>
+              <tr><td>889mm 미만 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭 가능</td><td style="color:var(--text-faint);">5톤 초과 → 배폭 불가</td></tr>
               <tr><td>원지 비중</td><td><span class="badge b-open" style="font-size:10px;">60% 이상</span></td><td style="color:var(--text-faint);">미만 시 외주 컷팅</td></tr>
               <tr><td>두폭 비중</td><td><span class="badge b-assigned" style="font-size:10px;">30% 이상</span></td><td style="color:var(--text-faint);">조합 진행 가능</td></tr>
             </tbody>
@@ -7940,8 +7940,9 @@ function updateSimConstraintSummary() {
   el.innerHTML =
     '<div>2호기: '+c.m2Min.toLocaleString()+' ~ '+c.m2Max.toLocaleString()+'mm / 최대'+c.m2MaxPok+'폭</div>'+
     '<div>3호기: '+c.m3Min.toLocaleString()+' ~ '+c.m3Max.toLocaleString()+'mm / 최대'+c.m3MaxPok+'폭</div>'+
-    '<div>배폭 미미: '+c.mimi+'mm</div>'+
-    '<div>MOQ: '+c.moq+'TON / 동일규격: '+c.moqSame+'TON</div>'+
+    '<div>배폭 미미: '+c.mimi+'mm | 협폭한계: '+c.noprodLimit+'mm</div>'+
+    '<div>MOQ: '+c.moq+'TON / 동일규격 속포장: '+c.moqSame+'TON</div>'+
+    '<div>889mm 이하 2폭 배폭 허용: '+c.limit889Double+'T 이하</div>'+
     '<div>원지비중: '+c.wjRatio+'% 이상</div>'
 }
 
@@ -8587,8 +8588,57 @@ function isExcludedOrder(o) {
   return null
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Zero-Loss 우선 지폭조합 알고리즘 v3
+// ── MOQ 기준 필터: 톤 환산 가능한 오더만 검사 ─────────────────
+// 규칙 (이미지 기준):
+//   - 규격당 MOQ: c.moq 톤 미만이면 시뮬레이션 제외
+//   - 같은 규격 + 포장만 다른 경우(동일 matCode prefix): c.moqSame 톤 이상이면 허용
+// allOrders 전체를 받아 그룹핑 후 미달 오더를 반환
+function applyMoqFilter(orders) {
+  var c = getConstraints()
+  var moq     = c.moq     || 3
+  var moqSame = c.moqSame || 1.5
+
+  // 그룹 키: machineNo + paperTypeCode + basisWeight + paperWidth + paperLength (= 동일규격)
+  // 포장만 다른 그룹 키: machineNo + paperTypeCode + basisWeight + paperWidth + paperLength (packCode 제외)
+  var grpTon = {}  // 동일규격 TON 합산
+  orders.forEach(function(o) {
+    var ton = o.orderQtyTon || 0
+    if (ton <= 0) return  // 톤 정보 없는 오더(R단위 등)는 MOQ 체크 제외
+    var pw = o.paperWidth || 0
+    var pl = (o.paperLength != null && Number(o.paperLength) > 0) ? Number(o.paperLength) : 0
+    var pt = o.paperTypeCode || (o.matCode && o.matCode.length >= 5 ? o.matCode.substring(2,5) : '')
+    var mn = o._machineNoResolved || o.machineNo || ''
+    // 포장(packCode) 포함 키 → 완전 동일규격
+    var key = mn+'_'+pt+'_'+(o.basisWeight||'')+'_'+pw+'_'+pl+'_'+(o.packCode||'')
+    grpTon[key] = (grpTon[key] || 0) + ton
+  })
+
+  var excluded = []
+  var included = []
+  orders.forEach(function(o) {
+    var ton = o.orderQtyTon || 0
+    if (ton <= 0) { included.push(o); return }  // R단위 → 제외 없음
+    var pw = o.paperWidth || 0
+    var pl = (o.paperLength != null && Number(o.paperLength) > 0) ? Number(o.paperLength) : 0
+    var pt = o.paperTypeCode || (o.matCode && o.matCode.length >= 5 ? o.matCode.substring(2,5) : '')
+    var mn = o._machineNoResolved || o.machineNo || ''
+    var key = mn+'_'+pt+'_'+(o.basisWeight||'')+'_'+pw+'_'+pl+'_'+(o.packCode||'')
+    var grpTotal = grpTon[key] || 0
+
+    if (grpTotal >= moq) {
+      // 규격당 합계 ≥ MOQ → 통과
+      included.push(o)
+    } else if (grpTotal >= moqSame) {
+      // moqSame 이상이면 속포장 허용 (동일규격 포장 다를 경우)
+      included.push(o)
+    } else {
+      excluded.push(Object.assign({}, o, {
+        _excludeReason: 'MOQ 미달 (합계 '+grpTotal.toFixed(3)+'T < '+moq+'T)'
+      }))
+    }
+  })
+  return { included: included, excluded: excluded }
+}
 //
 //  [핵심 원칙]
 //  "동일호기 + 동일지종 + 동일평량" 그룹 내에서
@@ -9283,12 +9333,30 @@ function runCombinationAlgorithm(orders) {
       return
     }
 
-    // ④ 협폭 단독 생산 불가 (noProdLimit 이하인데 그룹에 자기 혼자)
+    // ④-a 889mm 이하 단독 1폭 생산 불가 (rule889: 'single' 설정 시)
+    // 이미지 규칙: 889mm 이하는 2폭 생산 불가 → 배폭 필수 (단독 1폭 불가)
+    // 단, 5톤 이하의 2폭 배폭은 허용 (③번 rule)
     var ptCode_ = o.paperTypeCode || (o.matCode && o.matCode.length>=5 ? o.matCode.substring(2,5) : '')
     var pl_     = o._pl != null ? o._pl : 0
     var grpKey_ = mn + '_' + ptCode_ + '_' + bw + '_' + pl_
     var grpWidths = (grpWidthMap[grpKey_] || []).filter(function(w){ return w > 0 })
-    if (grpWidths.length === 1 && pw <= noprod) {
+    var rule889   = c.rule889 || 'single'
+    if (rule889 === 'single' && pw <= 889) {
+      // 그룹 내 자기 혼자 → 배폭 파트너 없음
+      if (grpWidths.length === 1) {
+        var ton889 = o.orderQtyTon || 0
+        var lim889 = c.limit889Double != null ? c.limit889Double : 5
+        if (ton889 > lim889) {
+          o._unassignedReason = '889mm 이하 단독 1폭 불가 — '+ton889.toFixed(3)+'T > '+lim889+'T 배폭 한도 초과'
+          return
+        }
+        // 5톤 이하 → 배폭 가능하지만 파트너 없음
+        o._unassignedReason = '889mm 이하 배폭 필요 — 묶을 파트너 오더 없음 ('+pw+'mm)'
+        return
+      }
+    }
+
+    // ④ 협폭 단독 생산 불가 (noProdLimit 이하인데 그룹에 자기 혼자)
       o._unassignedReason = '협폭 단독 (' + pw + 'mm ≤ ' + noprod + 'mm, 묶을 오더 없음)'
       return
     }
@@ -9430,6 +9498,22 @@ async function simGenerate() {
     if (reason) { simExcluded.push({...o, _excludeReason: reason}); return false }
     return true
   })
+
+  // ── 3-b단계: MOQ 필터 적용 ──────────────────────────────────
+  // 호기 보완 선처리 (MOQ 그룹 키에 _machineNoResolved 필요)
+  simOrders.forEach(function(o) {
+    if (!o._machineNoResolved) {
+      var mn2 = o.machineNo || ''
+      if ((!mn2 || mn2 === '0') && o.matCode && o.matCode.length >= 2) {
+        var ch2 = o.matCode.charAt(1)
+        if (ch2 === '2' || ch2 === '3') mn2 = ch2
+      }
+      o._machineNoResolved = mn2
+    }
+  })
+  const moqResult = applyMoqFilter(simOrders)
+  moqResult.excluded.forEach(o => simExcluded.push(o))
+  simOrders = moqResult.included
 
   renderSimOrderTable(simOrders)
 
