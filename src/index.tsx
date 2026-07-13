@@ -9740,10 +9740,10 @@ function validateNWidthGroup(orders, machineObj, constraints) {
 }
 
 // ── 이하위 호환: 단일 오더 2폭 배폭 계산 (기존 API 유지) ─────
+// 2폭 배폭: 지폭×2 + 미미×1
+// calcNWidthJumboWidth([order, order], machineObj) = pw+pw + mimi*(2-1) = pw*2+mimi
 function getDoubleWidthJumboWidth(order, machineObj) {
-  return calcNWidthJumboWidth([order], machineObj) + ((machineObj && machineObj.mimi!=null)?machineObj.mimi:30)
-  // 실제로는 2폭: 지폭×2 + 미미×1
-  // → 위 공식이 n=1일 때 widthSum+mimi*(1-1)=widthSum이 되므로 별도로 +mimi
+  return calcNWidthJumboWidth([order, order], machineObj)
 }
 
 function getDoubleWidthProdLength(order, machineObj) {
@@ -9896,14 +9896,36 @@ function renderSimResult(combos, unassigned) {
   list.innerHTML = combos.map(combo => {
     const lossColor = Number(combo.lossRate) === 0 ? '#34d399'
                     : Number(combo.lossRate) < 2   ? '#f59e0b' : '#f87171'
-    const widthBars = combo.orders.map(o => {
-      var dwInfoBar = enrichDoubleWidthInfo(o, _machinesCache || [])
-      var dwSuffix = dwInfoBar._isDoubleWidth
-        ? '<span style="font-size:9px;color:#fb923c;font-weight:600;vertical-align:super;">×2</span>'
-        : ''
-      return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
-        o.paperWidth+'mm'+dwSuffix+'</span>'
-    }).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
+    // ── widthBars: N폭 배폭 조합 감지 + 시각화 ─────────────────
+    // 동일 오더가 N개 묶인 경우: 배폭 그룹으로 처리
+    // 다른 지폭이 조합된 경우: 각 폭 개별 표시 (단독 협폭은 ×2 뱃지)
+    var _mach = _machinesCache || []
+    var _nwInfo = enrichNWidthGroupInfo(combo.orders, _mach, null)
+    var widthBars
+    if (_nwInfo.ok && _nwInfo.nWidth >= 2) {
+      // N폭 배폭 조합: 각 지폭 + 미미 표시 + 그룹 뱃지
+      var _mimi = _nwInfo.mimi != null ? _nwInfo.mimi : 30
+      var _bars = _nwInfo.widths.map(function(w, idx) {
+        return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:#1c1917;border:1px solid #7c2d12;border-radius:4px;font-size:11px;font-weight:700;color:#fdba74;">'+
+          w.toLocaleString()+'mm</span>'
+      })
+      var _sep = '<span style="color:#f59e0b;font-size:11px;font-weight:600;"> +미미'+_mimi+'+ </span>'
+      widthBars = _bars.join(_sep)+
+        '<span style="margin-left:6px;display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:#7c2d12;color:#fdba74;border:1px solid #c05621;">'+
+          '⚡ '+_nwInfo.nWidth+'폭배폭 점보 '+_nwInfo.jumboWidth.toLocaleString()+'mm'+
+          (_nwInfo.prodLength ? ' / 생산 '+_nwInfo.prodLength.toLocaleString()+'m' : '')+
+        '</span>'
+    } else {
+      // 일반 조합 또는 단독 협폭
+      widthBars = combo.orders.map(function(o) {
+        var dwInfoBar = enrichDoubleWidthInfo(o, _mach)
+        var dwSuffix = dwInfoBar._isDoubleWidth
+          ? '<span style="font-size:9px;color:#fb923c;font-weight:600;vertical-align:super;">×2</span>'
+          : ''
+        return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
+          o.paperWidth.toLocaleString()+'mm'+dwSuffix+'</span>'
+      }).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
+    }
     const cid = 'combo-check-' + combo.comboId
 
     // ── 조합별 Roll / Sheet TON 집계 + 비율 ──────────────────
@@ -10086,12 +10108,23 @@ function renderSimResult(combos, unassigned) {
       var isDW2 = false
       var dwLen2 = null
       var dwJW2  = null
-      if (combo.orders.length === 1) {
+      var nwCount = 1
+      // N폭 배폭 여부 판단 (2폭 이상이면 enrichNWidthGroupInfo로 우선 처리)
+      if (combo.orders.length >= 2) {
+        var nwg2 = enrichNWidthGroupInfo(combo.orders, _machinesCache || [], null)
+        if (nwg2.ok) {
+          isDW2   = true
+          dwLen2  = nwg2.prodLength
+          dwJW2   = nwg2.jumboWidth
+          nwCount = nwg2.nWidth
+        }
+      } else if (combo.orders.length === 1) {
         var dw2 = enrichDoubleWidthInfo(combo.orders[0], _machinesCache || [])
         if (dw2._isDoubleWidth) {
-          isDW2  = true
-          dwLen2 = dw2._prodLength
-          dwJW2  = dw2._jumboWidth
+          isDW2   = true
+          dwLen2  = dw2._prodLength
+          dwJW2   = dw2._jumboWidth
+          nwCount = 2
         }
       }
 
@@ -10120,7 +10153,7 @@ function renderSimResult(combos, unassigned) {
               ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;\">밀롤적치 '+milL+'m</span>'
               : '')+
             (isDW2
-              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;\">⚡배폭 점보 '+
+              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;\">⚡'+nwCount+'폭배폭 점보 '+
                 (dwJW2||'-')+'mm / 생산 '+(dwLen2||'-')+'m</span>'
               : '')+
           '</div>'+
@@ -10187,12 +10220,19 @@ function renderSimResult(combos, unassigned) {
               const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
               const dc = orderDayColor(o.dueDate)
               // 배폭생산 여부 판별 및 메타 정보
-              var dwInfo = enrichDoubleWidthInfo(o, _machinesCache || [])
+              // N폭 조합이면 _nwInfo 재활용, 아니면 단독 협폭 판별
               var dwBadge = ''
-              if (dwInfo._isDoubleWidth) {
-                var dwJW  = dwInfo._jumboWidth   ? dwInfo._jumboWidth.toLocaleString() + 'mm' : '-'
-                var dwLen = dwInfo._prodLength   ? dwInfo._prodLength.toLocaleString() + 'm'  : '-'
-                dwBadge = '<span style="margin-left:4px;display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;" title="배폭생산: 점보롤 '+dwJW+' / 생산길이 '+dwLen+'">⚡배폭 '+dwJW+'→'+dwLen+'</span>'
+              if (_nwInfo.ok && _nwInfo.nWidth >= 2) {
+                // N폭 배폭 조합 — 오더별 배지는 폭 번호로만 표시
+                var _oIdx = combo.orders.indexOf(o) + 1
+                dwBadge = '<span style="margin-left:4px;display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:#7c2d12;color:#fdba74;">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'
+              } else {
+                var dwInfo = enrichDoubleWidthInfo(o, _machinesCache || [])
+                if (dwInfo._isDoubleWidth) {
+                  var dwJW  = dwInfo._jumboWidth   ? dwInfo._jumboWidth.toLocaleString() + 'mm' : '-'
+                  var dwLen = dwInfo._prodLength   ? dwInfo._prodLength.toLocaleString() + 'm'  : '-'
+                  dwBadge = '<span style="margin-left:4px;display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;" title="배폭생산: 점보롤 '+dwJW+' / 생산길이 '+dwLen+'">⚡배폭 '+dwJW+'→'+dwLen+'</span>'
+                }
               }
               return '<tr>'+
                 '<td style="padding:5px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
