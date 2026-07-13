@@ -8525,6 +8525,19 @@ function runCombinationAlgorithm(orders) {
     return 0
   }
 
+  // ── 지장(paperLength) 파싱 보완 ─────────────────────────────
+  // matCode 규칙: MID(14,4) = index 13~16 = 지장(mm)
+  // Roll 오더는 '0000' (무한 길이) → 길이 그룹 무관하게 합산 가능
+  // Sheet 오더는 절단 길이 → 같은 길이끼리만 조합 가능
+  function getEffectivePaperLength(o) {
+    if (o.paperLength != null && Number(o.paperLength) > 0) return Number(o.paperLength)
+    if (o.matCode && o.matCode.length >= 17) {
+      var l = parseInt(o.matCode.substring(13, 17), 10)
+      if (!isNaN(l)) return l  // 0도 반환 (Roll이면 0000 → 0)
+    }
+    return 0  // 파싱 불가 → 0 (길이 제약 없음으로 처리)
+  }
+
   // ── [Fix1] 호기 보완: machineNo 없으면 matCode[1]에서 파싱 ──
   // matCode 규칙: H2S11… → 2호기, H3S11… → 3호기, F2K11… → 2호기, F3S11… → 3호기
   // 첫 번째 문자(H/F/S)는 itemType, 두 번째 문자(2/3)는 호기번호
@@ -8537,7 +8550,16 @@ function runCombinationAlgorithm(orders) {
     return o.machineNo || ''
   }
 
-  // ── [호기 + 지종 + 평량] 그룹화 ─────────────────────────────
+  // ── [호기 + 지종 + 평량 + 지장] 그룹화 ──────────────────────
+  // 핵심: 점보롤은 단일 연속 생산이므로 절단 길이(paperLength)가 다른
+  // 오더는 같은 점보롤에서 동시 생산 불가 → 길이도 그룹 키에 포함
+  //
+  // Roll 오더 (packCode='0' or matCode[0]='H'):
+  //   paperLength=0 (무한 롤) → 길이 그룹 키를 '0'으로 고정
+  //   → 같은 평량/지종 Roll끼리는 길이 관계없이 합산 가능
+  //
+  // Sheet 오더 (packCode='A'/'B'):
+  //   paperLength=지장값 → 동일 절단 길이끼리만 같은 그룹
   function getPaperTypeCode(o) {
     if (o.paperTypeCode) return o.paperTypeCode
     if (o.matCode && o.matCode.length >= 5) return o.matCode.substring(2, 5)
@@ -8551,7 +8573,17 @@ function runCombinationAlgorithm(orders) {
     var mn = getEffectiveMachineNo(o)
     o._machineNoResolved = mn  // 보완된 호기번호 캐시
     var ptCode = getPaperTypeCode(o)
-    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '')
+
+    // 길이 그룹 키 결정
+    // Roll 오더는 길이 0(무한) → 키='0' (길이 구분 없이 묶음)
+    // Sheet 오더는 실제 절단 길이 → 동일 길이끼리만 묶음
+    var isRoll = (o.packCode === '0') ||
+                 (o.prodType === 'Roll') ||
+                 (o.matCode && o.matCode.charAt(0) === 'H')
+    var pl = isRoll ? 0 : getEffectivePaperLength(o)
+    o._pl = pl  // 유효 지장 캐시
+
+    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '') + '_' + pl
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
@@ -8566,7 +8598,9 @@ function runCombinationAlgorithm(orders) {
     var machineNo = keyParts[0]
     var ptCode    = keyParts[1]
     var bwStr     = keyParts[2]
+    var plStr     = keyParts[3]   // 지장(paperLength) 그룹 키
     var bw = Number(bwStr)
+    var pl = Number(plStr)        // 0 = Roll(무한), >0 = Sheet 절단 길이
 
     // 호기 미지정 그룹(machineNo='')은 단독 처리 — 조합 불가, 미배치로 남김
     if (!machineNo || machineNo === '0') {
@@ -8824,6 +8858,7 @@ function runCombinationAlgorithm(orders) {
         machineNo     : machineNo,
         paperTypeCode : ptCode,
         basisWeight   : bw,
+        paperLength   : pl,       // 절단 길이 (0=Roll/무한, >0=Sheet 지장mm)
         orders        : bkt.orders.slice(),
         widthSum      : totalW,
         maxWidth      : maxW,
@@ -8959,6 +8994,7 @@ function runCombinationAlgorithm(orders) {
       var machNo    = keyParts2[0]
       var ptCode2   = keyParts2[1]
       var bw2       = Number(keyParts2[2])
+      var pl2       = Number(keyParts2[3] || '0')  // 지장 (0=Roll)
 
       orders2.sort(function(a, b) { return b._pw - a._pw })
 
@@ -9026,6 +9062,7 @@ function runCombinationAlgorithm(orders) {
           machineNo     : machNo,
           paperTypeCode : ptCode2,
           basisWeight   : bw2,
+          paperLength   : pl2,     // 지장 (0=Roll, >0=Sheet)
           orders        : bkt.orders.slice(),
           widthSum      : totalW3,
           maxWidth      : maxW2,
@@ -9077,12 +9114,14 @@ function runCombinationAlgorithm(orders) {
 
   // ── [Fix2+3] 미배치 오더에 정확한 사유 태깅 ────────────────────
   // 그룹별 지폭 목록을 미리 집계 (Fix3: bestTotal 계산에 사용)
-  var grpWidthMap = {}  // key → 지폭 배열 (이미 배치된 것 포함, 전체 오더 기준)
+  // 그룹 키: machineNo + ptCode + basisWeight + paperLength (길이도 포함)
+  var grpWidthMap = {}
   orders.forEach(function(x) {
     var xmn  = x._machineNoResolved || x.machineNo || ''
     var xpt  = x.paperTypeCode || (x.matCode && x.matCode.length>=5 ? x.matCode.substring(2,5) : '')
     var xbw  = x.basisWeight || ''
-    var xkey = xmn + '_' + xpt + '_' + xbw
+    var xpl  = x._pl != null ? x._pl : 0
+    var xkey = xmn + '_' + xpt + '_' + xbw + '_' + xpl
     if (!grpWidthMap[xkey]) grpWidthMap[xkey] = []
     grpWidthMap[xkey].push(x._pw || 0)
   })
@@ -9128,7 +9167,8 @@ function runCombinationAlgorithm(orders) {
 
     // ④ 협폭 단독 생산 불가 (noProdLimit 이하인데 그룹에 자기 혼자)
     var ptCode_ = o.paperTypeCode || (o.matCode && o.matCode.length>=5 ? o.matCode.substring(2,5) : '')
-    var grpKey_ = mn + '_' + ptCode_ + '_' + bw
+    var pl_     = o._pl != null ? o._pl : 0
+    var grpKey_ = mn + '_' + ptCode_ + '_' + bw + '_' + pl_
     var grpWidths = (grpWidthMap[grpKey_] || []).filter(function(w){ return w > 0 })
     if (grpWidths.length === 1 && pw <= noprod) {
       o._unassignedReason = '협폭 단독 (' + pw + 'mm ≤ ' + noprod + 'mm, 묶을 오더 없음)'
@@ -9169,10 +9209,12 @@ function runCombinationAlgorithm(orders) {
       } else if (pw > Math.floor(mxW / 1)) {
         o._unassignedReason = '지폭 과대 (' + pw + 'mm) — 함께 묶을 소폭 오더 부족'
       } else {
-        o._unassignedReason = '조합 미배치 — 동일 그룹 내 적합한 오더 없음'
+        var plLabel_ = pl_ > 0 ? ' [지장 '+pl_+'mm 그룹]' : ' [Roll 그룹]'
+        o._unassignedReason = '조합 미배치 — 동일 그룹 내 적합한 오더 없음' + plLabel_
       }
     } else {
-      o._unassignedReason = '조합 미배치 — 그룹 오더 없음'
+      var plLabelNone = pl_ > 0 ? ' (지장 '+pl_+'mm)' : ' (Roll)'
+      o._unassignedReason = '조합 미배치 — 동일 길이 그룹 오더 없음' + plLabelNone
     }
   })
 
@@ -9686,6 +9728,12 @@ function renderSimResult(combos, unassigned) {
       var maxL  = ll2.maxLen.toLocaleString()
       var milL  = ll2.milrolLen != null ? ll2.milrolLen.toLocaleString() : null
 
+      // 절단 길이 (Sheet 오더이면 > 0)
+      var plVal  = combo.paperLength || 0  // mm
+      var plLabel = plVal > 0
+        ? '<span style="padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c2b1c;color:#86efac;border:1px solid #166534;">✂ 절단 '+plVal.toLocaleString()+'mm</span>'
+        : '<span style="font-size:10px;color:#38bdf8;">Roll(원지/무한)</span>'
+
       // 길이 범위 바 (최소~최대 시각화)
       var pct = ll2.maxLen > 0 ? Math.min(100, Math.round((ll2.minLen / ll2.maxLen) * 100)) : 0
 
@@ -9694,6 +9742,8 @@ function renderSimResult(combos, unassigned) {
           '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'+
             '<i class="fas fa-ruler-horizontal" style="color:#a78bfa;font-size:10px;"></i>'+
             '<span style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;">생산 길이 기준 ('+combo.basisWeight+'g/m²)</span>'+
+            plLabel+
+            '<span style="color:var(--border);">|</span>'+
             '<span style="font-size:11px;color:#60a5fa;">최소 <b>'+minL+'m</b></span>'+
             '<span style="color:var(--text-faint);">~</span>'+
             '<span style="font-size:11px;color:#34d399;">최대 <b>'+maxL+'m</b></span>'+
@@ -9740,6 +9790,9 @@ function renderSimResult(combos, unassigned) {
         '<span class="machine-badge" style="font-size:13px;padding:3px 12px;">'+combo.machineNo+'호기</span>'+
         paperTypeBadge(combo.paperTypeCode)+
         '<span style="font-size:12px;color:var(--text-muted);">평량 <b style="color:var(--text-main);">'+combo.basisWeight+'g/m²</b></span>'+
+        (combo.paperLength > 0
+          ? '<span style="font-size:12px;color:var(--text-muted);">지장 <b style="color:#f59e0b;">'+combo.paperLength.toLocaleString()+'mm</b></span>'
+          : '<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#0c1a2e;color:#38bdf8;">Roll (무한)</span>')+
         '<span style="font-size:12px;color:var(--text-muted);"><b style="color:var(--text-main);">'+combo.pokCount+'</b>폭</span>'+
         '<div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">'+
           '<span style="font-size:12px;color:var(--text-muted);">합계 지폭: <b style="color:'+(combo.belowMinWidth?'#f87171':'var(--text-main)')+';">'+combo.widthSum.toLocaleString()+'mm</b>'+(combo.minWidth?(' <span style="color:var(--text-faint);">(최소 '+combo.minWidth.toLocaleString()+'↑</span>'):'')+'/ '+combo.maxWidth.toLocaleString()+'mm</span>'+
