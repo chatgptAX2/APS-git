@@ -37,6 +37,17 @@ const machines: any[] = [
     bwExceptionList: '', bwExceptionMaxWidth: null,
     description: '크라프트 / 골판지 원지',
     note: '620×4폭 불가 / 620×3 + 640×1 가능',
+    // 평량별 길이 기준 (단위: m) — 호기별 최소/최대/밀롤 적치용 길이
+    lengthLimits: [
+      { basisWeight: 200, minLen: 7500,  maxLen: 11500, milrolLen: null  },
+      { basisWeight: 220, minLen: 6800,  maxLen: 10250, milrolLen: 10250 },
+      { basisWeight: 230, minLen: 6500,  maxLen: 10250, milrolLen: null  },
+      { basisWeight: 240, minLen: 6200,  maxLen: 9250,  milrolLen: 9250  },
+      { basisWeight: 250, minLen: 5800,  maxLen: 8750,  milrolLen: null  },
+      { basisWeight: 260, minLen: 5600,  maxLen: 8750,  milrolLen: null  },
+      { basisWeight: 280, minLen: 5100,  maxLen: 8000,  milrolLen: null  },
+      { basisWeight: 300, minLen: 4700,  maxLen: 7500,  milrolLen: 7500  },
+    ],
   },
   {
     machineId: 2, machineNo: '3', machineName: '3호기',
@@ -45,6 +56,21 @@ const machines: any[] = [
     bwExceptionList: '300,500,550', bwExceptionMaxWidth: 3410,
     description: '크라프트 / 중량지 / 특수지',
     note: '300/500/550g/m² 평량은 최대지폭 3,410mm 적용',
+    // 평량별 길이 기준 (단위: m) — 호기별 최소/최대/밀롤 적치용 길이
+    lengthLimits: [
+      { basisWeight: 260, minLen: 5100,  maxLen: 10000, milrolLen: null  },
+      { basisWeight: 280, minLen: 5100,  maxLen: 10000, milrolLen: null  },
+      { basisWeight: 300, minLen: 5100,  maxLen: 9600,  milrolLen: 8200  },
+      { basisWeight: 310, minLen: 5000,  maxLen: 9000,  milrolLen: null  },
+      { basisWeight: 340, minLen: 4800,  maxLen: 8100,  milrolLen: null  },
+      { basisWeight: 350, minLen: 4500,  maxLen: 8000,  milrolLen: 6900  },
+      { basisWeight: 390, minLen: 3800,  maxLen: 7200,  milrolLen: null  },
+      { basisWeight: 400, minLen: 3800,  maxLen: 7100,  milrolLen: 6000  },
+      { basisWeight: 450, minLen: 3400,  maxLen: 6000,  milrolLen: 5400  },
+      { basisWeight: 465, minLen: 3500,  maxLen: 5500,  milrolLen: 4700  },
+      { basisWeight: 500, minLen: 3000,  maxLen: 5400,  milrolLen: null  },
+      { basisWeight: 550, minLen: 2700,  maxLen: 5000,  milrolLen: null  },
+    ],
   },
 ]
 
@@ -5482,12 +5508,13 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                     <th>폭수</th>
                     <th>생산량(TON)</th>
                     <th>Loss</th>
+                    <th>배폭생산</th>
                     <th>연결 판매오더</th>
                     <th>상태</th>
                   </tr>
                 </thead>
                 <tbody id="sim-jumbo-tbody">
-                  <tr><td colspan="11" class="empty-state">오더생성 버튼을 눌러 점보롤 생산오더를 생성하세요.</td></tr>
+                  <tr><td colspan="12" class="empty-state">오더생성 버튼을 눌러 점보롤 생산오더를 생성하세요.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -7405,6 +7432,7 @@ async function loadMachine() {
     const res = await fetch('/klean-aps-api/machines')
     const json = await res.json()
     if (!json.success) throw new Error(json.message || 'API 오류')
+    _machinesCache = json.data   // 전역 캐시 저장
     renderMachineTable(json.data)
     toast('기계 마스터 정보를 불러왔습니다.', 'ok')
   } catch(e) {
@@ -7431,6 +7459,46 @@ function renderMachineTable(data) {
     const noteHtml = m.note
       ? '<div style="display:flex;align-items:flex-start;gap:6px;margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.6;"><i class="fas fa-lightbulb" style="color:#f59e0b;flex-shrink:0;margin-top:1px;"></i>'+m.note+'</div>'
       : ''
+
+    // 평량별 길이 기준 테이블
+    var lengthLimitsHtml = ''
+    if (m.lengthLimits && m.lengthLimits.length > 0) {
+      var llRows = m.lengthLimits.map(function(ll) {
+        var milrolCell = ll.milrolLen != null
+          ? '<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;">'+ll.milrolLen.toLocaleString()+'</span>'
+          : '<span style="color:var(--text-faint);">—</span>'
+        return '<tr>' +
+          '<td style="font-weight:700;color:var(--text-main);text-align:center;">'+ll.basisWeight+'</td>' +
+          '<td style="color:#60a5fa;text-align:right;">'+ll.minLen.toLocaleString()+'</td>' +
+          '<td style="color:#34d399;text-align:right;">'+ll.maxLen.toLocaleString()+'</td>' +
+          '<td style="text-align:center;">'+milrolCell+'</td>' +
+        '</tr>'
+      }).join('')
+      lengthLimitsHtml =
+        '<div style="margin-top:10px;">' +
+          '<div style="font-size:10px;font-weight:700;color:var(--text-faint);margin-bottom:6px;display:flex;align-items:center;gap:6px;">' +
+            '<i class="fas fa-ruler-combined" style="color:#a78bfa;"></i>' +
+            '<span>평량별 생산 길이 기준 (단위: m)</span>' +
+          '</div>' +
+          '<div style="overflow-x:auto;">' +
+            '<table style="width:100%;border-collapse:collapse;font-size:11px;">' +
+              '<thead>' +
+                '<tr style="border-bottom:2px solid var(--border);">' +
+                  '<th style="padding:5px 8px;text-align:center;color:var(--text-faint);font-weight:600;white-space:nowrap;">평량(g/m²)</th>' +
+                  '<th style="padding:5px 8px;text-align:right;color:var(--text-faint);font-weight:600;white-space:nowrap;">최소길이</th>' +
+                  '<th style="padding:5px 8px;text-align:right;color:var(--text-faint);font-weight:600;white-space:nowrap;">최대길이</th>' +
+                  '<th style="padding:5px 8px;text-align:center;color:var(--text-faint);font-weight:600;white-space:nowrap;">밀롤 적치용</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody style="font-size:11px;">' + llRows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+          '<div style="margin-top:6px;font-size:10px;color:var(--text-faint);">' +
+            '<i class="fas fa-info-circle" style="color:#60a5fa;margin-right:4px;"></i>' +
+            '배폭생산 시 최대길이 ÷ 2 적용 · 밀롤 적치용 값이 있으면 해당 값 ÷ 2 우선 적용' +
+          '</div>' +
+        '</div>'
+    }
 
     return (
     '<div class="machine-row-card" data-id="'+m.machineId+'">' +
@@ -7481,6 +7549,7 @@ function renderMachineTable(data) {
         '</div>' +
       '</div>' +
       noteHtml +
+      lengthLimitsHtml +
     '</div>' +
     '</div>'
     )
@@ -8273,6 +8342,7 @@ let simCombos = []      // 생성된 조합 결과
 let simExcluded = []    // 분리된 예외 오더
 let simUnassigned = []  // 미배치 오더 (조합에 포함되지 못한 오더)
 let currentSimCode = '' // 현재 세션 코드 (S-YYYY-MM-DD-0001)
+var _machinesCache = [] // 기계 마스터 전역 캐시 (loadMachine 시 갱신)
 
 async function loadSimulation() {
   updateSimConstraintSummary()
@@ -8280,6 +8350,13 @@ async function loadSimulation() {
   currentSimCode = ''
   const codeEl = document.getElementById('sim-session-code')
   if (codeEl) { codeEl.textContent = ''; codeEl.style.display = 'none' }
+
+  // 기계 마스터 캐시 갱신 (배폭생산 판별에 필요)
+  try {
+    const mr = await fetch('/klean-aps-api/machines')
+    const mj = await mr.json()
+    if (mj.success) _machinesCache = mj.data || []
+  } catch(e) { /* 무시 — 캐시 없으면 배폭 판별만 건너뜀 */ }
 
   // DB 저장 상태 확인 + allOrders 갱신
   const dbBanner  = document.getElementById('sim-db-banner')
@@ -9327,6 +9404,85 @@ function getOrderTon(o) {
   return 0
 }
 
+// ─────────────────────────────────────────────────────────────────
+// 배폭생산 관련 헬퍼
+//
+// 배폭생산 개념:
+//   판매오더 지폭이 noProdLimit(협폭한계, 기본 625mm) 이하일 때
+//   지폭 × 2 + 미미(30mm) 로 점보롤 생산 → 재단 → 같은 지폭 2롤
+//   생산 길이 = 해당 평량의 최대길이(또는 밀롤 적치용) ÷ 2
+// ─────────────────────────────────────────────────────────────────
+
+// 기계 오브젝트에서 특정 평량의 lengthLimit 조회
+function getLengthLimit(machineObj, basisWeightNum) {
+  if (!machineObj || !machineObj.lengthLimits) return null
+  var bw = Number(basisWeightNum)
+  if (!bw) return null
+  // 정확히 일치하는 평량 우선
+  for (var i = 0; i < machineObj.lengthLimits.length; i++) {
+    if (machineObj.lengthLimits[i].basisWeight === bw) return machineObj.lengthLimits[i]
+  }
+  // 정확 일치 없으면 가장 가까운 평량(이하) 반환
+  var best = null
+  var bestDiff = Infinity
+  for (var j = 0; j < machineObj.lengthLimits.length; j++) {
+    var ll = machineObj.lengthLimits[j]
+    var diff = Math.abs(ll.basisWeight - bw)
+    if (diff < bestDiff) { best = ll; bestDiff = diff }
+  }
+  return best
+}
+
+// 배폭생산 가능 여부 판별
+// 조건: 지폭이 noProdLimit 이하 AND 기계가 할당된 오더
+function canDoubleWidth(order, machineObj) {
+  if (!machineObj) return false
+  var pw = order._pw || order.paperWidth || 0
+  var noprod = machineObj.noProdLimit || 625
+  // 협폭(noProdLimit 이하)이어야 배폭 가능
+  return pw > 0 && pw <= noprod
+}
+
+// 배폭생산 시 점보롤 지폭 계산 (지폭 × 2 + 미미)
+function getDoubleWidthJumboWidth(order, machineObj) {
+  var pw   = order._pw || order.paperWidth || 0
+  var mimi = (machineObj && machineObj.mimi != null) ? machineObj.mimi : 30
+  return pw * 2 + mimi
+}
+
+// 배폭생산 시 생산 길이 계산 (최대길이 또는 밀롤 적치용 ÷ 2)
+// milrolLen 있으면 milrolLen ÷ 2, 없으면 maxLen ÷ 2
+function getDoubleWidthProdLength(order, machineObj) {
+  var bw = Number(order.basisWeight) || 0
+  var ll = getLengthLimit(machineObj, bw)
+  if (!ll) return null
+  var baseLen = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
+  return Math.floor(baseLen / 2)
+}
+
+// 오더에 배폭생산 메타 정보 주입 (_isDoubleWidth, _jumboWidth, _prodLength)
+function enrichDoubleWidthInfo(order, allMachines) {
+  var mNo = order._machineNoResolved || order.machineNo || ''
+  var machineObj = null
+  for (var i = 0; i < allMachines.length; i++) {
+    if (allMachines[i].machineNo === String(mNo)) { machineObj = allMachines[i]; break }
+  }
+  if (!machineObj) return order
+  var isDW = canDoubleWidth(order, machineObj)
+  if (!isDW) return order
+  var jumboW   = getDoubleWidthJumboWidth(order, machineObj)
+  var prodLen  = getDoubleWidthProdLength(order, machineObj)
+  var bw       = Number(order.basisWeight) || 0
+  var ll       = getLengthLimit(machineObj, bw)
+  return Object.assign({}, order, {
+    _isDoubleWidth: true,
+    _jumboWidth:    jumboW,
+    _prodLength:    prodLen,
+    _lengthLimit:   ll,
+    _machineObj:    machineObj,
+  })
+}
+
 function renderSimResult(combos, unassigned) {
   const totalTon  = combos.reduce((s,c) => s + Number(c.totalTon), 0)
   const totalOrds = combos.reduce((s,c) => s + c.orders.length, 0)
@@ -9408,10 +9564,14 @@ function renderSimResult(combos, unassigned) {
   list.innerHTML = combos.map(combo => {
     const lossColor = Number(combo.lossRate) === 0 ? '#34d399'
                     : Number(combo.lossRate) < 2   ? '#f59e0b' : '#f87171'
-    const widthBars = combo.orders.map(o =>
-      '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
-      o.paperWidth+'mm</span>'
-    ).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
+    const widthBars = combo.orders.map(o => {
+      var dwInfoBar = enrichDoubleWidthInfo(o, _machinesCache || [])
+      var dwSuffix = dwInfoBar._isDoubleWidth
+        ? '<span style="font-size:9px;color:#fb923c;font-weight:600;vertical-align:super;">×2</span>'
+        : ''
+      return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
+        o.paperWidth+'mm'+dwSuffix+'</span>'
+    }).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
     const cid = 'combo-check-' + combo.comboId
 
     // ── 조합별 Roll / Sheet TON 집계 + 비율 ──────────────────
@@ -9537,10 +9697,18 @@ function renderSimResult(combos, unassigned) {
             combo.orders.map(o => {
               const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
               const dc = orderDayColor(o.dueDate)
+              // 배폭생산 여부 판별 및 메타 정보
+              var dwInfo = enrichDoubleWidthInfo(o, _machinesCache || [])
+              var dwBadge = ''
+              if (dwInfo._isDoubleWidth) {
+                var dwJW  = dwInfo._jumboWidth   ? dwInfo._jumboWidth.toLocaleString() + 'mm' : '-'
+                var dwLen = dwInfo._prodLength   ? dwInfo._prodLength.toLocaleString() + 'm'  : '-'
+                dwBadge = '<span style="margin-left:4px;display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;" title="배폭생산: 점보롤 '+dwJW+' / 생산길이 '+dwLen+'">⚡배폭 '+dwJW+'→'+dwLen+'</span>'
+              }
               return '<tr>'+
                 '<td style="padding:5px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
                 '<td style="padding:5px 6px;">'+o.customerName+'</td>'+
-                '<td style="padding:5px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm</td>'+
+                '<td style="padding:5px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm'+dwBadge+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
                 '<td style="padding:5px 6px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
                 '<td style="padding:5px 6px;font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
@@ -9836,6 +10004,21 @@ async function simSendOrder() {
     const dueDates = combo.orders.map(o => o.dueDate).filter(Boolean).sort()
     const planEndDate = dueDates[0] || todayStr
 
+    // 배폭생산 정보 빌드 (협폭 단독 조합인 경우)
+    var doubleWidthInfo = null
+    if (combo.orders.length === 1) {
+      var dw = enrichDoubleWidthInfo(combo.orders[0], _machinesCache || [])
+      if (dw._isDoubleWidth) {
+        doubleWidthInfo = {
+          isDoubleWidth: true,
+          singleWidth:   combo.orders[0].paperWidth,
+          jumboWidthDW:  dw._jumboWidth,
+          prodLength:    dw._prodLength,
+          basisWeight:   combo.basisWeight,
+        }
+      }
+    }
+
     return {
       machineNo:      combo.machineNo,
       basisWeight:    combo.basisWeight,
@@ -9848,6 +10031,7 @@ async function simSendOrder() {
       planStartDate:  todayStr,
       planEndDate,
       lossRate:       combo.lossRate,
+      doubleWidthInfo,
     }
   })
 
@@ -9936,6 +10120,13 @@ function renderJumboOrders(list) {
       '<span style="font-family:monospace;font-size:10px;color:#60a5fa;margin-right:4px;">'+no+'</span>'
     ).join('')
 
+    // 배폭생산 뱃지
+    var dwBadgeCell = '<span style="color:var(--text-faint);font-size:10px;">—</span>'
+    if (j.doubleWidthInfo && j.doubleWidthInfo.isDoubleWidth) {
+      var dw = j.doubleWidthInfo
+      dwBadgeCell = '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;white-space:nowrap;">⚡배폭 '+(dw.jumboWidthDW||'-')+'mm / '+(dw.prodLength||'-')+'m</span>'
+    }
+
     return '<tr>'+
       '<td class="center" style="color:var(--text-faint);font-size:11px;">'+(idx+1)+'</td>'+
       '<td style="font-family:monospace;font-weight:700;color:#34d399;font-size:11px;">'+j.jumboOrderNo+'</td>'+
@@ -9946,6 +10137,7 @@ function renderJumboOrders(list) {
       '<td class="center" style="font-weight:700;">'+j.pokCount+'폭</td>'+
       '<td class="num" style="font-weight:700;color:#34d399;">'+Number(j.totalTon).toFixed(3)+'T</td>'+
       '<td class="num" style="font-weight:700;color:'+lossColor+';">'+j.lossRate+'%</td>'+
+      '<td style="white-space:nowrap;">'+dwBadgeCell+'</td>'+
       '<td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+orderNos+'</td>'+
       '<td class="center"><span class="badge b-assigned" style="font-size:10px;"><i class="fas fa-paper-plane"></i> SAP전송</span></td>'+
       '</tr>'
