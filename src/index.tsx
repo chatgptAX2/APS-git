@@ -75,6 +75,32 @@ const machines: any[] = [
 ]
 
 // ============================================================
+// 원지(Roll) 길이 기준 — 인치(관경) × 평량별 최대 생산 길이(m)
+// ※ 인치 정보는 추후 SAP API에서 오더번호별 매핑 테이블로 수신
+//   현재는 서버사이드 상수로 정의, coreInch 필드로 조회
+// ※ 구분: 3인치(소관) / 12인치(대관)
+// ============================================================
+const rollLengthLimits: any[] = [
+  // 3인치 (소관)
+  { coreInch: 3,  basisWeight: 220, maxLen: 4300 },
+  { coreInch: 3,  basisWeight: 240, maxLen: 3800 },
+  { coreInch: 3,  basisWeight: 280, maxLen: 3500 },
+  { coreInch: 3,  basisWeight: 300, maxLen: 3000 },
+  { coreInch: 3,  basisWeight: 350, maxLen: 2450 },
+  { coreInch: 3,  basisWeight: 400, maxLen: 2250 },
+  { coreInch: 3,  basisWeight: 450, maxLen: 1850 },
+  // 12인치 (대관)
+  { coreInch: 12, basisWeight: 220, maxLen: 6000 },
+  { coreInch: 12, basisWeight: 240, maxLen: 5700 },
+  { coreInch: 12, basisWeight: 260, maxLen: 5200 },
+  { coreInch: 12, basisWeight: 280, maxLen: 4800 },
+  { coreInch: 12, basisWeight: 300, maxLen: 4500 },
+  { coreInch: 12, basisWeight: 350, maxLen: 4000 },
+  { coreInch: 12, basisWeight: 400, maxLen: 3500 },
+  { coreInch: 12, basisWeight: 450, maxLen: 2900 },
+]
+
+// ============================================================
 // 자재마스터 임시 데이터 (DBdata.xlsx 자재마스터 시트, 114건)
 // ============================================================
 const MAT_MASTER_DATA: any[] = [
@@ -2233,6 +2259,17 @@ function generateSimCode(): string {
 // API
 // ============================================================
 app.get('/klean-aps-api/machines', (c) => c.json({ success:true, data:machines }))
+
+// 원지(Roll) 길이 기준 조회
+// query: coreInch=3|12 (생략 시 전체 반환)
+app.get('/klean-aps-api/roll-length-limits', (c) => {
+  const inch = c.req.query('coreInch')
+  if (inch) {
+    const inchNum = Number(inch)
+    return c.json({ success:true, data: rollLengthLimits.filter(r => r.coreInch === inchNum) })
+  }
+  return c.json({ success:true, data: rollLengthLimits })
+})
 
 // 자재마스터 목록 조회 (필터: matCode, paperTypeCode, machineNo, packCode, prodType)
 app.get('/klean-aps-api/mat-master', (c) => {
@@ -4897,6 +4934,81 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         </div>
       </div>
     </div>
+
+    <!-- 원지(Roll) 길이 기준 -->
+    <div class="section-card" style="margin-top:14px;">
+      <div class="section-title">
+        <i class="fas fa-scroll" style="color:#38bdf8;"></i>
+        <span>원지(Roll) 생산 길이 기준</span>
+        <span style="margin-left:8px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#0c1a2e;color:#38bdf8;border:1px solid #1e3a5f;">관경(인치) × 평량</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text-faint);">※ 인치 정보는 SAP 오더 연동 후 자동 매핑 예정</span>
+      </div>
+      <div class="section-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+          <!-- 3인치 테이블 -->
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="padding:3px 12px;border-radius:6px;font-size:12px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;">3인치 (소관)</span>
+              <span style="font-size:10px;color:var(--text-faint);">Roll 오더 최대 권취 길이 기준</span>
+            </div>
+            <table class="data-table" style="font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="text-align:center;">평량 (g/m²)</th>
+                  <th style="text-align:right;">최대 길이 (m)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td style="text-align:center;font-weight:700;">220</td><td style="text-align:right;color:#34d399;font-weight:700;">4,300</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">240</td><td style="text-align:right;color:#34d399;font-weight:700;">3,800</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">280</td><td style="text-align:right;color:#34d399;font-weight:700;">3,500</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">300</td><td style="text-align:right;color:#34d399;font-weight:700;">3,000</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">350</td><td style="text-align:right;color:#34d399;font-weight:700;">2,450</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">400</td><td style="text-align:right;color:#34d399;font-weight:700;">2,250</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">450</td><td style="text-align:right;color:#34d399;font-weight:700;">1,850</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 12인치 테이블 -->
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="padding:3px 12px;border-radius:6px;font-size:12px;font-weight:700;background:#0c1a2e;color:#60a5fa;border:1px solid #1e3a8a;">12인치 (대관)</span>
+              <span style="font-size:10px;color:var(--text-faint);">Roll 오더 최대 권취 길이 기준</span>
+            </div>
+            <table class="data-table" style="font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="text-align:center;">평량 (g/m²)</th>
+                  <th style="text-align:right;">최대 길이 (m)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td style="text-align:center;font-weight:700;">220</td><td style="text-align:right;color:#34d399;font-weight:700;">6,000</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">240</td><td style="text-align:right;color:#34d399;font-weight:700;">5,700</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">260</td><td style="text-align:right;color:#34d399;font-weight:700;">5,200</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">280</td><td style="text-align:right;color:#34d399;font-weight:700;">4,800</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">300</td><td style="text-align:right;color:#34d399;font-weight:700;">4,500</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">350</td><td style="text-align:right;color:#34d399;font-weight:700;">4,000</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">400</td><td style="text-align:right;color:#34d399;font-weight:700;">3,500</td></tr>
+                <tr><td style="text-align:center;font-weight:700;">450</td><td style="text-align:right;color:#34d399;font-weight:700;">2,900</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);font-size:11px;color:var(--text-faint);display:flex;align-items:flex-start;gap:8px;">
+          <i class="fas fa-info-circle" style="color:#38bdf8;margin-top:1px;flex-shrink:0;"></i>
+          <span>
+            3인치(소관)와 12인치(대관)는 <b style="color:var(--text-muted);">관경(코어 직경)</b> 기준입니다.
+            같은 평량이라도 관경이 클수록 더 긴 원지를 권취할 수 있습니다.
+            오더별 인치 정보는 추후 <b style="color:#38bdf8;">SAP API 오더 연동</b> 시 자동으로 매핑되어 시뮬레이션에 반영됩니다.
+          </span>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div><!-- /page-machine -->
 
@@ -8342,7 +8454,8 @@ let simCombos = []      // 생성된 조합 결과
 let simExcluded = []    // 분리된 예외 오더
 let simUnassigned = []  // 미배치 오더 (조합에 포함되지 못한 오더)
 let currentSimCode = '' // 현재 세션 코드 (S-YYYY-MM-DD-0001)
-var _machinesCache = [] // 기계 마스터 전역 캐시 (loadMachine 시 갱신)
+var _machinesCache = []          // 기계 마스터 전역 캐시 (loadMachine 시 갱신)
+var _rollLengthCache = []        // 원지(Roll) 길이 기준 캐시 (coreInch × basisWeight)
 
 async function loadSimulation() {
   updateSimConstraintSummary()
@@ -8351,12 +8464,17 @@ async function loadSimulation() {
   const codeEl = document.getElementById('sim-session-code')
   if (codeEl) { codeEl.textContent = ''; codeEl.style.display = 'none' }
 
-  // 기계 마스터 캐시 갱신 (배폭생산 판별에 필요)
+  // 기계 마스터 + Roll 길이 기준 캐시 갱신
   try {
     const mr = await fetch('/klean-aps-api/machines')
     const mj = await mr.json()
     if (mj.success) _machinesCache = mj.data || []
-  } catch(e) { /* 무시 — 캐시 없으면 배폭 판별만 건너뜀 */ }
+  } catch(e) { /* 무시 */ }
+  try {
+    const rr = await fetch('/klean-aps-api/roll-length-limits')
+    const rj = await rr.json()
+    if (rj.success) _rollLengthCache = rj.data || []
+  } catch(e) { /* 무시 */ }
 
   // DB 저장 상태 확인 + allOrders 갱신
   const dbBanner  = document.getElementById('sim-db-banner')
@@ -9456,6 +9574,38 @@ function getOrderTon(o) {
 // ─────────────────────────────────────────────────────────────────
 
 // 기계 오브젝트에서 특정 평량의 lengthLimit 조회
+// ── 원지(Roll) 길이 기준 조회 ──────────────────────────────────
+// coreInch: 3 | 12 (오더의 coreInch 필드 — 추후 SAP API 연동)
+// basisWeightNum: 평량(g/m²)
+// 반환: { coreInch, basisWeight, maxLen } | null
+// ※ 정확 일치 우선, 없으면 평량 가장 가까운 값 반환
+// ※ coreInch 미지정(null/0) 시 모든 인치 데이터 반환 (인치 미확인 안내용)
+function getRollLengthLimit(coreInch, basisWeightNum, rollCache) {
+  var cache = rollCache || _rollLengthCache || []
+  if (!cache.length) return null
+  var bw = Number(basisWeightNum) || 0
+  if (!bw) return null
+  var inch = coreInch ? Number(coreInch) : 0
+  // 인치 미지정 → 3인치/12인치 모두 반환 (배열)
+  if (!inch) {
+    var all = cache.filter(function(r) { return Number(r.basisWeight) === bw })
+    return all.length ? all : null
+  }
+  var filtered = cache.filter(function(r) { return r.coreInch === inch })
+  if (!filtered.length) return null
+  // 정확 일치
+  for (var i = 0; i < filtered.length; i++) {
+    if (Number(filtered[i].basisWeight) === bw) return filtered[i]
+  }
+  // 가장 가까운 평량
+  var best = null, bestDiff = Infinity
+  for (var j = 0; j < filtered.length; j++) {
+    var diff = Math.abs(Number(filtered[j].basisWeight) - bw)
+    if (diff < bestDiff) { best = filtered[j]; bestDiff = diff }
+  }
+  return best
+}
+
 function getLengthLimit(machineObj, basisWeightNum) {
   if (!machineObj || !machineObj.lengthLimits) return null
   var bw = Number(basisWeightNum)
@@ -9700,18 +9850,99 @@ function renderSimResult(combos, unassigned) {
     // ── 생산 길이 정보 바 ────────────────────────────────────
     var lengthInfoHtml = ''
     ;(function() {
-      // 해당 호기 + 평량으로 기계 및 lengthLimit 조회
+      var bw2    = Number(combo.basisWeight) || 0
+      var isRollCombo = (combo.paperLength === 0)  // Roll(원지) 조합 여부
+
+      // ── Roll(원지) 조합: 인치별 길이 기준 테이블 표시 ──────
+      if (isRollCombo) {
+        // 오더에서 coreInch 수집 (추후 SAP 연동 시 채워짐)
+        var inchSet = {}
+        combo.orders.forEach(function(o) {
+          if (o.coreInch) inchSet[Number(o.coreInch)] = true
+        })
+        var inchKeys = Object.keys(inchSet).map(Number)
+
+        var cache = _rollLengthCache || []
+        var inchList = [3, 12]
+
+        var rollRows = inchList.map(function(inch) {
+          var row = null
+          for (var ri = 0; ri < cache.length; ri++) {
+            if (cache[ri].coreInch === inch && Number(cache[ri].basisWeight) === bw2) {
+              row = cache[ri]; break
+            }
+          }
+          if (!row) {
+            var best2 = null, bestDiff2 = Infinity
+            for (var rj = 0; rj < cache.length; rj++) {
+              if (cache[rj].coreInch !== inch) continue
+              var diff2 = Math.abs(Number(cache[rj].basisWeight) - bw2)
+              if (diff2 < bestDiff2) { best2 = cache[rj]; bestDiff2 = diff2 }
+            }
+            row = best2
+          }
+          var isActive = inchKeys.indexOf(inch) >= 0
+          var rowStyle = isActive ? 'background:#0c1d2e;' : ''
+          var activeBadge = isActive
+            ? '<span style=\"margin-left:4px;padding:0 5px;border-radius:3px;font-size:9px;background:#1e40af;color:#93c5fd;\">이 오더</span>'
+            : ''
+          var lenCell = row
+            ? '<b style=\"color:#34d399;font-size:12px;\">'+Number(row.maxLen).toLocaleString()+'m</b>'
+            : '<span style=\"color:var(--text-faint);\">—</span>'
+          return '<tr style=\"'+rowStyle+'\">'+
+            '<td style=\"padding:5px 10px;text-align:center;\">'+
+              '<span style=\"font-weight:700;color:var(--text-main);\">'+inch+'인치</span>'+activeBadge+
+            '</td>'+
+            '<td style=\"padding:5px 10px;text-align:center;\">'+lenCell+'</td>'+
+          '</tr>'
+        }).join('')
+
+        var inchNotice = inchKeys.length === 0
+          ? '<div style=\"margin-top:6px;font-size:10px;color:#f59e0b;\"><i class=\"fas fa-exclamation-triangle\" style=\"margin-right:4px;\"></i>오더에 인치 정보 없음 — SAP 연동 후 자동 매핑 예정</div>'
+          : ''
+        var cacheNotice = cache.length === 0
+          ? '<div style=\"margin-top:6px;font-size:10px;color:#f87171;\"><i class=\"fas fa-exclamation-circle\" style=\"margin-right:4px;\"></i>Roll 길이 기준 캐시 없음 — 시뮬레이션 탭 재진입 시 갱신됨</div>'
+          : ''
+
+        lengthInfoHtml =
+          '<div style=\"margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:7px;border:1px solid #1e3a5f;font-size:11px;\">'+
+            '<div style=\"display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap;\">'+
+              '<i class=\"fas fa-scroll\" style=\"color:#38bdf8;font-size:10px;\"></i>'+
+              '<span style=\"font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;\">원지 생산 길이 기준 ('+bw2+'g/m²)</span>'+
+              '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#0c1a2e;color:#38bdf8;\">Roll (무한)</span>'+
+              '<span style=\"font-size:10px;color:var(--text-faint);\">인치별 최대 권취 길이</span>'+
+            '</div>'+
+            (cache.length > 0
+              ? '<table style=\"width:100%;border-collapse:collapse;font-size:11px;\">'+
+                  '<thead>'+
+                    '<tr style=\"border-bottom:1px solid var(--border);\">'+
+                      '<th style=\"padding:4px 10px;text-align:center;font-weight:600;color:var(--text-faint);\">관경(인치)</th>'+
+                      '<th style=\"padding:4px 10px;text-align:center;font-weight:600;color:var(--text-faint);\">최대 길이</th>'+
+                    '</tr>'+
+                  '</thead>'+
+                  '<tbody>'+rollRows+'</tbody>'+
+                '</table>'
+              : '<div style=\"color:var(--text-faint);font-size:11px;padding:4px 0;\">캐시 로딩 중...</div>')+
+            inchNotice+
+            cacheNotice+
+            '<div style=\"margin-top:6px;font-size:10px;color:var(--text-faint);\">'+
+              '<i class=\"fas fa-info-circle\" style=\"color:#38bdf8;margin-right:4px;\"></i>'+
+              '인치 정보는 SAP 오더 연동 시 자동 매핑 · 현재 기준 테이블 표시'+
+            '</div>'+
+          '</div>'
+        return
+      }
+
+      // ── Sheet 조합: 기계 lengthLimit 기반 생산 길이 바 ────────
       var mNo2 = String(combo.machineNo || '')
       var mObj2 = null
       for (var mi = 0; mi < (_machinesCache||[]).length; mi++) {
         if (_machinesCache[mi].machineNo === mNo2) { mObj2 = _machinesCache[mi]; break }
       }
       if (!mObj2) return
-      var bw2 = Number(combo.basisWeight) || 0
       var ll2 = getLengthLimit(mObj2, bw2)
       if (!ll2) return
 
-      // 배폭생산 여부 (조합 내 협폭 단독 오더 체크)
       var isDW2 = false
       var dwLen2 = null
       var dwJW2  = null
@@ -9728,49 +9959,43 @@ function renderSimResult(combos, unassigned) {
       var maxL  = ll2.maxLen.toLocaleString()
       var milL  = ll2.milrolLen != null ? ll2.milrolLen.toLocaleString() : null
 
-      // 절단 길이 (Sheet 오더이면 > 0)
-      var plVal  = combo.paperLength || 0  // mm
+      var plVal  = combo.paperLength || 0
       var plLabel = plVal > 0
-        ? '<span style="padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c2b1c;color:#86efac;border:1px solid #166534;">✂ 절단 '+plVal.toLocaleString()+'mm</span>'
-        : '<span style="font-size:10px;color:#38bdf8;">Roll(원지/무한)</span>'
+        ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c2b1c;color:#86efac;border:1px solid #166534;\">✂ 절단 '+plVal.toLocaleString()+'mm</span>'
+        : '<span style=\"font-size:10px;color:#38bdf8;\">Roll(원지/무한)</span>'
 
-      // 길이 범위 바 (최소~최대 시각화)
       var pct = ll2.maxLen > 0 ? Math.min(100, Math.round((ll2.minLen / ll2.maxLen) * 100)) : 0
 
       lengthInfoHtml =
-        '<div style="margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;">'+
-          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'+
-            '<i class="fas fa-ruler-horizontal" style="color:#a78bfa;font-size:10px;"></i>'+
-            '<span style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;">생산 길이 기준 ('+combo.basisWeight+'g/m²)</span>'+
+        '<div style=\"margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;\">'+
+          '<div style=\"display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;\">'+
+            '<i class=\"fas fa-ruler-horizontal\" style=\"color:#a78bfa;font-size:10px;\"></i>'+
+            '<span style=\"font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;\">생산 길이 기준 ('+combo.basisWeight+'g/m²)</span>'+
             plLabel+
-            '<span style="color:var(--border);">|</span>'+
-            '<span style="font-size:11px;color:#60a5fa;">최소 <b>'+minL+'m</b></span>'+
-            '<span style="color:var(--text-faint);">~</span>'+
-            '<span style="font-size:11px;color:#34d399;">최대 <b>'+maxL+'m</b></span>'+
+            '<span style=\"color:var(--border);\">|</span>'+
+            '<span style=\"font-size:11px;color:#60a5fa;\">최소 <b>'+minL+'m</b></span>'+
+            '<span style=\"color:var(--text-faint);\">~</span>'+
+            '<span style=\"font-size:11px;color:#34d399;\">최대 <b>'+maxL+'m</b></span>'+
             (milL
-              ? '<span style="padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;">밀롤적치 '+milL+'m</span>'
+              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;\">밀롤적치 '+milL+'m</span>'
               : '')+
             (isDW2
-              ? '<span style="padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;">⚡배폭 점보 '+
+              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;\">⚡배폭 점보 '+
                 (dwJW2||'-')+'mm / 생산 '+(dwLen2||'-')+'m</span>'
               : '')+
           '</div>'+
-          // 길이 범위 시각화 바
-          '<div style="position:relative;height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;border:1px solid var(--border);">'+
-            // 최소길이까지 회색 영역
-            '<div style="position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:#374151;border-radius:4px 0 0 4px;"></div>'+
-            // 최소~최대 사용 가능 영역
-            '<div style="position:absolute;left:'+pct+'%;top:0;height:100%;width:'+(100-pct)+'%;background:linear-gradient(90deg,#34d399,#059669);border-radius:0 4px 4px 0;"></div>'+
-            // 밀롤 적치용 마커
+          '<div style=\"position:relative;height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;border:1px solid var(--border);\">'+
+            '<div style=\"position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:#374151;border-radius:4px 0 0 4px;\"></div>'+
+            '<div style=\"position:absolute;left:'+pct+'%;top:0;height:100%;width:'+(100-pct)+'%;background:linear-gradient(90deg,#34d399,#059669);border-radius:0 4px 4px 0;\"></div>'+
             (milL && ll2.maxLen > 0
-              ? '<div style="position:absolute;top:0;height:100%;width:2px;background:#c4b5fd;left:'+Math.min(99,Math.round(ll2.milrolLen/ll2.maxLen*100))+'%;" title="밀롤 적치용"></div>'
+              ? '<div style=\"position:absolute;top:0;height:100%;width:2px;background:#c4b5fd;left:'+Math.min(99,Math.round(ll2.milrolLen/ll2.maxLen*100))+'%;\" title=\"밀롤 적치용\"></div>'
               : '')+
           '</div>'+
-          '<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--text-faint);">'+
+          '<div style=\"display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--text-faint);\">'+
             '<span>0</span>'+
-            '<span style="color:#60a5fa;">'+minL+'m (최소)</span>'+
-            (milL ? '<span style="color:#c4b5fd;">'+milL+'m (밀롤)</span>' : '')+
-            '<span style="color:#34d399;">'+maxL+'m (최대)</span>'+
+            '<span style=\"color:#60a5fa;\">'+minL+'m (최소)</span>'+
+            (milL ? '<span style=\"color:#c4b5fd;\">'+milL+'m (밀롤)</span>' : '')+
+            '<span style=\"color:#34d399;\">'+maxL+'m (최대)</span>'+
           '</div>'+
         '</div>'
     })()
