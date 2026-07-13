@@ -9655,6 +9655,76 @@ function renderSimResult(combos, unassigned) {
       return 'var(--text-muted)'
     }
 
+    // ── 생산 길이 정보 바 ────────────────────────────────────
+    var lengthInfoHtml = ''
+    ;(function() {
+      // 해당 호기 + 평량으로 기계 및 lengthLimit 조회
+      var mNo2 = String(combo.machineNo || '')
+      var mObj2 = null
+      for (var mi = 0; mi < (_machinesCache||[]).length; mi++) {
+        if (_machinesCache[mi].machineNo === mNo2) { mObj2 = _machinesCache[mi]; break }
+      }
+      if (!mObj2) return
+      var bw2 = Number(combo.basisWeight) || 0
+      var ll2 = getLengthLimit(mObj2, bw2)
+      if (!ll2) return
+
+      // 배폭생산 여부 (조합 내 협폭 단독 오더 체크)
+      var isDW2 = false
+      var dwLen2 = null
+      var dwJW2  = null
+      if (combo.orders.length === 1) {
+        var dw2 = enrichDoubleWidthInfo(combo.orders[0], _machinesCache || [])
+        if (dw2._isDoubleWidth) {
+          isDW2  = true
+          dwLen2 = dw2._prodLength
+          dwJW2  = dw2._jumboWidth
+        }
+      }
+
+      var minL  = ll2.minLen.toLocaleString()
+      var maxL  = ll2.maxLen.toLocaleString()
+      var milL  = ll2.milrolLen != null ? ll2.milrolLen.toLocaleString() : null
+
+      // 길이 범위 바 (최소~최대 시각화)
+      var pct = ll2.maxLen > 0 ? Math.min(100, Math.round((ll2.minLen / ll2.maxLen) * 100)) : 0
+
+      lengthInfoHtml =
+        '<div style="margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;">'+
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'+
+            '<i class="fas fa-ruler-horizontal" style="color:#a78bfa;font-size:10px;"></i>'+
+            '<span style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;">생산 길이 기준 ('+combo.basisWeight+'g/m²)</span>'+
+            '<span style="font-size:11px;color:#60a5fa;">최소 <b>'+minL+'m</b></span>'+
+            '<span style="color:var(--text-faint);">~</span>'+
+            '<span style="font-size:11px;color:#34d399;">최대 <b>'+maxL+'m</b></span>'+
+            (milL
+              ? '<span style="padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;">밀롤적치 '+milL+'m</span>'
+              : '')+
+            (isDW2
+              ? '<span style="padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;">⚡배폭 점보 '+
+                (dwJW2||'-')+'mm / 생산 '+(dwLen2||'-')+'m</span>'
+              : '')+
+          '</div>'+
+          // 길이 범위 시각화 바
+          '<div style="position:relative;height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;border:1px solid var(--border);">'+
+            // 최소길이까지 회색 영역
+            '<div style="position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:#374151;border-radius:4px 0 0 4px;"></div>'+
+            // 최소~최대 사용 가능 영역
+            '<div style="position:absolute;left:'+pct+'%;top:0;height:100%;width:'+(100-pct)+'%;background:linear-gradient(90deg,#34d399,#059669);border-radius:0 4px 4px 0;"></div>'+
+            // 밀롤 적치용 마커
+            (milL && ll2.maxLen > 0
+              ? '<div style="position:absolute;top:0;height:100%;width:2px;background:#c4b5fd;left:'+Math.min(99,Math.round(ll2.milrolLen/ll2.maxLen*100))+'%;" title="밀롤 적치용"></div>'
+              : '')+
+          '</div>'+
+          '<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--text-faint);">'+
+            '<span>0</span>'+
+            '<span style="color:#60a5fa;">'+minL+'m (최소)</span>'+
+            (milL ? '<span style="color:#c4b5fd;">'+milL+'m (밀롤)</span>' : '')+
+            '<span style="color:#34d399;">'+maxL+'m (최대)</span>'+
+          '</div>'+
+        '</div>'
+    })()
+
     return '<div id="combo-card-'+combo.comboId+'" style="border:2px solid '+cardBorderColor+';border-radius:10px;margin-bottom:10px;background:var(--bg-input);overflow:hidden;transition:border-color .15s;">'+
       '<!-- header -->'+
       '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-wrap:wrap;">'+
@@ -9681,7 +9751,8 @@ function renderSimResult(combos, unassigned) {
       '<!-- body -->'+
       '<div style="padding:12px 16px 4px;">'+
         '<div style="margin-bottom:10px;">'+widthBars+'</div>'+
-        '<table style="width:100%;border-collapse:collapse;font-size:11px;">'+
+        lengthInfoHtml+
+        '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;">'+
           '<thead style="background:var(--bg-card);">'+
             '<tr>'+
               '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">오더번호</th>'+
