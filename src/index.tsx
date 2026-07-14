@@ -8784,6 +8784,8 @@ function runCombinationAlgorithm(orders) {
     var maxPok = machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
     var fourPokMin = machineNo === '2' ? (c.m2FourPokMin || 0) : 0
     var noProdLim  = c.noprodLimit || 625
+    var limit889   = c.limit889Double != null ? c.limit889Double : 5
+    var rule889    = c.rule889 || 'single'
     var mimi = c.mimi
 
     // ── 오더 유효 지폭 갱신 + 정렬: 긴급도 DESC → 지폭 DESC ────
@@ -8792,6 +8794,128 @@ function runCombinationAlgorithm(orders) {
       if (ud !== 0) return ud
       return b._pw - a._pw
     })
+
+    // ════════════════════════════════════════════════════════════
+    //  배폭 전처리 패스 (0단계)
+    //  규칙:
+    //   - 동일 지폭 + 동일 평량 + 동일 호기 + 동일 지종 오더끼리만 배폭
+    //   - 협폭(≤ noProdLim) 또는 889mm 이하 오더 → 배폭 필수
+    //   - N폭 배폭: 점보롤 지폭 = pw×N + mimi×(N-1) ≤ maxW
+    //   - 생산 길이 = maxLen ÷ N (getLengthLimit 사용)
+    //   - 배폭 버킷 생성 후 해당 오더를 remaining에서 제외
+    // ════════════════════════════════════════════════════════════
+    var dwidthLocked = []  // 배폭 확정 버킷
+
+    ;(function buildDoubleWidthBuckets() {
+      // 동일 지폭 서브그룹 구성
+      var pwMap = {}  // pw → orders[]
+      sorted.forEach(function(o) {
+        var pw = o._pw
+        if (!pwMap[pw]) pwMap[pw] = []
+        pwMap[pw].push(o)
+      })
+
+      Object.keys(pwMap).forEach(function(pwStr) {
+        var pw = Number(pwStr)
+        var pwOrders = pwMap[pwStr]
+
+        // 배폭 필요 여부 판단
+        var needDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
+        if (!needDouble) return  // 배폭 불필요 → 기존 BFD로 처리
+
+        // 최대 폭 수 계산: pw×N + mimi×(N-1) ≤ maxW
+        // → N ≤ (maxW + mimi) / (pw + mimi)
+        var maxN = Math.floor((maxW + mimi) / (pw + mimi))
+        maxN = Math.min(maxN, maxPok, 4)  // 최대 4폭 제한
+        if (maxN < 2) return  // 2폭도 안 되면 단독으로 남김 (미배치 처리됨)
+
+        // 2호기 4폭 조건: fourPokMin 이상이어야 함
+        if (fourPokMin > 0 && pw < fourPokMin) {
+          maxN = Math.min(maxN, maxPok - 1)  // 4폭은 제외
+          if (maxN < 2) return
+        }
+
+        // 889mm 이하 2폭 5톤 제한 체크
+        // → 오더 N개를 배폭으로 묶을 때 총 톤수 확인
+        // → 초과하면 더 작은 N 시도
+
+        // 납기 긴급도 DESC 정렬된 pwOrders 순서로 N개씩 묶기
+        var pool = pwOrders.slice()
+        while (pool.length >= 2) {
+          // 현재 pool에서 최적 N 결정
+          var bestN = maxN
+          // 889mm 이하 2폭 톤 체크: 2폭으로 묶을 때만 적용
+          if (pw <= 889 && bestN >= 2) {
+            // pool 앞에서 bestN개의 총 톤
+            var checkOrds = pool.slice(0, bestN)
+            var totalTonCheck = checkOrds.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
+            // 5톤 초과이고 bestN=2이면 배폭 불가 → 단독 처리
+            if (bestN === 2 && totalTonCheck > limit889) {
+              // 단독으로는 889mm 이하라 생산 불가 → 미배치로 남김
+              break
+            }
+            // bestN>2일 때는 제한 없음 (2폭 기준 규칙이므로)
+          }
+
+          // N개를 배폭 버킷으로 확정
+          var taken = pool.splice(0, bestN)
+          var jumboW = pw * bestN + mimi * (bestN - 1)
+
+          // 기계 객체 찾기 (생산 길이 계산용)
+          var mObj = null
+          for (var mi2 = 0; mi2 < (_machinesCache||[]).length; mi2++) {
+            if ((_machinesCache[mi2].machineNo) === machineNo) { mObj = _machinesCache[mi2]; break }
+          }
+          var prodLen = null
+          if (mObj) {
+            var ll = getLengthLimit(mObj, bw)
+            if (ll) {
+              var baseL = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
+              prodLen = Math.floor(baseL / bestN)
+            }
+          }
+
+          var totalTonBkt = taken.reduce(function(s,o){ return s + (o.orderQtyTon||0) }, 0)
+          var rawW = pw * bestN
+          var totalW = jumboW
+
+          dwidthLocked.push({
+            orders    : taken,
+            rawWidth  : rawW,
+            locked    : true,
+            _nWidth   : bestN,
+            _jumboW   : jumboW,
+            _prodLen  : prodLen,
+            _isDWidth : true
+          })
+        }
+
+        // pool에 남은 오더(묶이지 않은 나머지)는 sorted에서 제거 → 미배치로 넘어감
+        // (홀수일 때 마지막 1개가 남는 경우)
+        pool.forEach(function(o) {
+          o._unassignedReason = o._unassignedReason ||
+            (pw <= noProdLim
+              ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 ('+pw+'mm)'
+              : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 ('+pw+'mm)')
+        })
+      })
+
+      // 배폭 버킷에 들어간 오더를 sorted에서 제거
+      var dwidthIds = {}
+      dwidthLocked.forEach(function(bkt) {
+        bkt.orders.forEach(function(o) {
+          dwidthIds[o.orderId || o.sapOrderNo] = true
+        })
+      })
+      // sorted 필터링 (배폭에 들어간 오더 제거)
+      var origLen = sorted.length
+      for (var si = sorted.length - 1; si >= 0; si--) {
+        var so = sorted[si]
+        if (dwidthIds[so.orderId || so.sapOrderNo]) {
+          sorted.splice(si, 1)
+        }
+      }
+    })()
 
     // ── 제약 검사 헬퍼 ──────────────────────────────────────────
     // n폭 버킷에 order를 추가할 때의 totalWidth 계산
@@ -8987,6 +9111,45 @@ function runCombinationAlgorithm(orders) {
       } else {
         buckets.push({ orders: [order], rawWidth: order._pw, locked: false })
       }
+    })
+
+    // ── 배폭 버킷 → combos 변환 (0단계 결과) ───────────────────
+    dwidthLocked.forEach(function(bkt) {
+      if (!bkt.orders.length) return
+      var totalW   = bkt._jumboW   // 점보롤 지폭
+      var loss     = Math.max(0, maxW - totalW)
+      var lossRate = maxW > 0 ? (loss / maxW * 100) : 0
+      var totalTon = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
+      var maxUrgency = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
+      var daysArr = bkt.orders
+        .filter(function(o) { return !!o.dueDate })
+        .map(function(o) { return Math.floor((new Date(o.dueDate).setHours(0,0,0,0) - today) / 86400000) })
+      var minDaysLeft = daysArr.length ? Math.min.apply(null, daysArr) : null
+      var isZeroLoss  = (loss === 0)
+      combos.push({
+        comboId        : comboIdx++,
+        machineNo      : machineNo,
+        paperTypeCode  : ptCode,
+        basisWeight    : bw,
+        paperLength    : pl,
+        orders         : bkt.orders.slice(),
+        widthSum       : totalW,
+        maxWidth       : maxW,
+        minWidth       : minW,
+        loss           : loss,
+        lossRate       : lossRate.toFixed(1),
+        totalTon       : totalTon.toFixed(3),
+        pokCount       : bkt.orders.length,
+        urgency        : maxUrgency,
+        minDaysLeft    : minDaysLeft,
+        isSingleNarrow : false,
+        belowMinWidth  : minW > 0 && totalW < minW,
+        isZeroLoss     : isZeroLoss,
+        algoTag        : 'DWIDTH',      // 배폭 버킷 태그
+        _nWidth        : bkt._nWidth,
+        _isDWidth      : true,
+        _prodLen       : bkt._prodLen
+      })
     })
 
     // ── 버킷 → combos 변환 ──────────────────────────────────────
@@ -10063,6 +10226,13 @@ function renderSimResult(combos, unassigned) {
       ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:#052e16;color:#86efac;letter-spacing:.4px;border:1px solid #166534;">✓ ZERO LOSS</span>'
       : ''
 
+    // ── 배폭생산 뱃지 ─────────────────────────────────────────
+    const dwidthBadge = combo._isDWidth
+      ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:#431407;color:#fdba74;letter-spacing:.3px;border:1px solid #c2410c;">⚡ '+combo._nWidth+'폭배폭'+
+        (combo._prodLen ? ' · 생산'+combo._prodLen.toLocaleString()+'m' : '')+
+        '</span>'
+      : ''
+
     // ── 단독 협폭 경고 ────────────────────────────────────────
     const narrowWarn = combo.isSingleNarrow
       ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;letter-spacing:.3px;">⚠ 협폭단독</span>'
@@ -10073,11 +10243,12 @@ function renderSimResult(combos, unassigned) {
       ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#450a0a;color:#fca5a5;letter-spacing:.3px;">⛔ 최소지폭미달 ('+(combo.minWidth||0).toLocaleString()+'mm)</span>'
       : ''
 
-    // ── 카드 테두리 색 (Zero-loss > 긴급도 > 최소지폭미달) ────
+    // ── 카드 테두리 색 (배폭 > Zero-loss > 긴급도 > 최소지폭미달) ──
     const cardBorderColor = combo.belowMinWidth               ? '#ef4444'
                           : (dl !== null && dl !== undefined && dl <= 0)  ? '#f87171'
                           : (dl !== null && dl !== undefined && dl <= 3)  ? '#fb923c'
                           : (dl !== null && dl !== undefined && dl <= 7)  ? '#fbbf24'
+                          : combo._isDWidth                   ? '#c2410c'
                           : combo.isZeroLoss                 ? '#166534'
                           : 'var(--border)'
 
@@ -10266,6 +10437,7 @@ function renderSimResult(combos, unassigned) {
         '</label>'+
         '<span style="font-weight:800;font-size:15px;color:#a78bfa;">#'+combo.comboId+'</span>'+
         zeroLossBadge+
+        dwidthBadge+
         urgencyBadge+
         narrowWarn+
         minWidthWarn+
