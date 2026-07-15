@@ -11006,13 +11006,6 @@ function renderSimResult(combos, unassigned) {
               var widthCellHtml = ''
               var orderRowBg = ''
 
-              // 배폭 행은 납품처명도 더 밝게 (var(--text-main) 사용)
-              var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
-              // 배폭 행(어두운 배경)일 때 자재코드는 밝은 흰색, 일반 행은 CSS 변수 사용
-              var matcodeColor  = orderRowBg ? '#fde68a' : 'var(--sim-matcode-txt)'
-              // 오더번호: 배폭 행(어두운 배경)에서는 더 밝은 하늘색으로 대비 확보
-              var orderNoColor  = orderRowBg ? '#93c5fd' : 'var(--sim-order-no-txt)'
-
               // 원래 주문 지폭 (paperWidth) — 배폭/N폭 여부와 무관하게 항상 표시
               var origPw = o.paperWidth || o._pw || 0
 
@@ -11065,6 +11058,14 @@ function renderSimResult(combos, unassigned) {
                 }
               }
 
+              // ── orderRowBg 확정 후 색상 계산 ──────────────────────
+              // 배폭 행은 납품처명도 더 밝게
+              var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
+              // 배폭 행(어두운 배경)일 때 자재코드는 황금색, 일반 행은 CSS 변수 사용
+              var matcodeColor  = orderRowBg ? '#fde68a' : 'var(--sim-matcode-txt)'
+              // 오더번호: 배폭 행(어두운 배경)에서는 더 밝은 하늘색으로 대비 확보
+              var orderNoColor  = orderRowBg ? '#93c5fd' : 'var(--sim-order-no-txt)'
+
               return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
                 '<td style="padding:8px 8px;font-family:monospace;font-size:13px;font-weight:800;color:'+orderNoColor+';white-space:nowrap;letter-spacing:0.05em;">'+o.sapOrderNo+'</td>'+
                 '<td style="padding:8px 8px;font-size:13px;'+customerColor+'">'+o.customerName+'</td>'+
@@ -11074,6 +11075,12 @@ function renderSimResult(combos, unassigned) {
                 '<td style="padding:8px 8px;font-family:monospace;font-size:var(--sim-matcode-size);font-weight:700;color:'+matcodeColor+';white-space:nowrap;letter-spacing:0.07em;">'+(o.matCode||'-')+'</td>'+
                 '<td style="padding:8px 8px;text-align:center;font-size:13px;font-weight:800;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
+            }).join('')+
+          '</tbody>'+
+        '</table>'+
+      '</div>'+
+    '</div>'
+  }).join('')
   // 체크박스 초기 상태 반영
   combos.forEach(combo => onComboCheckChange(combo.comboId))
   // 전체선택 체크박스 초기 상태 동기화 (최초 렌더 시 전체 체크 → checked=true)
