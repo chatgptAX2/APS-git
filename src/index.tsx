@@ -2311,6 +2311,7 @@ app.post('/klean-aps-api/jumbo-orders', async (c) => {
       totalTon: item.totalTon,
       pokCount: item.pokCount,
       widths: item.widths,                   // 포함된 개별 지폭 배열 e.g. [800, 620]
+      lossRate: item.lossRate != null ? Number(item.lossRate) : null,
       sourceComboId: item.sourceComboId,
       sourceOrderNos: item.sourceOrderNos,   // 연결된 판매오더번호 배열
       planStartDate: item.planStartDate || '',
@@ -2318,6 +2319,7 @@ app.post('/klean-aps-api/jumbo-orders', async (c) => {
       status: 'PLANNED',
       createdAt: now,
       createdBy: '시스템',
+      doubleWidthInfo: item.doubleWidthInfo || null,  // N폭 배폭 정보
     }
     jumboOrders.push(jOrder)
     created.push(jOrder)
@@ -6480,18 +6482,34 @@ async function shSendOrder() {
       try { widthsArr = JSON.parse(d.widths || '[]') } catch(_) {}
       let orderNosArr = []
       try { orderNosArr = JSON.parse(d.orderNos || '[]') } catch(_) {}
+      // 배폭생산 정보 복원 (세션 저장 시 doubleWidthInfo 포함 여부에 따라)
+      var dwiRaw = null
+      try { dwiRaw = d.doubleWidthInfo ? JSON.parse(d.doubleWidthInfo) : null } catch(_) {}
+      var doubleWidthInfo = dwiRaw || null
+      // 저장된 doubleWidthInfo 없으면 widthsArr로 재구성
+      if (!doubleWidthInfo && widthsArr.length >= 2 && d.pokCount >= 2) {
+        doubleWidthInfo = {
+          isDoubleWidth : true,
+          nWidth        : widthsArr.length,
+          jumboWidthDW  : d.jumboWidth,
+          prodLength    : d.prodLen || null,
+          basisWeight   : d.basisWeight,
+          widths        : widthsArr,
+        }
+      }
       return {
-        machineNo:     d.machineNo,
-        basisWeight:   d.basisWeight,
-        jumboWidth:    d.jumboWidth,
-        totalTon:      Number(d.totalTon),
-        pokCount:      d.pokCount,
-        widths:        widthsArr,
-        sourceComboId: d.comboId,
+        machineNo:      d.machineNo,
+        basisWeight:    d.basisWeight,
+        jumboWidth:     d.jumboWidth,
+        totalTon:       Number(d.totalTon),
+        pokCount:       d.pokCount,
+        widths:         widthsArr,
+        sourceComboId:  d.comboId,
         sourceOrderNos: orderNosArr,
-        planStartDate: todayStr,
-        planEndDate:   todayStr,
-        lossRate:      d.lossRate,
+        planStartDate:  todayStr,
+        planEndDate:    todayStr,
+        lossRate:       d.lossRate,
+        doubleWidthInfo,
       }
     })
 
@@ -7419,11 +7437,19 @@ function renderJumboListTable(list) {
         + '<i class="fas fa-ban" style="margin-right:3px;"></i>취소</button>'
       : '<span style="color:var(--text-muted);font-size:0.75rem;">-</span>'
 
+    // 배폭 뱃지 (doubleWidthInfo 있으면 표시)
+    var jlDwBadge = ''
+    if (o.doubleWidthInfo && o.doubleWidthInfo.isDoubleWidth) {
+      var jdw = o.doubleWidthInfo
+      var nwLabel2 = jdw.nWidth && jdw.nWidth > 2 ? jdw.nWidth+'폭' : '배폭'
+      jlDwBadge = '<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:#7c2d12;color:#fdba74;margin-left:4px;">⚡'+nwLabel2+'</span>'
+    }
+
     return '<tr>'
       + '<td style="font-weight:700;color:var(--accent-blue);">' + (o.jumboOrderNo || '-') + '</td>'
       + '<td style="text-align:center;">' + o.machineNo + '호기</td>'
       + '<td style="text-align:center;">' + (o.basisWeight || '-') + 'g</td>'
-      + '<td style="text-align:center;font-weight:600;">' + (o.jumboWidth || '-') + 'mm</td>'
+      + '<td style="text-align:center;font-weight:600;">' + (o.jumboWidth || '-') + 'mm' + jlDwBadge + '</td>'
       + '<td>' + widthTags + '</td>'
       + '<td style="text-align:center;">' + (o.pokCount || '-') + '폭</td>'
       + '<td style="text-align:center;">' + tonStr + '</td>'
@@ -7927,9 +7953,13 @@ function getConstraints() {
     limit889Double:Number(g('889-double-limit')),
     moq:Number(g('moq')), moqSame:Number(g('moq-same')),
     wjRatio:Number(g('wj-ratio')), dpokRatio:Number(g('dpok-ratio')),
+    wjSeparate: g('wj-separate'),
     excJapan:g('exc-japan'), excSpecial:g('exc-special'),
     excFlagged:g('exc-flagged'), excPhil:g('exc-phil'),
-    excCustomers:(g('exc-customers')+'').split(',').map(s=>s.trim()).filter(Boolean)
+    excCustomers:(g('exc-customers')+'').split(',').map(s=>s.trim()).filter(Boolean),
+    stockMillroll: g('stock-millroll') !== false && g('stock-millroll') !== 'false',
+    stockSheet   : g('stock-sheet')    !== false && g('stock-sheet')    !== 'false',
+    stockNew     : g('stock-new')      !== false && g('stock-new')      !== 'false',
   }
 }
 
@@ -7942,8 +7972,14 @@ function updateSimConstraintSummary() {
     '<div>3호기: '+c.m3Min.toLocaleString()+' ~ '+c.m3Max.toLocaleString()+'mm / 최대'+c.m3MaxPok+'폭</div>'+
     '<div>배폭 미미: '+c.mimi+'mm | 협폭한계: '+c.noprodLimit+'mm</div>'+
     '<div>MOQ: '+c.moq+'TON / 동일규격 속포장: '+c.moqSame+'TON</div>'+
-    '<div>889mm 이하 2폭 배폭 허용: '+c.limit889Double+'T 이하</div>'+
-    '<div>원지비중: '+c.wjRatio+'% 이상</div>'
+    '<div>889mm 이하 배폭 허용: '+c.limit889Double+'T 이하</div>'+
+    '<div>원지비중: '+c.wjRatio+'% 이상 | 배폭비중: '+c.dpokRatio+'% 기준</div>'+
+    '<div>원지/시트 구분: '+(c.wjSeparate !== 'no' ? '분리 조합' : '혼합 허용')+'</div>'+
+    '<div>예외: '+(c.excJapan?'일본수출 ':'')+
+                  (c.excSpecial?'특수지 ':'')+
+                  (c.excFlagged?'예외플래그 ':'')+
+                  (c.excPhil?'필리핀450G ':'')+
+                  (c.excCustomers.length?'고객('+c.excCustomers.join(',')+') ':'')||'없음'+'</div>'
 }
 
 /* ══════════════════════════════════════
@@ -8578,13 +8614,12 @@ function setSimState(state) {
 // 예외 오더 판별 — 제약조건 설정(localStorage)을 우선, 시뮬레이션 UI는 보조
 function isExcludedOrder(o) {
   const c = getConstraints()
-  // 제약조건 설정 페이지의 저장값 사용 (c-exc-*)
-  const excJapan   = c.excJapan
-  const excSpecial = c.excSpecial
-  const excFlagged = c.excFlagged
-  if (excJapan   && o.orderType === '일본수출') return '일본수출 분리'
-  if (excSpecial && o.orderType === '특수지')   return '특수지 분리'
-  if (excFlagged && o.isExcluded)               return '예외 플래그'
+  if (c.excJapan    && o.orderType === '일본수출')                         return '일본수출 분리'
+  if (c.excSpecial  && o.orderType === '특수지')                           return '특수지 분리'
+  if (c.excFlagged  && o.isExcluded)                                       return '예외 플래그'
+  if (c.excPhil     && o.basisWeight === 450
+      && (o.paperTypeCode === 'PHL' || (o.matCode||'').includes('PHL')))   return '필리핀 450G 분리'
+  if (c.excCustomers.length > 0 && c.excCustomers.includes(o.customerCode)) return '고객코드 분리 ('+o.customerCode+')'
   return null
 }
 
@@ -8748,10 +8783,15 @@ function runCombinationAlgorithm(orders) {
     var isRoll = (o.packCode === '0') ||
                  (o.prodType === 'Roll') ||
                  (o.matCode && o.matCode.charAt(0) === 'H')
+    o._isRoll = isRoll  // 원지 여부 캐시
     var pl = isRoll ? 0 : getEffectivePaperLength(o)
     o._pl = pl  // 유효 지장 캐시
 
-    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '') + '_' + pl
+    // wjSeparate='yes' 이면 Roll/Sheet 분리 그룹화 (기본값)
+    // wjSeparate='no'  이면 혼합 허용 → pl만으로 구분
+    var wjSep = c.wjSeparate !== 'no'
+    var rollTag = wjSep ? (isRoll ? 'R' : 'S') : 'X'
+    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '') + '_' + pl + '_' + rollTag
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
@@ -9743,6 +9783,30 @@ async function simGenerate() {
   setSimState('generated')
   var unassignedMsg = simUnassigned.length ? ' / 미배치 '+simUnassigned.length+'건' : ''
   toast('지폭조합 시뮬레이션이 생성되었습니다. ('+simCombos.length+'조합 / '+simOrders.length+'건'+unassignedMsg+')','ok')
+
+  // ── wjRatio / dpokRatio 미달 경고 ──────────────────────────
+  ;(function checkRatioWarnings() {
+    var cc = getConstraints()
+    var totalTonAll = simOrders.reduce(function(s,o){ return s+(o.orderQtyTon||0) },0)
+    if (totalTonAll <= 0) return
+    var rollTon  = simOrders.filter(function(o){ return !!o._isRoll }).reduce(function(s,o){ return s+(o.orderQtyTon||0) },0)
+    var rollPct  = Math.round(rollTon / totalTonAll * 100)
+    var wjMin    = cc.wjRatio || 60
+    if (rollPct < wjMin) {
+      setTimeout(function(){
+        toast('⚠ 원지(Roll) 비중 '+rollPct+'% — 기준 '+wjMin+'% 미달. 시트 오더가 많습니다.', 'warn')
+      }, 500)
+    }
+    var dwidthCombos = simCombos.filter(function(cb){ return cb._isDWidth })
+    var dwidthTon    = dwidthCombos.reduce(function(s,cb){ return s+parseFloat(cb.totalTon||0) },0)
+    var dwidthPct    = simCombos.length > 0 ? Math.round(dwidthTon / parseFloat(simCombos.reduce(function(s,cb){ return s+parseFloat(cb.totalTon||0) },0)||1) * 100) : 0
+    var dpokMin      = cc.dpokRatio || 30
+    if (dwidthPct > dpokMin) {
+      setTimeout(function(){
+        toast('ℹ 배폭 조합 비중 '+dwidthPct+'% — 기준 '+dpokMin+'% 초과. 점보폭 활용률을 확인하세요.', 'info')
+      }, 900)
+    }
+  })()
 }
 
 function renderSimOrderTable(list) {
@@ -10790,17 +10854,29 @@ async function simSendOrder() {
     const dueDates = combo.orders.map(o => o.dueDate).filter(Boolean).sort()
     const planEndDate = dueDates[0] || todayStr
 
-    // 배폭생산 정보 빌드 (협폭 단독 조합인 경우)
+    // 배폭생산 정보 빌드
     var doubleWidthInfo = null
-    if (combo.orders.length === 1) {
+    if (combo._isDWidth) {
+      // ── N폭 배폭 조합 (0단계 전처리에서 생성된 버킷)
+      doubleWidthInfo = {
+        isDoubleWidth : true,
+        nWidth        : combo._nWidth || widths.length,
+        jumboWidthDW  : jumboWidth,
+        prodLength    : combo._prodLen || null,
+        basisWeight   : combo.basisWeight,
+        widths        : widths,
+      }
+    } else if (combo.orders.length === 1) {
+      // ── 단일 오더 협폭 단독 배폭 (enrichDoubleWidthInfo 경로)
       var dw = enrichDoubleWidthInfo(combo.orders[0], _machinesCache || [])
       if (dw._isDoubleWidth) {
         doubleWidthInfo = {
-          isDoubleWidth: true,
-          singleWidth:   combo.orders[0].paperWidth,
-          jumboWidthDW:  dw._jumboWidth,
-          prodLength:    dw._prodLength,
-          basisWeight:   combo.basisWeight,
+          isDoubleWidth : true,
+          nWidth        : 2,
+          jumboWidthDW  : dw._jumboWidth,
+          prodLength    : dw._prodLength,
+          basisWeight   : combo.basisWeight,
+          widths        : [combo.orders[0].paperWidth],
         }
       }
     }
@@ -10910,7 +10986,8 @@ function renderJumboOrders(list) {
     var dwBadgeCell = '<span style="color:var(--text-faint);font-size:10px;">—</span>'
     if (j.doubleWidthInfo && j.doubleWidthInfo.isDoubleWidth) {
       var dw = j.doubleWidthInfo
-      dwBadgeCell = '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;white-space:nowrap;">⚡배폭 '+(dw.jumboWidthDW||'-')+'mm / '+(dw.prodLength||'-')+'m</span>'
+      var nwLabel = dw.nWidth && dw.nWidth > 2 ? dw.nWidth+'폭' : '배폭'
+      dwBadgeCell = '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;white-space:nowrap;">⚡'+nwLabel+' '+(dw.jumboWidthDW||'-')+'mm' + (dw.prodLength ? ' / '+dw.prodLength.toLocaleString()+'m' : '') + '</span>'
     }
 
     return '<tr>'+
