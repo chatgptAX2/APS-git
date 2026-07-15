@@ -6973,7 +6973,7 @@ function renderImportTable(list) {
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>' +
     '<td><span class="badge b-'+(o.unit==='TON'?'ton':o.unit==='R'?'r':'sok')+'">'+o.unit+'</span></td>' +
     '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>' +
-    '<td style="font-family:monospace;font-size:13px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
+    '<td style="font-size:13px;font-weight:500;color:var(--tbl-matcode-txt);letter-spacing:0.04em;white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
     '<td style="color:var(--tbl-date-txt);font-size:13px;font-weight:500;">'+o.orderDate+'</td>' +
     '<td style="color:var(--tbl-creator-txt);font-size:12px;">'+o.createdBy+'</td>' +
     '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:13px;font-weight:700;">'+o.dueDate+'</td>' +
@@ -7124,7 +7124,7 @@ function renderListTable(list) {
     '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
-    '<td style="font-family:monospace;font-size:13px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+    '<td style="font-size:13px;font-weight:500;color:var(--tbl-matcode-txt);letter-spacing:0.04em;white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
     '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:13px;font-weight:700;">'+o.dueDate+'</td>'+
     '<td>'+renderStatusBadge(o.status)+'</td>'+
     '<td class="center">'+(o.isExcluded?'<span class="badge b-excl" style="font-size:12px;"><i class="fas fa-ban"></i> 예외</span>':'')+'</td>'+
