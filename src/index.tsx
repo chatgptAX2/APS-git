@@ -3248,7 +3248,7 @@ const mainHtml = `<!DOCTYPE html>
   --tbl-item-txt     : #94a3b8;   /* 항목번호 (muted) */
   --tbl-customer-txt : #e2e8f0;   /* 납품처명 — 밝게 */
   --tbl-plant-txt    : #c4b5fd;   /* 플랜트 */
-  --tbl-matcode-txt  : #94a3b8;   /* 자재코드 */
+  --tbl-matcode-txt  : #f1f5f9;   /* 자재코드 — 다크모드 흰색 */
   --tbl-date-txt     : #cbd5e1;   /* 생성일/납품요청일 */
   --tbl-creator-txt  : #94a3b8;   /* 생성자 */
 
