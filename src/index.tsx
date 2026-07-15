@@ -3251,6 +3251,7 @@ const mainHtml = `<!DOCTYPE html>
   --tbl-matcode-txt  : #f1f5f9;   /* 자재코드 — 다크모드 흰색 */
   --tbl-date-txt     : #cbd5e1;   /* 생성일/납품요청일 */
   --tbl-creator-txt  : #f1f5f9;   /* 생성자 */
+  --stat-label-txt   : #cbd5e1;   /* 통계 카드 레이블 — 다크 밝은 회색 */
 
   /* RFC 로딩 */
   --rfc-bg       : #0c2340;
@@ -3385,6 +3386,7 @@ const mainHtml = `<!DOCTYPE html>
   --tbl-matcode-txt  : #475569;
   --tbl-date-txt     : #334155;
   --tbl-creator-txt  : #64748b;
+  --stat-label-txt   : #475569;   /* 통계 카드 레이블 — 라이트 슬레이트 */
 
   /* RFC 로딩 */
   --rfc-bg       : #dbeafe;
@@ -3625,7 +3627,7 @@ select.inp option{background:var(--bg-select-opt);}
   transition:background .25s, border-color .25s;
 }
 .stat-mini .sv{font-size:18px;font-weight:700;font-family:'Netmarble','Malgun Gothic',sans-serif;}
-.stat-mini .sl{font-size:10px;color:var(--text-subtle);}
+.stat-mini .sl{font-size:12px;font-weight:500;color:var(--stat-label-txt);}
 
 /* ── 페이지 제목 ── */
 .page-header{padding:18px 28px 0;flex-shrink:0;}
