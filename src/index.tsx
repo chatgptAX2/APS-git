@@ -3578,21 +3578,23 @@ select.inp option{background:var(--bg-select-opt);}
 .btn:disabled{opacity:.4;cursor:not-allowed;}
 
 /* ── 테이블 ── */
-.data-table{width:100%;border-collapse:collapse;font-size:12px;}
+.data-table{width:100%;border-collapse:collapse;font-size:13px;}
 .data-table th{
   background:var(--th-bg);
   color:var(--th-text);
-  font-weight:600;padding:9px 10px;text-align:left;
+  font-weight:700;padding:10px 11px;text-align:left;
   font-family:'Netmarble','Malgun Gothic',sans-serif;
+  font-size:12px;
   border-bottom:1px solid var(--border);
   white-space:nowrap;position:sticky;top:0;z-index:5;
   transition:background .25s, color .25s;
 }
 .data-table td{
-  padding:8px 10px;
+  padding:9px 11px;
   border-bottom:1px solid var(--td-border);
   white-space:nowrap;
   color:var(--text-secondary);
+  font-size:13px;
   transition:color .25s;
 }
 .data-table tbody tr:hover td{background:var(--tr-hover);}
@@ -3600,7 +3602,7 @@ select.inp option{background:var(--bg-select-opt);}
 .data-table .center{text-align:center;}
 
 /* ── 배지 ── */
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;font-family:'Netmarble','Malgun Gothic',sans-serif;}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:9999px;font-size:12px;font-weight:600;font-family:'Netmarble','Malgun Gothic',sans-serif;}
 .b-open    {background:var(--badge-open-bg);   color:var(--badge-open-txt);}
 .b-assigned{background:var(--badge-assign-bg); color:var(--badge-assign-txt);}
 .b-complete{background:var(--badge-done-bg);   color:var(--badge-done-txt);}
@@ -6958,11 +6960,11 @@ function renderImportTable(list) {
   tbody.innerHTML = list.map(o =>
     '<tr data-id="'+o.orderId+'">' +
     '<td class="center"><input type="checkbox" class="chk-import" value="'+o.orderId+'" onchange="toggleSelectImport('+o.orderId+',this.checked)"></td>' +
-    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:var(--tbl-plant-txt);">'+(o.plant||'-')+'</span></td>' +
-    '<td style="color:var(--tbl-order-no-txt);font-weight:700;font-family:monospace;font-size:12px;">'+o.sapOrderNo+'</td>' +
-    '<td style="color:var(--tbl-item-txt);font-size:11px;">'+o.sapItemNo+'</td>' +
+    '<td class="center"><span style="font-family:monospace;font-size:13px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:var(--tbl-plant-txt);">'+(o.plant||'-')+'</span></td>' +
+    '<td style="color:var(--tbl-order-no-txt);font-weight:700;font-family:monospace;font-size:13px;">'+o.sapOrderNo+'</td>' +
+    '<td style="color:var(--tbl-item-txt);font-size:12px;">'+o.sapItemNo+'</td>' +
     '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
-    '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;color:var(--tbl-customer-txt);font-size:12px;font-weight:500;">'+o.customerName+'</td>' +
+    '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;color:var(--tbl-customer-txt);font-size:13px;font-weight:500;">'+o.customerName+'</td>' +
     '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>' +
     '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
     '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
@@ -6971,10 +6973,10 @@ function renderImportTable(list) {
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>' +
     '<td><span class="badge b-'+(o.unit==='TON'?'ton':o.unit==='R'?'r':'sok')+'">'+o.unit+'</span></td>' +
     '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>' +
-    '<td style="font-family:monospace;font-size:11px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
-    '<td style="color:var(--tbl-date-txt);font-size:11px;font-weight:500;">'+o.orderDate+'</td>' +
-    '<td style="color:var(--tbl-creator-txt);font-size:11px;">'+o.createdBy+'</td>' +
-    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:12px;font-weight:700;">'+o.dueDate+'</td>' +
+    '<td style="font-family:monospace;font-size:12px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
+    '<td style="color:var(--tbl-date-txt);font-size:13px;font-weight:500;">'+o.orderDate+'</td>' +
+    '<td style="color:var(--tbl-creator-txt);font-size:12px;">'+o.createdBy+'</td>' +
+    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:13px;font-weight:700;">'+o.dueDate+'</td>' +
     '<td>'+renderStatusBadge(o.status)+'</td>' +
     '<td class="center">'+(o.isExcluded?'<span class="badge b-excl"><i class="fas fa-exclamation-triangle"></i> 예외</span>':'')+'</td>' +
     '</tr>'
@@ -7109,12 +7111,12 @@ function renderListTable(list) {
   }
   tbody.innerHTML = list.map((o,i) =>
     '<tr style="'+(o.isExcluded?'opacity:.5;':'')+'">'+
-    '<td class="center" style="color:var(--text-faint);font-size:11px;">'+(i+1)+'</td>'+
-    '<td style="color:var(--tbl-order-no-txt);font-weight:700;font-family:monospace;font-size:12px;">'+o.sapOrderNo+'</td>'+
-    '<td style="color:var(--tbl-item-txt);font-size:11px;">'+o.sapItemNo+'</td>'+
+    '<td class="center" style="color:var(--text-faint);font-size:12px;">'+(i+1)+'</td>'+
+    '<td style="color:var(--tbl-order-no-txt);font-weight:700;font-family:monospace;font-size:13px;">'+o.sapOrderNo+'</td>'+
+    '<td style="color:var(--tbl-item-txt);font-size:12px;">'+o.sapItemNo+'</td>'+
     '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
-    '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:500;color:var(--tbl-customer-txt);">'+o.customerName+'</td>'+
-    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:var(--tbl-plant-txt);">'+(o.plant||'-')+'</span></td>'+
+    '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:13px;font-weight:500;color:var(--tbl-customer-txt);">'+o.customerName+'</td>'+
+    '<td class="center"><span style="font-family:monospace;font-size:13px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:var(--tbl-plant-txt);">'+(o.plant||'-')+'</span></td>'+
     '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>'+
     '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>'+
     '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>'+
@@ -7122,10 +7124,10 @@ function renderListTable(list) {
     '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
-    '<td style="font-family:monospace;font-size:11px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:12px;font-weight:700;">'+o.dueDate+'</td>'+
+    '<td style="font-family:monospace;font-size:12px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:13px;font-weight:700;">'+o.dueDate+'</td>'+
     '<td>'+renderStatusBadge(o.status)+'</td>'+
-    '<td class="center">'+(o.isExcluded?'<span class="badge b-excl" style="font-size:10px;"><i class="fas fa-ban"></i> 예외</span>':'')+'</td>'+
+    '<td class="center">'+(o.isExcluded?'<span class="badge b-excl" style="font-size:12px;"><i class="fas fa-ban"></i> 예외</span>':'')+'</td>'+
     '<td class="center">'+(o.isExcluded
       ? '<button class="btn btn-ghost btn-xs" onclick="doInclude('+o.orderId+')"><i class="fas fa-check"></i> 해제</button>'
       : '<button class="btn btn-danger btn-xs" onclick="openExclude('+o.orderId+')"><i class="fas fa-ban"></i></button>'
