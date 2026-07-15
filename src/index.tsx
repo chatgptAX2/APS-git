@@ -3237,7 +3237,7 @@ const mainHtml = `<!DOCTYPE html>
   /* 시뮬 결과 오더 행 */
   --sim-order-no-txt : #60a5fa;   /* 오더번호 — 파란색 (다크: 충분히 밝음) */
   --sim-qty-txt      : #4ade80;   /* 수량 — 초록색 */
-  --sim-matcode-txt  : #94a3b8;   /* 자재코드 */
+  --sim-matcode-txt  : #f1f5f9;   /* 자재코드 */
   --sim-matcode-size : 11px;      /* 자재코드 폰트 크기 */
   --sim-duedate-near : #fb923c;   /* 납기 ≤3일 — 주황 */
   --sim-duedate-warn : #fbbf24;   /* 납기 ≤7일 — 노랑 */
@@ -3245,12 +3245,12 @@ const mainHtml = `<!DOCTYPE html>
 
   /* 판매오더 테이블 행 */
   --tbl-order-no-txt : #60a5fa;   /* 오더번호 */
-  --tbl-item-txt     : #94a3b8;   /* 항목번호 (muted) */
+  --tbl-item-txt     : #f1f5f9;   /* 항목번호 */
   --tbl-customer-txt : #e2e8f0;   /* 납품처명 — 밝게 */
   --tbl-plant-txt    : #c4b5fd;   /* 플랜트 */
   --tbl-matcode-txt  : #f1f5f9;   /* 자재코드 — 다크모드 흰색 */
   --tbl-date-txt     : #cbd5e1;   /* 생성일/납품요청일 */
-  --tbl-creator-txt  : #94a3b8;   /* 생성자 */
+  --tbl-creator-txt  : #f1f5f9;   /* 생성자 */
 
   /* RFC 로딩 */
   --rfc-bg       : #0c2340;
@@ -4293,7 +4293,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <div id="saved-count-banner" style="display:none;padding:3px 10px;border-radius:5px;background:#34d39920;border:1px solid #34d39966;font-size:12px;font-weight:700;color:#34d399;white-space:nowrap;">
             <i class="fas fa-database"></i> DB저장: <span id="saved-count-num">0</span>건
           </div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-subtle);cursor:pointer;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text-subtle);cursor:pointer;">
             <input type="checkbox" id="chk-all-import" onchange="toggleAllImport(this.checked)"> 전체선택
           </label>
           <button class="btn btn-success btn-sm" onclick="saveSelected()" id="btn-save" disabled>
@@ -4832,7 +4832,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           취소 가능 생산오더 <span class="count-badge" id="pc-count">0 건</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-subtle);cursor:pointer;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text-subtle);cursor:pointer;">
             <input type="checkbox" id="chk-all-cancel" onchange="toggleAllCancel(this.checked)"> 전체선택
           </label>
           <button class="btn btn-danger btn-sm" id="btn-do-cancel" onclick="openCancelModal()" disabled>
@@ -5650,7 +5650,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                      font-family:monospace;font-size:11px;font-weight:800;
                      color:#a78bfa;letter-spacing:.5px;">
             </span>
-            <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;">
+            <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;cursor:pointer;user-select:none;">
               <input type="checkbox" id="combo-chk-all" checked onchange="comboSelectAll(this.checked)"
                 style="width:15px;height:15px;cursor:pointer;accent-color:#7c3aed;">
               전체선택
@@ -5790,7 +5790,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <div class="section-title">
             <i class="fas fa-list-ul" style="color:#60a5fa;"></i>대상 오더 목록
             <span id="sim-order-count" class="count-badge" style="margin-left:8px;">-</span>
-            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;cursor:pointer;">
+            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:14px;font-weight:500;cursor:pointer;">
               <input type="checkbox" id="sim-chk-all" onchange="simToggleAll(this.checked)"> 전체선택
             </label>
           </div>
