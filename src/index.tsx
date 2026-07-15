@@ -3237,8 +3237,8 @@ const mainHtml = `<!DOCTYPE html>
   /* 시뮬 결과 오더 행 */
   --sim-order-no-txt : #60a5fa;   /* 오더번호 — 파란색 (다크: 충분히 밝음) */
   --sim-qty-txt      : #4ade80;   /* 수량 — 초록색 */
-  --sim-matcode-txt  : #f1f5f9;   /* 자재코드 */
-  --sim-matcode-size : 11px;      /* 자재코드 폰트 크기 */
+  --sim-matcode-txt  : #e2e8f0;   /* 자재코드 — 밝은 흰색 */
+  --sim-matcode-size : 13px;      /* 자재코드 폰트 크기 */
   --sim-duedate-near : #fb923c;   /* 납기 ≤3일 — 주황 */
   --sim-duedate-warn : #fbbf24;   /* 납기 ≤7일 — 노랑 */
   --sim-duedate-over : #f87171;   /* 납기 초과/당일 — 빨강 */
@@ -3373,8 +3373,8 @@ const mainHtml = `<!DOCTYPE html>
   /* 시뮬 결과 오더 행 */
   --sim-order-no-txt : #1d4ed8;
   --sim-qty-txt      : #15803d;
-  --sim-matcode-txt  : #475569;
-  --sim-matcode-size : 11px;
+  --sim-matcode-txt  : #334155;
+  --sim-matcode-size : 13px;
   --sim-duedate-near : #c2410c;
   --sim-duedate-warn : #b45309;
   --sim-duedate-over : #dc2626;
@@ -11048,6 +11048,8 @@ function renderSimResult(combos, unassigned) {
 
               // 배폭 행은 납품처명도 더 밝게 (var(--text-main) 사용)
               var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
+              // 배폭 행(어두운 배경)일 때 자재코드는 밝은 흰색, 일반 행은 CSS 변수 사용
+              var matcodeColor = orderRowBg ? '#fde68a' : 'var(--sim-matcode-txt)'
 
               return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
                 '<td style="padding:8px 8px;font-family:monospace;font-size:12px;font-weight:700;color:var(--sim-order-no-txt);white-space:nowrap;">'+o.sapOrderNo+'</td>'+
@@ -11055,7 +11057,7 @@ function renderSimResult(combos, unassigned) {
                 '<td style="padding:8px 8px;text-align:right;">'+widthCellHtml+'</td>'+
                 '<td style="padding:8px 8px;text-align:right;font-size:14px;font-weight:800;color:var(--sim-qty-txt);">'+q+'</td>'+
                 '<td style="padding:8px 8px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
-                '<td style="padding:8px 8px;font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+                '<td style="padding:8px 8px;font-family:monospace;font-size:var(--sim-matcode-size);font-weight:700;color:'+matcodeColor+';white-space:nowrap;letter-spacing:0.07em;">'+(o.matCode||'-')+'</td>'+
                 '<td style="padding:8px 8px;text-align:center;font-size:13px;font-weight:800;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
             }).join('')+
