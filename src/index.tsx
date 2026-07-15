@@ -11006,21 +11006,39 @@ function renderSimResult(combos, unassigned) {
               var widthCellHtml = ''
               var orderRowBg = ''
 
+              // 배폭 행은 납품처명도 더 밝게 (var(--text-main) 사용)
+              var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
+              // 배폭 행(어두운 배경)일 때 자재코드는 밝은 흰색, 일반 행은 CSS 변수 사용
+              var matcodeColor  = orderRowBg ? '#fde68a' : 'var(--sim-matcode-txt)'
+              // 오더번호: 배폭 행(어두운 배경)에서는 더 밝은 하늘색으로 대비 확보
+              var orderNoColor  = orderRowBg ? '#93c5fd' : 'var(--sim-order-no-txt)'
+
+              // 원래 주문 지폭 (paperWidth) — 배폭/N폭 여부와 무관하게 항상 표시
+              var origPw = o.paperWidth || o._pw || 0
+
+              // 지폭 셀: 원래 주문지폭 레이블 + 배폭/N폭 정보
+              var origPwLabel =
+                '<div style="display:inline-flex;align-items:center;gap:4px;margin-bottom:4px;">' +
+                  '<span style="font-size:10px;color:var(--text-faint);font-weight:500;letter-spacing:.03em;">주문</span>' +
+                  '<span style="font-size:14px;font-weight:800;color:var(--text-main);">' + origPw.toLocaleString() + 'mm</span>' +
+                '</div>'
+
               if (_nwInfo.ok && _nwInfo.nWidth >= 2) {
-                // ── N폭 배폭 조합 ─────────────────────────────────────
+                // ── N폭 배폭 조합: 원래 지폭 레이블 위에, 아래 점보/배폭 정보
                 var _oIdx    = combo.orders.indexOf(o) + 1
-                var _oPw     = (o._pw || o.paperWidth || 0)
                 var _jumboW  = _nwInfo.jumboWidth
                 var _prodL   = _nwInfo.prodLength
                 var _nwLabel = _nwInfo.nWidth + '폭배폭'
 
                 widthCellHtml =
-                  '<span style="font-weight:700;color:var(--text-main);">'+_oPw.toLocaleString()+'mm</span>'+
-                  '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
-                  '<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
-                    '⚡점보 '+_jumboW.toLocaleString()+'mm'+
-                  '</span>'+
-                  '<span style="margin-left:4px;display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
+                  origPwLabel +
+                  '<div>' +
+                    '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>' +
+                    '<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
+                      '⚡점보 '+_jumboW.toLocaleString()+'mm'+
+                    '</span>'+
+                    '<span style="margin-left:4px;display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
+                  '</div>'+
                   (_prodL ? '<div style="font-size:12px;font-weight:700;color:var(--dwidth-prod-txt);margin-top:3px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
                 orderRowBg = 'background:var(--nwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
 
@@ -11028,31 +11046,27 @@ function renderSimResult(combos, unassigned) {
                 // ── 단독 1폭 또는 단독 배폭(×2) ─────────────────────
                 var dwInfo = enrichDoubleWidthInfo(o, _machinesCache || [])
                 if (dwInfo._isDoubleWidth) {
-                  var _oPwD    = (o._pw || o.paperWidth || 0)
                   var _dwJW    = dwInfo._jumboWidth
                   var _dwLen   = dwInfo._prodLength
                   widthCellHtml =
-                    '<span style="font-weight:700;color:var(--text-main);">'+_oPwD.toLocaleString()+'mm</span>'+
-                    '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
-                    '<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="배폭생산: 점보롤 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+' / 생산길이 '+(_dwLen ? _dwLen.toLocaleString()+'m' : '-')+'">'+
-                      '⚡배폭 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+
-                    '</span>'+
+                    origPwLabel +
+                    '<div>' +
+                      '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>' +
+                      '<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="배폭생산: 점보롤 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+' / 생산길이 '+(_dwLen ? _dwLen.toLocaleString()+'m' : '-')+'">'+
+                        '⚡배폭 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+
+                      '</span>' +
+                    '</div>'+
                     (_dwLen ? '<div style="font-size:12px;font-weight:700;color:var(--dwidth-prod-txt);margin-top:3px;">생산길이 '+_dwLen.toLocaleString()+'m</div>' : '')
                   orderRowBg = 'background:var(--dwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
                 } else {
-                  widthCellHtml =
-                    '<span style="font-weight:700;color:var(--text-main);">'+(o._pw || o.paperWidth || 0).toLocaleString()+'mm</span>'
+                  // 일반 1폭: 원래 지폭 그대로 표시 (레이블 포함)
+                  widthCellHtml = origPwLabel
                   orderRowBg = ''
                 }
               }
 
-              // 배폭 행은 납품처명도 더 밝게 (var(--text-main) 사용)
-              var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
-              // 배폭 행(어두운 배경)일 때 자재코드는 밝은 흰색, 일반 행은 CSS 변수 사용
-              var matcodeColor = orderRowBg ? '#fde68a' : 'var(--sim-matcode-txt)'
-
               return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
-                '<td style="padding:8px 8px;font-family:monospace;font-size:12px;font-weight:700;color:var(--sim-order-no-txt);white-space:nowrap;">'+o.sapOrderNo+'</td>'+
+                '<td style="padding:8px 8px;font-family:monospace;font-size:13px;font-weight:800;color:'+orderNoColor+';white-space:nowrap;letter-spacing:0.05em;">'+o.sapOrderNo+'</td>'+
                 '<td style="padding:8px 8px;font-size:13px;'+customerColor+'">'+o.customerName+'</td>'+
                 '<td style="padding:8px 8px;text-align:right;">'+widthCellHtml+'</td>'+
                 '<td style="padding:8px 8px;text-align:right;font-size:14px;font-weight:800;color:var(--sim-qty-txt);">'+q+'</td>'+
@@ -11060,12 +11074,6 @@ function renderSimResult(combos, unassigned) {
                 '<td style="padding:8px 8px;font-family:monospace;font-size:var(--sim-matcode-size);font-weight:700;color:'+matcodeColor+';white-space:nowrap;letter-spacing:0.07em;">'+(o.matCode||'-')+'</td>'+
                 '<td style="padding:8px 8px;text-align:center;font-size:13px;font-weight:800;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
-            }).join('')+
-          '</tbody>'+
-        '</table>'+
-      '</div>'+
-    '</div>'
-  }).join('')
   // 체크박스 초기 상태 반영
   combos.forEach(combo => onComboCheckChange(combo.comboId))
   // 전체선택 체크박스 초기 상태 동기화 (최초 렌더 시 전체 체크 → checked=true)
