@@ -3251,7 +3251,8 @@ const mainHtml = `<!DOCTYPE html>
   --tbl-matcode-txt  : #f1f5f9;   /* 자재코드 — 다크모드 흰색 */
   --tbl-date-txt     : #cbd5e1;   /* 생성일/납품요청일 */
   --tbl-creator-txt  : #f1f5f9;   /* 생성자 */
-  --stat-label-txt   : #cbd5e1;   /* 통계 카드 레이블 — 다크 밝은 회색 */
+  --stat-label-txt   : #cbd5e1;   /* 통계 카드 레이블 */
+  --filter-label-txt : #94a3b8;   /* 필터 레이블 — 다크 밝은 회색 */
 
   /* RFC 로딩 */
   --rfc-bg       : #0c2340;
@@ -3386,7 +3387,8 @@ const mainHtml = `<!DOCTYPE html>
   --tbl-matcode-txt  : #475569;
   --tbl-date-txt     : #334155;
   --tbl-creator-txt  : #64748b;
-  --stat-label-txt   : #475569;   /* 통계 카드 레이블 — 라이트 슬레이트 */
+  --stat-label-txt   : #475569;
+  --filter-label-txt : #64748b;   /* 필터 레이블 — 라이트 슬레이트 */
 
   /* RFC 로딩 */
   --rfc-bg       : #dbeafe;
@@ -4307,7 +4309,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       <div id="import-filter-bar" style="display:none;padding:10px 16px 10px;border-bottom:1px solid var(--border);background:var(--bg-input);">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">플랜트</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">플랜트</label>
             <select class="inp" id="rf-plant" onchange="applyImportFilter()"
               style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
               <option value="">전체</option>
@@ -4318,12 +4320,12 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             </select>
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">판매문서번호</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">판매문서번호</label>
             <input class="inp" id="rf-sapOrderNo" placeholder="50137471" oninput="applyImportFilter()"
               style="width:110px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">오더유형</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">오더유형</label>
             <select class="inp" id="rf-orderType" onchange="applyImportFilter()"
               style="width:90px;height:28px;padding:3px 8px;font-size:12px;">
               <option value="">전체</option>
@@ -4331,12 +4333,12 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             </select>
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">납품승입처</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">납품승입처</label>
             <input class="inp" id="rf-customerName" placeholder="거래체명" oninput="applyImportFilter()"
               style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">호기</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">호기</label>
             <select class="inp" id="rf-machineNo" onchange="applyImportFilter()"
               style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
               <option value="">전체</option>
@@ -4344,39 +4346,39 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             </select>
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">평량(g/m²)</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">평량(g/m²)</label>
             <input type="number" class="inp" id="rf-basisWeight" placeholder="전체" min="1"
               list="bw-list-import" oninput="applyImportFilter()"
               style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
             <datalist id="bw-list-import"></datalist>
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">생성일 From</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">생성일 From</label>
             <input type="date" class="inp" id="rf-dateFrom" onchange="applyImportFilter()"
               style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">생성일 To</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">생성일 To</label>
             <input type="date" class="inp" id="rf-dateTo" onchange="applyImportFilter()"
               style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">납품요청일 From</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">납품요청일 From</label>
             <input type="date" class="inp" id="rf-dueFrom" onchange="applyImportFilter()"
               style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">납품요청일 To</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">납품요청일 To</label>
             <input type="date" class="inp" id="rf-dueTo" onchange="applyImportFilter()"
               style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">생성자</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">생성자</label>
             <input class="inp" id="rf-createdBy" placeholder="SAP" oninput="applyImportFilter()"
               style="width:80px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:10px;color:var(--text-faint);letter-spacing:.05em;">비고</label>
+            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">비고</label>
             <select class="inp" id="rf-excluded" onchange="applyImportFilter()"
               style="width:100px;height:28px;padding:3px 8px;font-size:12px;">
               <option value="">전체</option>
