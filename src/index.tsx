@@ -3234,6 +3234,15 @@ const mainHtml = `<!DOCTYPE html>
   --nwidth-row-bg    : #3a1304;
   --dwidth-prod-txt  : #fb923c;
 
+  /* 시뮬 결과 오더 행 */
+  --sim-order-no-txt : #60a5fa;   /* 오더번호 — 파란색 (다크: 충분히 밝음) */
+  --sim-qty-txt      : #4ade80;   /* 수량 — 초록색 */
+  --sim-matcode-txt  : #94a3b8;   /* 자재코드 */
+  --sim-matcode-size : 11px;      /* 자재코드 폰트 크기 */
+  --sim-duedate-near : #fb923c;   /* 납기 ≤3일 — 주황 */
+  --sim-duedate-warn : #fbbf24;   /* 납기 ≤7일 — 노랑 */
+  --sim-duedate-over : #f87171;   /* 납기 초과/당일 — 빨강 */
+
   /* RFC 로딩 */
   --rfc-bg       : #0c2340;
   --rfc-border   : #1e3a5f;
@@ -3349,6 +3358,15 @@ const mainHtml = `<!DOCTYPE html>
   --dwidth-row-bg    : #fff7ed;
   --nwidth-row-bg    : #fff3e0;
   --dwidth-prod-txt  : #c2410c;
+
+  /* 시뮬 결과 오더 행 */
+  --sim-order-no-txt : #1d4ed8;   /* 오더번호 — 진한 파랑 (베이지 배경에서 선명) */
+  --sim-qty-txt      : #15803d;   /* 수량 — 진한 초록 */
+  --sim-matcode-txt  : #475569;   /* 자재코드 — 어두운 슬레이트 */
+  --sim-matcode-size : 11px;      /* 자재코드 폰트 크기 */
+  --sim-duedate-near : #c2410c;   /* 납기 ≤3일 — 진한 주황 */
+  --sim-duedate-warn : #b45309;   /* 납기 ≤7일 — 진한 노랑/갈색 */
+  --sim-duedate-over : #dc2626;   /* 납기 초과/당일 — 빨강 */
 
   /* RFC 로딩 */
   --rfc-bg       : #dbeafe;
@@ -10702,9 +10720,9 @@ function renderSimResult(combos, unassigned) {
       const today2 = new Date(); today2.setHours(0,0,0,0)
       const due2   = new Date(dueDate); due2.setHours(0,0,0,0)
       const d = Math.floor((due2 - today2) / 86400000)
-      if (d <= 0) return '#f87171'
-      if (d <= 3) return '#fb923c'
-      if (d <= 7) return '#fbbf24'
+      if (d <= 0) return 'var(--sim-duedate-over)'
+      if (d <= 3) return 'var(--sim-duedate-near)'
+      if (d <= 7) return 'var(--sim-duedate-warn)'
       return 'var(--text-muted)'
     }
 
@@ -10970,12 +10988,12 @@ function renderSimResult(combos, unassigned) {
               var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
 
               return '<tr style="'+orderRowBg+'">'+
-                '<td style="padding:5px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
+                '<td style="padding:5px 6px;font-family:monospace;font-size:11px;font-weight:600;color:var(--sim-order-no-txt);">'+o.sapOrderNo+'</td>'+
                 '<td style="padding:5px 6px;'+customerColor+'">'+o.customerName+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;">'+widthCellHtml+'</td>'+
-                '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
+                '<td style="padding:5px 6px;text-align:right;font-weight:700;color:var(--sim-qty-txt);">'+q+'</td>'+
                 '<td style="padding:5px 6px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
-                '<td style="padding:5px 6px;font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+                '<td style="padding:5px 6px;font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
                 '<td style="padding:5px 6px;text-align:center;font-weight:700;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
             }).join('')+
@@ -11000,13 +11018,13 @@ function renderSimExcluded(list) {
   tbody.innerHTML = list.map(o => {
     const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
     return '<tr>'+
-      '<td style="font-family:monospace;color:#60a5fa;font-size:11px;">'+o.sapOrderNo+'</td>'+
+      '<td style="font-family:monospace;font-size:11px;font-weight:600;color:var(--sim-order-no-txt);">'+o.sapOrderNo+'</td>'+
       '<td style="font-size:12px;">'+o.customerName+'</td>'+
       '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>'+
       '<td class="num">'+o.basisWeight+'</td>'+
       '<td class="num">'+o.paperWidth.toLocaleString()+'</td>'+
-      '<td class="num">'+q+'</td>'+
-      '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+      '<td class="num" style="font-weight:700;color:var(--sim-qty-txt);">'+q+'</td>'+
+      '<td style="font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+'
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
       '<td><span class="badge b-cancel" style="font-size:10px;">'+o._excludeReason+'</span></td>'+
       '</tr>'
@@ -11090,7 +11108,7 @@ function renderSimUnassigned(list) {
       var today2 = new Date(); today2.setHours(0,0,0,0)
       var dueD   = new Date(o.dueDate); dueD.setHours(0,0,0,0)
       var daysLeft = Math.floor((dueD - today2) / 86400000)
-      dueColor = daysLeft <= 0 ? '#f87171' : daysLeft <= 3 ? '#fb923c' : daysLeft <= 7 ? '#fbbf24' : 'var(--text-muted)'
+      dueColor = daysLeft <= 0 ? 'var(--sim-duedate-over)' : daysLeft <= 3 ? 'var(--sim-duedate-near)' : daysLeft <= 7 ? 'var(--sim-duedate-warn)' : 'var(--text-muted)'
     }
     var reason = getUnassignedReason(o)
     var ptCode = o.paperTypeCode || (o.matCode && o.matCode.length >= 5 ? o.matCode.substring(2,5) : '-')
@@ -11104,15 +11122,15 @@ function renderSimUnassigned(list) {
               : ''))
       : '<span style="color:var(--text-muted);">-</span>'
     return '<tr>'+
-      '<td style="font-family:monospace;color:#60a5fa;font-size:11px;">'+o.sapOrderNo+'</td>'+
+      '<td style="font-family:monospace;font-size:11px;font-weight:600;color:var(--sim-order-no-txt);">'+o.sapOrderNo+'</td>'+
       '<td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+o.customerName+'">'+o.customerName+'</td>'+
       '<td class="center">'+mnCell+'</td>'+
-      '<td class="center"><span style="background:#1e1b4b;color:#c4b5fd;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;">'+ptName+'</span></td>'+
+      '<td class="center"><span style="background:var(--badge-spc-bg);color:var(--badge-spc-txt);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;">'+ptName+'</span></td>'+
       '<td class="num">'+(o.basisWeight||'-')+'</td>'+
       '<td class="num" style="font-weight:700;color:var(--text-main);">'+(pw ? pw.toLocaleString() : '-')+'</td>'+
-      '<td class="num">'+q+'</td>'+
-      '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-      '<td class="center" style="color:'+dueColor+';font-size:11px;">'+due+'</td>'+
+      '<td class="num" style="font-weight:700;color:var(--sim-qty-txt);">'+q+'</td>'+
+      '<td style="font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+      '<td class="center" style="color:'+dueColor+';font-size:11px;font-weight:700;">'+due+'</td>'+'
       '<td><span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;'+reasonBadgeStyle(reason)+'">'+reason+'</span></td>'+
       '</tr>'
   }).join('')
