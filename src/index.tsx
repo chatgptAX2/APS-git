@@ -10903,25 +10903,59 @@ function renderSimResult(combos, unassigned) {
             combo.orders.map(o => {
               const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
               const dc = orderDayColor(o.dueDate)
-              // 배폭생산 여부 판별 및 메타 정보
-              // N폭 조합이면 _nwInfo 재활용, 아니면 단독 협폭 판별
-              var dwBadge = ''
+
+              // ── 지폭 + 배폭 정보 표시 ─────────────────────────────
+              // 오더의 원래 지폭(paperWidth)은 항상 표시
+              // 배폭생산이면 "원래지폭 → 점보롤 지폭" 형태로 표시
+              var widthCellHtml = ''
+              var orderRowBg = ''
+
               if (_nwInfo.ok && _nwInfo.nWidth >= 2) {
-                // N폭 배폭 조합 — 오더별 배지는 폭 번호로만 표시
-                var _oIdx = combo.orders.indexOf(o) + 1
-                dwBadge = '<span style="margin-left:4px;display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:#7c2d12;color:#fdba74;">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'
+                // ── N폭 배폭 조합 ─────────────────────────────────────
+                var _oIdx    = combo.orders.indexOf(o) + 1
+                var _oPw     = (o._pw || o.paperWidth || 0)
+                var _jumboW  = _nwInfo.jumboWidth
+                var _prodL   = _nwInfo.prodLength
+                var _nwLabel = _nwInfo.nWidth + '폭배폭'
+
+                // 지폭 셀: 원래지폭 + 점보롤 화살표
+                widthCellHtml =
+                  '<span style="font-weight:700;color:var(--text-main);">'+_oPw.toLocaleString()+'mm</span>'+
+                  '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
+                  '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#431407;color:#fdba74;border:1px solid #c2410c;" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
+                    '⚡점보 '+_jumboW.toLocaleString()+'mm'+
+                  '</span>'+
+                  '<span style="margin-left:4px;display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:#7c2d12;color:#fdba74;">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
+                  (_prodL ? '<div style="font-size:9px;color:#fb923c;margin-top:2px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
+                orderRowBg = 'background:#1c0a00;'
+
               } else {
+                // ── 단독 1폭 또는 단독 배폭(×2) ─────────────────────
                 var dwInfo = enrichDoubleWidthInfo(o, _machinesCache || [])
                 if (dwInfo._isDoubleWidth) {
-                  var dwJW  = dwInfo._jumboWidth   ? dwInfo._jumboWidth.toLocaleString() + 'mm' : '-'
-                  var dwLen = dwInfo._prodLength   ? dwInfo._prodLength.toLocaleString() + 'm'  : '-'
-                  dwBadge = '<span style="margin-left:4px;display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;" title="배폭생산: 점보롤 '+dwJW+' / 생산길이 '+dwLen+'">⚡배폭 '+dwJW+'→'+dwLen+'</span>'
+                  var _oPwD    = (o._pw || o.paperWidth || 0)
+                  var _dwJW    = dwInfo._jumboWidth
+                  var _dwLen   = dwInfo._prodLength
+                  // 지폭 셀: 원래지폭 → 점보롤 지폭
+                  widthCellHtml =
+                    '<span style="font-weight:700;color:var(--text-main);">'+_oPwD.toLocaleString()+'mm</span>'+
+                    '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
+                    '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;" title="배폭생산: 점보롤 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+' / 생산길이 '+(_dwLen ? _dwLen.toLocaleString()+'m' : '-')+'">'+
+                      '⚡배폭 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+
+                    '</span>'+
+                    (_dwLen ? '<div style="font-size:9px;color:#fb923c;margin-top:2px;">생산길이 '+_dwLen.toLocaleString()+'m</div>' : '')
+                  orderRowBg = 'background:#160b00;'
+                } else {
+                  // 일반 오더 — 지폭만 표시
+                  widthCellHtml =
+                    '<span style="font-weight:700;color:var(--text-main);">'+(o._pw || o.paperWidth || 0).toLocaleString()+'mm</span>'
                 }
               }
-              return '<tr>'+
+
+              return '<tr style="'+orderRowBg+'">'+
                 '<td style="padding:5px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
                 '<td style="padding:5px 6px;">'+o.customerName+'</td>'+
-                '<td style="padding:5px 6px;text-align:right;font-weight:700;">'+o.paperWidth.toLocaleString()+'mm'+dwBadge+'</td>'+
+                '<td style="padding:5px 6px;text-align:right;">'+widthCellHtml+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
                 '<td style="padding:5px 6px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
                 '<td style="padding:5px 6px;font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
