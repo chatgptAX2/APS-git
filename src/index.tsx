@@ -4871,72 +4871,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       </div>
     </div>
 
-    <!-- 공통 규정 + 자재코드 2열 (고정) -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-
-      <!-- 공통 규정 -->
-      <div class="section-card">
-        <div class="section-title"><i class="fas fa-book-open" style="color:#f59e0b;"></i>공통 규정</div>
-        <div class="section-body" style="padding-bottom:0;">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
-              <div style="font-size:20px;font-weight:800;color:#34d399;line-height:1;">3 TON</div>
-              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">규격당 MOQ</div>
-            </div>
-            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
-              <div style="font-size:20px;font-weight:800;color:#a78bfa;line-height:1;">1.5 TON</div>
-              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">동일규격 포장 다를 시</div>
-            </div>
-            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
-              <div style="font-size:20px;font-weight:800;color:#60a5fa;line-height:1;">30 mm</div>
-              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">배폭 생산 시 미미</div>
-            </div>
-          </div>
-          <table class="data-table" style="font-size:12px;margin-bottom:2px;">
-            <thead><tr><th>항목</th><th>기준</th><th>비고</th></tr></thead>
-            <tbody>
-              <tr><td>545mm 미만</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 불가</span></td><td style="color:var(--text-faint);">반드시 배폭으로 검토</td></tr>
-              <tr><td>889mm 이하</td><td><span class="badge b-cancel" style="font-size:10px;">단독 2폭 생산 불가</span></td><td style="color:#fbbf24;font-weight:700;">5톤 이상은 배폭 불가</td></tr>
-              <tr><td>889mm 미만 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭 가능</td><td style="color:var(--text-faint);">5톤 초과 → 배폭 불가</td></tr>
-              <tr><td>원지 비중</td><td><span class="badge b-open" style="font-size:10px;">60% 이상</span></td><td style="color:var(--text-faint);">미만 시 외주 컷팅</td></tr>
-              <tr><td>두폭 비중</td><td><span class="badge b-assigned" style="font-size:10px;">30% 이상</span></td><td style="color:var(--text-faint);">조합 진행 가능</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 자재코드 해독 -->
-      <div class="section-card">
-        <div class="section-title"><i class="fas fa-barcode" style="color:#60a5fa;"></i>자재코드 해독 규칙</div>
-        <div class="section-body">
-          <table class="data-table" style="font-size:12px;margin-bottom:14px;">
-            <thead><tr><th>위치</th><th>의미</th><th>값</th></tr></thead>
-            <tbody>
-              <tr><td style="font-family:monospace;color:#a78bfa;">LEFT(1)</td><td>품목유형</td><td><span style="color:#34d399;">F</span>=제품 / <span style="color:#f59e0b;">H</span>=반제품</td></tr>
-              <tr><td style="font-family:monospace;color:#a78bfa;">MID(2,1)</td><td>생산호기</td><td>1=1호기 / 2=2호기 / 3=3호기</td></tr>
-              <tr><td style="font-family:monospace;color:#a78bfa;">MID(3,3)</td><td>지종코드</td><td>원지 종류 식별 코드 (3자리)</td></tr>
-              <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=속포장 / B=벌크 / 0=Roll</td></tr>
-              <tr><td style="font-family:monospace;color:#a78bfa;">MID(6,3)</td><td>평량</td><td>g/m²</td></tr>
-              <tr><td style="font-family:monospace;color:#a78bfa;">MID(10,4)</td><td>지폭</td><td>mm</td></tr>
-              <tr><td style="font-family:monospace;color:#a78bfa;">MID(14,4)</td><td>지장</td><td>mm</td></tr>
-            </tbody>
-          </table>
-          <div style="padding:14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">예시</div>
-            <div style="font-family:monospace;font-size:14px;color:#60a5fa;letter-spacing:2px;margin-bottom:10px;">F2<span style="color:#22d3ee;">KRF</span>220_0800____B</div>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#34d399;font-family:monospace;min-width:28px;">F</span><span style="color:var(--text-muted);">제품</span></div>
-              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#60a5fa;font-family:monospace;min-width:28px;">2</span><span style="color:var(--text-muted);">2호기</span></div>
-              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#22d3ee;font-family:monospace;min-width:28px;">KRF</span><span style="color:var(--text-muted);">지종코드</span></div>
-              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#a78bfa;font-family:monospace;min-width:28px;">220</span><span style="color:var(--text-muted);">평량 220g/m²</span></div>
-              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f59e0b;font-family:monospace;min-width:28px;">0800</span><span style="color:var(--text-muted);">지폭 800mm</span></div>
-              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f87171;font-family:monospace;min-width:28px;">B</span><span style="color:var(--text-muted);">Sheet 벌크포장</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- 원지(Roll) 길이 기준 -->
     <div class="section-card" style="margin-top:14px;">
       <div class="section-title">
@@ -5010,6 +4944,73 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         </div>
       </div>
     </div>
+
+    <!-- 공통 규정 + 자재코드 2열 (고정) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+
+      <!-- 공통 규정 -->
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-book-open" style="color:#f59e0b;"></i>공통 규정</div>
+        <div class="section-body" style="padding-bottom:0;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:20px;font-weight:800;color:#34d399;line-height:1;">3 TON</div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">규격당 MOQ</div>
+            </div>
+            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:20px;font-weight:800;color:#a78bfa;line-height:1;">1.5 TON</div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">동일규격 포장 다를 시</div>
+            </div>
+            <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:20px;font-weight:800;color:#60a5fa;line-height:1;">30 mm</div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">배폭 생산 시 미미</div>
+            </div>
+          </div>
+          <table class="data-table" style="font-size:12px;margin-bottom:2px;">
+            <thead><tr><th>항목</th><th>기준</th><th>비고</th></tr></thead>
+            <tbody>
+              <tr><td>545mm 미만</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 불가</span></td><td style="color:var(--text-faint);">반드시 배폭으로 검토</td></tr>
+              <tr><td>889mm 이하</td><td><span class="badge b-cancel" style="font-size:10px;">단독 2폭 생산 불가</span></td><td style="color:#fbbf24;font-weight:700;">5톤 이상은 배폭 불가</td></tr>
+              <tr><td>889mm 미만 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭 가능</td><td style="color:var(--text-faint);">5톤 초과 → 배폭 불가</td></tr>
+              <tr><td>원지 비중</td><td><span class="badge b-open" style="font-size:10px;">60% 이상</span></td><td style="color:var(--text-faint);">미만 시 외주 컷팅</td></tr>
+              <tr><td>두폭 비중</td><td><span class="badge b-assigned" style="font-size:10px;">30% 이상</span></td><td style="color:var(--text-faint);">조합 진행 가능</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 자재코드 해독 -->
+      <div class="section-card">
+        <div class="section-title"><i class="fas fa-barcode" style="color:#60a5fa;"></i>자재코드 해독 규칙</div>
+        <div class="section-body">
+          <table class="data-table" style="font-size:12px;margin-bottom:14px;">
+            <thead><tr><th>위치</th><th>의미</th><th>값</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:monospace;color:#a78bfa;">LEFT(1)</td><td>품목유형</td><td><span style="color:#34d399;">F</span>=제품 / <span style="color:#f59e0b;">H</span>=반제품</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(2,1)</td><td>생산호기</td><td>1=1호기 / 2=2호기 / 3=3호기</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(3,3)</td><td>지종코드</td><td>원지 종류 식별 코드 (3자리)</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">RIGHT(1)</td><td>포장방법</td><td>A=속포장 / B=벌크 / 0=Roll</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(6,3)</td><td>평량</td><td>g/m²</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(10,4)</td><td>지폭</td><td>mm</td></tr>
+              <tr><td style="font-family:monospace;color:#a78bfa;">MID(14,4)</td><td>지장</td><td>mm</td></tr>
+            </tbody>
+          </table>
+          <div style="padding:14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">예시</div>
+            <div style="font-family:monospace;font-size:14px;color:#60a5fa;letter-spacing:2px;margin-bottom:10px;">F2<span style="color:#22d3ee;">KRF</span>220_0800____B</div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#34d399;font-family:monospace;min-width:28px;">F</span><span style="color:var(--text-muted);">제품</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#60a5fa;font-family:monospace;min-width:28px;">2</span><span style="color:var(--text-muted);">2호기</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#22d3ee;font-family:monospace;min-width:28px;">KRF</span><span style="color:var(--text-muted);">지종코드</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#a78bfa;font-family:monospace;min-width:28px;">220</span><span style="color:var(--text-muted);">평량 220g/m²</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f59e0b;font-family:monospace;min-width:28px;">0800</span><span style="color:var(--text-muted);">지폭 800mm</span></div>
+              <div style="display:flex;gap:8px;font-size:12px;"><span style="color:#f87171;font-family:monospace;min-width:28px;">B</span><span style="color:var(--text-muted);">Sheet 벌크포장</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
   </div>
 </div><!-- /page-machine -->
