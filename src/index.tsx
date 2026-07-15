@@ -2271,6 +2271,22 @@ app.get('/klean-aps-api/roll-length-limits', (c) => {
   return c.json({ success:true, data: rollLengthLimits })
 })
 
+// 원지(Roll) 길이 기준 수정 (PUT)
+// body: { data: [{coreInch, basisWeight, maxLen}, ...] }
+app.put('/klean-aps-api/roll-length-limits', async (c) => {
+  try {
+    const body = await c.req.json()
+    if (!Array.isArray(body.data)) return c.json({ success:false, message:'data 배열이 필요합니다.' }, 400)
+    body.data.forEach((item: any) => {
+      const idx = rollLengthLimits.findIndex(r => r.coreInch === Number(item.coreInch) && r.basisWeight === Number(item.basisWeight))
+      if (idx !== -1) rollLengthLimits[idx].maxLen = Number(item.maxLen)
+    })
+    return c.json({ success:true, data: rollLengthLimits })
+  } catch(e:any) {
+    return c.json({ success:false, message: e.message || 'Unknown error' }, 500)
+  }
+})
+
 // 자재마스터 목록 조회 (필터: matCode, paperTypeCode, machineNo, packCode, prodType)
 app.get('/klean-aps-api/mat-master', (c) => {
   const q         = c.req.query('q')          || ''
@@ -4872,64 +4888,61 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
     </div>
 
     <!-- 원지(Roll) 길이 기준 -->
-    <div class="section-card" style="margin-top:14px;">
+    <div class="section-card" style="margin-top:14px;" id="roll-limit-card">
       <div class="section-title">
         <i class="fas fa-scroll" style="color:#38bdf8;"></i>
         <span>원지(Roll) 생산 길이 기준</span>
         <span style="margin-left:8px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#0c1a2e;color:#38bdf8;border:1px solid #1e3a5f;">관경(인치) × 평량</span>
-        <span style="margin-left:auto;font-size:10px;color:var(--text-faint);">※ 인치 정보는 SAP 오더 연동 후 자동 매핑 예정</span>
+        <!-- 보기 모드 버튼 -->
+        <div id="roll-limit-view-btns" style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <span style="font-size:10px;color:var(--text-faint);">※ 인치 정보는 SAP 오더 연동 후 자동 매핑 예정</span>
+          <button onclick="rollLimitStartEdit()" style="padding:4px 14px;border-radius:6px;border:1px solid #38bdf8;background:transparent;color:#38bdf8;font-size:12px;font-weight:600;cursor:pointer;">
+            <i class="fas fa-pencil-alt" style="margin-right:4px;font-size:10px;"></i>수정
+          </button>
+        </div>
+        <!-- 편집 모드 버튼 -->
+        <div id="roll-limit-edit-btns" style="margin-left:auto;display:none;gap:8px;align-items:center;">
+          <span style="font-size:11px;color:#f59e0b;font-weight:600;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>편집 중 — 저장 전 새로고침 시 초기화됩니다</span>
+          <button onclick="rollLimitCancelEdit()" style="padding:4px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
+          <button onclick="rollLimitSave()" id="roll-limit-save-btn" style="padding:4px 14px;border-radius:6px;border:none;background:#38bdf8;color:#0c1a2e;font-size:12px;font-weight:700;cursor:pointer;">
+            <i class="fas fa-save" style="margin-right:4px;font-size:10px;"></i>저장
+          </button>
+        </div>
       </div>
       <div class="section-body">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
-          <!-- 3인치 테이블 -->
+          <!-- 3인치 테이블 (동적) -->
           <div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
               <span style="padding:3px 12px;border-radius:6px;font-size:12px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;">3인치 (소관)</span>
               <span style="font-size:10px;color:var(--text-faint);">Roll 오더 최대 권취 길이 기준</span>
             </div>
-            <table class="data-table" style="font-size:12px;">
+            <table class="data-table" style="font-size:12px;" id="roll-limit-tbl-3">
               <thead>
                 <tr>
                   <th style="text-align:center;">평량 (g/m²)</th>
                   <th style="text-align:right;">최대 길이 (m)</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr><td style="text-align:center;font-weight:700;">220</td><td style="text-align:right;color:#34d399;font-weight:700;">4,300</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">240</td><td style="text-align:right;color:#34d399;font-weight:700;">3,800</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">280</td><td style="text-align:right;color:#34d399;font-weight:700;">3,500</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">300</td><td style="text-align:right;color:#34d399;font-weight:700;">3,000</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">350</td><td style="text-align:right;color:#34d399;font-weight:700;">2,450</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">400</td><td style="text-align:right;color:#34d399;font-weight:700;">2,250</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">450</td><td style="text-align:right;color:#34d399;font-weight:700;">1,850</td></tr>
-              </tbody>
+              <tbody id="roll-limit-tbody-3"></tbody>
             </table>
           </div>
 
-          <!-- 12인치 테이블 -->
+          <!-- 12인치 테이블 (동적) -->
           <div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
               <span style="padding:3px 12px;border-radius:6px;font-size:12px;font-weight:700;background:#0c1a2e;color:#60a5fa;border:1px solid #1e3a8a;">12인치 (대관)</span>
               <span style="font-size:10px;color:var(--text-faint);">Roll 오더 최대 권취 길이 기준</span>
             </div>
-            <table class="data-table" style="font-size:12px;">
+            <table class="data-table" style="font-size:12px;" id="roll-limit-tbl-12">
               <thead>
                 <tr>
                   <th style="text-align:center;">평량 (g/m²)</th>
                   <th style="text-align:right;">최대 길이 (m)</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr><td style="text-align:center;font-weight:700;">220</td><td style="text-align:right;color:#34d399;font-weight:700;">6,000</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">240</td><td style="text-align:right;color:#34d399;font-weight:700;">5,700</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">260</td><td style="text-align:right;color:#34d399;font-weight:700;">5,200</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">280</td><td style="text-align:right;color:#34d399;font-weight:700;">4,800</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">300</td><td style="text-align:right;color:#34d399;font-weight:700;">4,500</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">350</td><td style="text-align:right;color:#34d399;font-weight:700;">4,000</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">400</td><td style="text-align:right;color:#34d399;font-weight:700;">3,500</td></tr>
-                <tr><td style="text-align:center;font-weight:700;">450</td><td style="text-align:right;color:#34d399;font-weight:700;">2,900</td></tr>
-              </tbody>
+              <tbody id="roll-limit-tbody-12"></tbody>
             </table>
           </div>
 
@@ -4940,6 +4953,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
             3인치(소관)와 12인치(대관)는 <b style="color:var(--text-muted);">관경(코어 직경)</b> 기준입니다.
             같은 평량이라도 관경이 클수록 더 긴 원지를 권취할 수 있습니다.
             오더별 인치 정보는 추후 <b style="color:#38bdf8;">SAP API 오더 연동</b> 시 자동으로 매핑되어 시뮬레이션에 반영됩니다.
+            <span style="color:#f59e0b;"> 수정 내용은 서버 메모리에만 저장되며 서버 재시작 시 기본값으로 초기화됩니다.</span>
           </span>
         </div>
       </div>
@@ -4950,30 +4964,108 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
       <!-- 공통 규정 -->
       <div class="section-card">
-        <div class="section-title"><i class="fas fa-book-open" style="color:#f59e0b;"></i>공통 규정</div>
+        <div class="section-title">
+          <i class="fas fa-book-open" style="color:#f59e0b;"></i>공통 규정
+          <!-- 보기 모드 버튼 -->
+          <div id="common-rule-view-btns" style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+            <button onclick="commonRuleStartEdit()" style="padding:4px 14px;border-radius:6px;border:1px solid #f59e0b;background:transparent;color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer;">
+              <i class="fas fa-pencil-alt" style="margin-right:4px;font-size:10px;"></i>수정
+            </button>
+          </div>
+          <!-- 편집 모드 버튼 -->
+          <div id="common-rule-edit-btns" style="margin-left:auto;display:none;gap:8px;align-items:center;">
+            <span style="font-size:11px;color:#f59e0b;font-weight:600;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>편집 중</span>
+            <button onclick="commonRuleCancelEdit()" style="padding:4px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
+            <button onclick="commonRuleSave()" id="common-rule-save-btn" style="padding:4px 14px;border-radius:6px;border:none;background:#f59e0b;color:#0c1a2e;font-size:12px;font-weight:700;cursor:pointer;">
+              <i class="fas fa-save" style="margin-right:4px;font-size:10px;"></i>저장
+            </button>
+          </div>
+        </div>
         <div class="section-body" style="padding-bottom:0;">
+          <!-- 3개 수치 카드 -->
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
             <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
-              <div style="font-size:20px;font-weight:800;color:#34d399;line-height:1;">3 TON</div>
+              <div style="font-size:20px;font-weight:800;color:#34d399;line-height:1;" id="cr-moq-display">
+                <span id="cr-moq-view">3 TON</span>
+                <span id="cr-moq-edit" style="display:none;">
+                  <input id="cr-moq-input" type="number" step="0.5" min="0.5" style="width:64px;font-size:16px;font-weight:800;color:#34d399;background:var(--bg-card);border:1px solid #34d399;border-radius:6px;padding:2px 6px;text-align:center;" />
+                  <span style="font-size:14px;"> TON</span>
+                </span>
+              </div>
               <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">규격당 MOQ</div>
             </div>
             <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
-              <div style="font-size:20px;font-weight:800;color:#a78bfa;line-height:1;">1.5 TON</div>
+              <div style="font-size:20px;font-weight:800;color:#a78bfa;line-height:1;">
+                <span id="cr-moqsame-view">1.5 TON</span>
+                <span id="cr-moqsame-edit" style="display:none;">
+                  <input id="cr-moqsame-input" type="number" step="0.5" min="0.5" style="width:64px;font-size:16px;font-weight:800;color:#a78bfa;background:var(--bg-card);border:1px solid #a78bfa;border-radius:6px;padding:2px 6px;text-align:center;" />
+                  <span style="font-size:14px;"> TON</span>
+                </span>
+              </div>
               <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">동일규격 포장 다를 시</div>
             </div>
             <div style="text-align:center;padding:14px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);">
-              <div style="font-size:20px;font-weight:800;color:#60a5fa;line-height:1;">30 mm</div>
+              <div style="font-size:20px;font-weight:800;color:#60a5fa;line-height:1;">
+                <span id="cr-mimi-view">30 mm</span>
+                <span id="cr-mimi-edit" style="display:none;">
+                  <input id="cr-mimi-input" type="number" step="1" min="0" style="width:64px;font-size:16px;font-weight:800;color:#60a5fa;background:var(--bg-card);border:1px solid #60a5fa;border-radius:6px;padding:2px 6px;text-align:center;" />
+                  <span style="font-size:14px;"> mm</span>
+                </span>
+              </div>
               <div style="font-size:11px;color:var(--text-faint);margin-top:5px;">배폭 생산 시 미미</div>
             </div>
           </div>
           <table class="data-table" style="font-size:12px;margin-bottom:2px;">
             <thead><tr><th>항목</th><th>기준</th><th>비고</th></tr></thead>
             <tbody>
-              <tr><td>545mm 미만</td><td><span class="badge b-cancel" style="font-size:10px;">1폭 불가</span></td><td style="color:var(--text-faint);">반드시 배폭으로 검토</td></tr>
-              <tr><td>889mm 이하</td><td><span class="badge b-cancel" style="font-size:10px;">단독 2폭 생산 불가</span></td><td style="color:#fbbf24;font-weight:700;">5톤 이상은 배폭 불가</td></tr>
-              <tr><td>889mm 미만 2폭</td><td style="color:var(--text-muted);">5톤 이하만 배폭 가능</td><td style="color:var(--text-faint);">5톤 초과 → 배폭 불가</td></tr>
-              <tr><td>원지 비중</td><td><span class="badge b-open" style="font-size:10px;">60% 이상</span></td><td style="color:var(--text-faint);">미만 시 외주 컷팅</td></tr>
-              <tr><td>두폭 비중</td><td><span class="badge b-assigned" style="font-size:10px;">30% 이상</span></td><td style="color:var(--text-faint);">조합 진행 가능</td></tr>
+              <tr>
+                <td>545mm 미만</td>
+                <td><span class="badge b-cancel" style="font-size:10px;">1폭 불가</span></td>
+                <td style="color:var(--text-faint);">반드시 배폭으로 검토</td>
+              </tr>
+              <tr>
+                <td>889mm 이하</td>
+                <td><span class="badge b-cancel" style="font-size:10px;">단독 2폭 생산 불가</span></td>
+                <td style="color:#fbbf24;font-weight:700;">
+                  <span id="cr-889limit-view"></span>
+                  <span id="cr-889limit-edit" style="display:none;">
+                    <input id="cr-889limit-input" type="number" step="0.5" min="1" style="width:52px;font-size:11px;font-weight:700;color:#fbbf24;background:var(--bg-card);border:1px solid #fbbf24;border-radius:4px;padding:2px 4px;text-align:center;" />
+                    <span>톤 이상 배폭 불가</span>
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>889mm 미만 2폭</td>
+                <td style="color:var(--text-muted);">
+                  <span id="cr-889limit-view2"></span>
+                  <span id="cr-889limit-edit2" style="display:none;font-size:11px;color:var(--text-faint);">← 상단 입력값 연동</span>
+                </td>
+                <td style="color:var(--text-faint);">
+                  <span id="cr-889limit-view3"></span>
+                </td>
+              </tr>
+              <tr>
+                <td>원지 비중</td>
+                <td>
+                  <span id="cr-wjratio-view"></span>
+                  <span id="cr-wjratio-edit" style="display:none;">
+                    <input id="cr-wjratio-input" type="number" step="5" min="10" max="100" style="width:52px;font-size:11px;font-weight:700;color:#34d399;background:var(--bg-card);border:1px solid #34d399;border-radius:4px;padding:2px 4px;text-align:center;" />
+                    <span style="font-size:10px;color:#34d399;">% 이상</span>
+                  </span>
+                </td>
+                <td style="color:var(--text-faint);">미만 시 외주 컷팅</td>
+              </tr>
+              <tr>
+                <td>두폭 비중</td>
+                <td>
+                  <span id="cr-dpokratio-view"></span>
+                  <span id="cr-dpokratio-edit" style="display:none;">
+                    <input id="cr-dpokratio-input" type="number" step="5" min="10" max="100" style="width:52px;font-size:11px;font-weight:700;color:#60a5fa;background:var(--bg-card);border:1px solid #60a5fa;border-radius:4px;padding:2px 4px;text-align:center;" />
+                    <span style="font-size:10px;color:#60a5fa;">% 이상</span>
+                  </span>
+                </td>
+                <td style="color:var(--text-faint);">조합 진행 가능</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -7577,6 +7669,112 @@ async function loadMachine() {
   } catch(e) {
     toast('기계 데이터 로드 실패: ' + e.message, 'err')
   }
+  // 원지 길이 기준 + 공통규정 함께 초기화
+  await loadRollLimits()
+  loadCommonRuleDisplay()
+}
+
+/* ══════════════════════════════════════
+   원지(Roll) 생산 길이 기준 — 편집
+══════════════════════════════════════ */
+var _rollLimitSnapshot = null  // 편집 전 스냅샷 (취소 복원용)
+var _rollLimitEditing  = false // 편집 모드 상태
+
+async function loadRollLimits() {
+  try {
+    var res  = await fetch('/klean-aps-api/roll-length-limits')
+    var json = await res.json()
+    if (json.success) {
+      _rollLengthCache = json.data || []
+      renderRollLimitTables(_rollLengthCache, false)
+    }
+  } catch(e) { /* 무시 */ }
+}
+
+function renderRollLimitTables(data, editMode) {
+  var tbody3  = document.getElementById('roll-limit-tbody-3')
+  var tbody12 = document.getElementById('roll-limit-tbody-12')
+  if (!tbody3 || !tbody12) return
+
+  function makeRow(item, em) {
+    var maxVal = item.maxLen
+    var tdVal = em
+      ? '<input type="number" step="50" min="100" max="20000"' +
+        ' id="rl-input-' + item.coreInch + '-' + item.basisWeight + '"' +
+        ' value="' + maxVal + '"' +
+        ' style="width:80px;font-size:12px;font-weight:700;color:#34d399;background:var(--bg-base);border:1px solid #34d399;border-radius:5px;padding:2px 6px;text-align:right;" />'
+      : '<span style="color:#34d399;font-weight:700;">' + maxVal.toLocaleString() + '</span>'
+    return '<tr>' +
+      '<td style="text-align:center;font-weight:700;">' + item.basisWeight + '</td>' +
+      '<td style="text-align:right;">' + tdVal + '</td>' +
+      '</tr>'
+  }
+
+  var rows3  = data.filter(function(r){ return r.coreInch === 3  }).map(function(r){ return makeRow(r, editMode) }).join('')
+  var rows12 = data.filter(function(r){ return r.coreInch === 12 }).map(function(r){ return makeRow(r, editMode) }).join('')
+  tbody3.innerHTML  = rows3  || '<tr><td colspan="2" style="color:var(--text-faint);text-align:center;">데이터 없음</td></tr>'
+  tbody12.innerHTML = rows12 || '<tr><td colspan="2" style="color:var(--text-faint);text-align:center;">데이터 없음</td></tr>'
+}
+
+function rollLimitStartEdit() {
+  _rollLimitEditing  = true
+  _rollLimitSnapshot = JSON.parse(JSON.stringify(_rollLengthCache))
+  renderRollLimitTables(_rollLengthCache, true)
+  var viewBtns = document.getElementById('roll-limit-view-btns')
+  var editBtns = document.getElementById('roll-limit-edit-btns')
+  if (viewBtns) viewBtns.style.display = 'none'
+  if (editBtns) editBtns.style.display = 'flex'
+  toast('원지 길이 기준 수정 모드 — 값 변경 후 저장 버튼을 누르세요.', 'info')
+}
+
+function rollLimitCancelEdit() {
+  _rollLimitEditing = false
+  if (_rollLimitSnapshot) {
+    _rollLengthCache    = _rollLimitSnapshot
+    _rollLimitSnapshot  = null
+  }
+  renderRollLimitTables(_rollLengthCache, false)
+  var viewBtns = document.getElementById('roll-limit-view-btns')
+  var editBtns = document.getElementById('roll-limit-edit-btns')
+  if (viewBtns) viewBtns.style.display = 'flex'
+  if (editBtns) editBtns.style.display = 'none'
+  toast('변경이 취소되었습니다.', 'warn')
+}
+
+async function rollLimitSave() {
+  // 입력값 수집
+  var updated = _rollLengthCache.map(function(item) {
+    var inputEl = document.getElementById('rl-input-' + item.coreInch + '-' + item.basisWeight)
+    var newMax  = inputEl ? Number(inputEl.value) : item.maxLen
+    if (isNaN(newMax) || newMax < 100) newMax = item.maxLen  // 유효하지 않으면 원래값 유지
+    return { coreInch: item.coreInch, basisWeight: item.basisWeight, maxLen: newMax }
+  })
+
+  var saveBtn = document.getElementById('roll-limit-save-btn')
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중…' }
+
+  try {
+    var res  = await fetch('/klean-aps-api/roll-length-limits', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: updated })
+    })
+    var json = await res.json()
+    if (!json.success) throw new Error(json.message || 'API 오류')
+    _rollLengthCache   = json.data || updated
+    _rollLimitSnapshot = null
+    _rollLimitEditing  = false
+    renderRollLimitTables(_rollLengthCache, false)
+    var viewBtns = document.getElementById('roll-limit-view-btns')
+    var editBtns = document.getElementById('roll-limit-edit-btns')
+    if (viewBtns) viewBtns.style.display = 'flex'
+    if (editBtns) editBtns.style.display = 'none'
+    toast('원지 길이 기준이 저장되었습니다. (서버 메모리 갱신)', 'ok')
+  } catch(e) {
+    toast('저장 실패: ' + e.message, 'err')
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save" style="margin-right:4px;font-size:10px;"></i>저장' }
+  }
 }
 
 function renderMachineTable(data) {
@@ -7837,6 +8035,170 @@ async function confirmDeleteMachine() {
   } finally {
     btn.disabled = false
   }
+}
+
+/* ══════════════════════════════════════
+   공통 규정 — 기계마스터 페이지 수정 기능
+══════════════════════════════════════ */
+var _commonRuleSnapshot = null  // 편집 전 스냅샷
+var _commonRuleEditing  = false
+
+// 기계 페이지 진입 시 공통규정 수치를 localStorage(제약조건)에서 읽어 표시
+function loadCommonRuleDisplay() {
+  var c = getConstraints()
+  _updateCommonRuleView(c)
+}
+
+function _updateCommonRuleView(c) {
+  // 수치 카드
+  var moqView    = document.getElementById('cr-moq-view')
+  var moqsameView= document.getElementById('cr-moqsame-view')
+  var mimiView   = document.getElementById('cr-mimi-view')
+  if (moqView)     moqView.textContent     = c.moq     + ' TON'
+  if (moqsameView) moqsameView.textContent = c.moqSame + ' TON'
+  if (mimiView)    mimiView.textContent    = c.mimi    + ' mm'
+
+  // 테이블 행
+  var v889   = document.getElementById('cr-889limit-view')
+  var v889_2 = document.getElementById('cr-889limit-view2')
+  var v889_3 = document.getElementById('cr-889limit-view3')
+  var vWj    = document.getElementById('cr-wjratio-view')
+  var vDp    = document.getElementById('cr-dpokratio-view')
+
+  if (v889)   v889.textContent   = c.limit889Double + '톤 이상은 배폭 불가'
+  if (v889_2) v889_2.textContent = c.limit889Double + '톤 이하만 배폭 가능'
+  if (v889_3) v889_3.textContent = c.limit889Double + '톤 초과 → 배폭 불가'
+  if (vWj)    vWj.innerHTML      = '<span class="badge b-open" style="font-size:10px;">' + c.wjRatio + '% 이상</span>'
+  if (vDp)    vDp.innerHTML      = '<span class="badge b-assigned" style="font-size:10px;">' + c.dpokRatio + '% 이상</span>'
+}
+
+function commonRuleStartEdit() {
+  _commonRuleEditing  = true
+  var c = getConstraints()
+  _commonRuleSnapshot = { moq: c.moq, moqSame: c.moqSame, mimi: c.mimi, limit889Double: c.limit889Double, wjRatio: c.wjRatio, dpokRatio: c.dpokRatio }
+
+  // 입력 초기값 설정
+  var moqInput     = document.getElementById('cr-moq-input')
+  var moqsameInput = document.getElementById('cr-moqsame-input')
+  var mimiInput    = document.getElementById('cr-mimi-input')
+  var l889Input    = document.getElementById('cr-889limit-input')
+  var wjInput      = document.getElementById('cr-wjratio-input')
+  var dpInput      = document.getElementById('cr-dpokratio-input')
+  if (moqInput)     moqInput.value     = c.moq
+  if (moqsameInput) moqsameInput.value = c.moqSame
+  if (mimiInput)    mimiInput.value    = c.mimi
+  if (l889Input)    l889Input.value    = c.limit889Double
+  if (wjInput)      wjInput.value      = c.wjRatio
+  if (dpInput)      dpInput.value      = c.dpokRatio
+
+  // view ↔ edit 전환
+  var viewEditPairs = [
+    ['cr-moq-view','cr-moq-edit'],
+    ['cr-moqsame-view','cr-moqsame-edit'],
+    ['cr-mimi-view','cr-mimi-edit'],
+    ['cr-889limit-view','cr-889limit-edit'],
+    ['cr-889limit-view2','cr-889limit-edit2'],
+    ['cr-wjratio-view','cr-wjratio-edit'],
+    ['cr-dpokratio-view','cr-dpokratio-edit']
+  ]
+  viewEditPairs.forEach(function(pair) {
+    var vEl = document.getElementById(pair[0])
+    var eEl = document.getElementById(pair[1])
+    if (vEl) vEl.style.display = 'none'
+    if (eEl) eEl.style.display = 'inline'
+  })
+
+  // 버튼 전환
+  var viewBtns = document.getElementById('common-rule-view-btns')
+  var editBtns = document.getElementById('common-rule-edit-btns')
+  if (viewBtns) viewBtns.style.display = 'none'
+  if (editBtns) editBtns.style.display = 'flex'
+
+  toast('공통 규정 수정 모드 — 값 변경 후 저장 버튼을 누르세요.', 'info')
+}
+
+function commonRuleCancelEdit() {
+  _commonRuleEditing  = false
+  _commonRuleSnapshot = null
+
+  // view 복원
+  var viewEditPairs = [
+    ['cr-moq-view','cr-moq-edit'],
+    ['cr-moqsame-view','cr-moqsame-edit'],
+    ['cr-mimi-view','cr-mimi-edit'],
+    ['cr-889limit-view','cr-889limit-edit'],
+    ['cr-889limit-view2','cr-889limit-edit2'],
+    ['cr-wjratio-view','cr-wjratio-edit'],
+    ['cr-dpokratio-view','cr-dpokratio-edit']
+  ]
+  viewEditPairs.forEach(function(pair) {
+    var vEl = document.getElementById(pair[0])
+    var eEl = document.getElementById(pair[1])
+    if (vEl) vEl.style.display = ''
+    if (eEl) eEl.style.display = 'none'
+  })
+  var viewBtns = document.getElementById('common-rule-view-btns')
+  var editBtns = document.getElementById('common-rule-edit-btns')
+  if (viewBtns) viewBtns.style.display = 'flex'
+  if (editBtns) editBtns.style.display = 'none'
+  toast('변경이 취소되었습니다.', 'warn')
+}
+
+function commonRuleSave() {
+  var moqVal     = Number(document.getElementById('cr-moq-input').value)
+  var moqsameVal = Number(document.getElementById('cr-moqsame-input').value)
+  var mimiVal    = Number(document.getElementById('cr-mimi-input').value)
+  var l889Val    = Number(document.getElementById('cr-889limit-input').value)
+  var wjVal      = Number(document.getElementById('cr-wjratio-input').value)
+  var dpVal      = Number(document.getElementById('cr-dpokratio-input').value)
+
+  // 유효성 검사
+  if (isNaN(moqVal)  || moqVal  <= 0) return toast('규격당 MOQ 값이 올바르지 않습니다.', 'err')
+  if (isNaN(moqsameVal) || moqsameVal <= 0) return toast('동일규격 MOQ 값이 올바르지 않습니다.', 'err')
+  if (isNaN(mimiVal) || mimiVal < 0)  return toast('미미 값이 올바르지 않습니다.', 'err')
+  if (isNaN(l889Val) || l889Val <= 0) return toast('889mm 허용 톤수 값이 올바르지 않습니다.', 'err')
+  if (isNaN(wjVal)   || wjVal   < 10) return toast('원지 비중 값이 올바르지 않습니다.', 'err')
+  if (isNaN(dpVal)   || dpVal   < 10) return toast('두폭 비중 값이 올바르지 않습니다.', 'err')
+
+  // 기존 저장값 불러와 일부 키만 갱신
+  var saved = JSON.parse(localStorage.getItem('klean-aps-constraints') || '{}')
+  saved['moq']              = moqVal
+  saved['moq-same']         = moqsameVal
+  saved['mimi']             = mimiVal
+  saved['889-double-limit'] = l889Val
+  saved['wj-ratio']         = wjVal
+  saved['dpok-ratio']       = dpVal
+  localStorage.setItem('klean-aps-constraints', JSON.stringify(saved))
+
+  _commonRuleEditing  = false
+  _commonRuleSnapshot = null
+
+  // view 갱신 후 복원
+  _updateCommonRuleView(getConstraints())
+
+  var viewEditPairs = [
+    ['cr-moq-view','cr-moq-edit'],
+    ['cr-moqsame-view','cr-moqsame-edit'],
+    ['cr-mimi-view','cr-mimi-edit'],
+    ['cr-889limit-view','cr-889limit-edit'],
+    ['cr-889limit-view2','cr-889limit-edit2'],
+    ['cr-wjratio-view','cr-wjratio-edit'],
+    ['cr-dpokratio-view','cr-dpokratio-edit']
+  ]
+  viewEditPairs.forEach(function(pair) {
+    var vEl = document.getElementById(pair[0])
+    var eEl = document.getElementById(pair[1])
+    if (vEl) vEl.style.display = ''
+    if (eEl) eEl.style.display = 'none'
+  })
+  var viewBtns = document.getElementById('common-rule-view-btns')
+  var editBtns = document.getElementById('common-rule-edit-btns')
+  if (viewBtns) viewBtns.style.display = 'flex'
+  if (editBtns) editBtns.style.display = 'none'
+
+  // 제약조건 설정 페이지 필드도 동기화 (열려있다면)
+  updateSimConstraintSummary()
+  toast('공통 규정이 저장되었습니다.', 'ok')
 }
 
 /* ══════════════════════════════════════
