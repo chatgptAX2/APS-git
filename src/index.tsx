@@ -3227,11 +3227,11 @@ const mainHtml = `<!DOCTYPE html>
   --badge-sok-bg    : #3b0764; --badge-sok-txt    : #d8b4fe;
 
   /* 배폭(배폭생산) 뱃지/행 */
-  --badge-dwidth-bg  : #431407; --badge-dwidth-txt  : #fdba74;
-  --badge-dwidth-brd : #c2410c;
-  --badge-nw-sub-bg  : #7c2d12; --badge-nw-sub-txt  : #fdba74;
-  --dwidth-row-bg    : #1a0900;
-  --nwidth-row-bg    : #1c0a00;
+  --badge-dwidth-bg  : #7c2d12; --badge-dwidth-txt  : #fed7aa;
+  --badge-dwidth-brd : #ea580c;
+  --badge-nw-sub-bg  : #9a3412; --badge-nw-sub-txt  : #ffedd5;
+  --dwidth-row-bg    : #3b1506;
+  --nwidth-row-bg    : #3a1304;
   --dwidth-prod-txt  : #fb923c;
 
   /* RFC 로딩 */
@@ -10934,7 +10934,6 @@ function renderSimResult(combos, unassigned) {
                 var _prodL   = _nwInfo.prodLength
                 var _nwLabel = _nwInfo.nWidth + '폭배폭'
 
-                // 지폭 셀: 원래지폭 + 점보롤 화살표
                 widthCellHtml =
                   '<span style="font-weight:700;color:var(--text-main);">'+_oPw.toLocaleString()+'mm</span>'+
                   '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
@@ -10943,7 +10942,7 @@ function renderSimResult(combos, unassigned) {
                   '</span>'+
                   '<span style="margin-left:4px;display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
                   (_prodL ? '<div style="font-size:9px;color:var(--dwidth-prod-txt);margin-top:2px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
-                orderRowBg = 'background:var(--nwidth-row-bg);'
+                orderRowBg = 'background:var(--nwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
 
               } else {
                 // ── 단독 1폭 또는 단독 배폭(×2) ─────────────────────
@@ -10952,7 +10951,6 @@ function renderSimResult(combos, unassigned) {
                   var _oPwD    = (o._pw || o.paperWidth || 0)
                   var _dwJW    = dwInfo._jumboWidth
                   var _dwLen   = dwInfo._prodLength
-                  // 지폭 셀: 원래지폭 → 점보롤 지폭
                   widthCellHtml =
                     '<span style="font-weight:700;color:var(--text-main);">'+_oPwD.toLocaleString()+'mm</span>'+
                     '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
@@ -10960,17 +10958,20 @@ function renderSimResult(combos, unassigned) {
                       '⚡배폭 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+
                     '</span>'+
                     (_dwLen ? '<div style="font-size:9px;color:var(--dwidth-prod-txt);margin-top:2px;">생산길이 '+_dwLen.toLocaleString()+'m</div>' : '')
-                  orderRowBg = 'background:var(--dwidth-row-bg);'
+                  orderRowBg = 'background:var(--dwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
                 } else {
-                  // 일반 오더 — 지폭만 표시
                   widthCellHtml =
                     '<span style="font-weight:700;color:var(--text-main);">'+(o._pw || o.paperWidth || 0).toLocaleString()+'mm</span>'
+                  orderRowBg = ''
                 }
               }
 
+              // 배폭 행은 납품처명도 더 밝게 (var(--text-main) 사용)
+              var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
+
               return '<tr style="'+orderRowBg+'">'+
                 '<td style="padding:5px 6px;font-family:monospace;color:#60a5fa;">'+o.sapOrderNo+'</td>'+
-                '<td style="padding:5px 6px;">'+o.customerName+'</td>'+
+                '<td style="padding:5px 6px;'+customerColor+'">'+o.customerName+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;">'+widthCellHtml+'</td>'+
                 '<td style="padding:5px 6px;text-align:right;color:#34d399;">'+q+'</td>'+
                 '<td style="padding:5px 6px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
