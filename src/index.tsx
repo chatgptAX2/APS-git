@@ -11024,7 +11024,7 @@ function renderSimExcluded(list) {
       '<td class="num">'+o.basisWeight+'</td>'+
       '<td class="num">'+o.paperWidth.toLocaleString()+'</td>'+
       '<td class="num" style="font-weight:700;color:var(--sim-qty-txt);">'+q+'</td>'+
-      '<td style="font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+'
+      '<td style="font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
       '<td><span class="badge b-cancel" style="font-size:10px;">'+o._excludeReason+'</span></td>'+
       '</tr>'
@@ -11130,7 +11130,7 @@ function renderSimUnassigned(list) {
       '<td class="num" style="font-weight:700;color:var(--text-main);">'+(pw ? pw.toLocaleString() : '-')+'</td>'+
       '<td class="num" style="font-weight:700;color:var(--sim-qty-txt);">'+q+'</td>'+
       '<td style="font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-      '<td class="center" style="color:'+dueColor+';font-size:11px;font-weight:700;">'+due+'</td>'+'
+      '<td class="center" style="color:'+dueColor+';font-size:11px;font-weight:700;">'+due+'</td>'+
       '<td><span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;'+reasonBadgeStyle(reason)+'">'+reason+'</span></td>'+
       '</tr>'
   }).join('')
