@@ -3226,6 +3226,14 @@ const mainHtml = `<!DOCTYPE html>
   --badge-r-bg      : #14532d; --badge-r-txt      : #6ee7b7;
   --badge-sok-bg    : #3b0764; --badge-sok-txt    : #d8b4fe;
 
+  /* 배폭(배폭생산) 뱃지/행 */
+  --badge-dwidth-bg  : #431407; --badge-dwidth-txt  : #fdba74;
+  --badge-dwidth-brd : #c2410c;
+  --badge-nw-sub-bg  : #7c2d12; --badge-nw-sub-txt  : #fdba74;
+  --dwidth-row-bg    : #1a0900;
+  --nwidth-row-bg    : #1c0a00;
+  --dwidth-prod-txt  : #fb923c;
+
   /* RFC 로딩 */
   --rfc-bg       : #0c2340;
   --rfc-border   : #1e3a5f;
@@ -3333,6 +3341,14 @@ const mainHtml = `<!DOCTYPE html>
   --badge-ton-bg    : #dbeafe; --badge-ton-txt    : #1e40af;
   --badge-r-bg      : #dcfce7; --badge-r-txt      : #166534;
   --badge-sok-bg    : #f3e8ff; --badge-sok-txt    : #6d28d9;
+
+  /* 배폭(배폭생산) 뱃지/행 */
+  --badge-dwidth-bg  : #fff7ed; --badge-dwidth-txt  : #c2410c;
+  --badge-dwidth-brd : #fb923c;
+  --badge-nw-sub-bg  : #fed7aa; --badge-nw-sub-txt  : #9a3412;
+  --dwidth-row-bg    : #fff7ed;
+  --nwidth-row-bg    : #fff3e0;
+  --dwidth-prod-txt  : #c2410c;
 
   /* RFC 로딩 */
   --rfc-bg       : #dbeafe;
@@ -5660,7 +5676,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         <div class="section-card" id="sim-unassigned-panel" style="display:none;">
           <div class="section-title" style="color:#fb923c;">
             <i class="fas fa-exclamation-circle" style="color:#fb923c;"></i>미배치 오더
-            <span id="sim-unassigned-count" class="count-badge" style="margin-left:8px;background:#431407;color:#fb923c;"></span>
+            <span id="sim-unassigned-count" class="count-badge" style="margin-left:8px;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);"></span>
           </div>
           <!-- 요약 스탯 -->
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 16px 14px;">
@@ -7535,7 +7551,7 @@ function renderJumboListTable(list) {
     if (o.doubleWidthInfo && o.doubleWidthInfo.isDoubleWidth) {
       var jdw = o.doubleWidthInfo
       var nwLabel2 = jdw.nWidth && jdw.nWidth > 2 ? jdw.nWidth+'폭' : '배폭'
-      jlDwBadge = '<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:#7c2d12;color:#fdba74;margin-left:4px;">⚡'+nwLabel2+'</span>'
+      jlDwBadge = '<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);margin-left:4px;">⚡'+nwLabel2+'</span>'
     }
 
     return '<tr>'
@@ -10581,12 +10597,12 @@ function renderSimResult(combos, unassigned) {
       // N폭 배폭 조합: 각 지폭 + 미미 표시 + 그룹 뱃지
       var _mimi = _nwInfo.mimi != null ? _nwInfo.mimi : 30
       var _bars = _nwInfo.widths.map(function(w, idx) {
-        return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:#1c1917;border:1px solid #7c2d12;border-radius:4px;font-size:11px;font-weight:700;color:#fdba74;">'+
+        return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--badge-dwidth-bg);border:1px solid var(--badge-dwidth-brd);border-radius:4px;font-size:11px;font-weight:700;color:var(--badge-dwidth-txt);">'+
           w.toLocaleString()+'mm</span>'
       })
-      var _sep = '<span style="color:#f59e0b;font-size:11px;font-weight:600;"> +미미'+_mimi+'+ </span>'
+      var _sep = '<span style="color:var(--badge-dwidth-txt);font-size:11px;font-weight:600;opacity:.7;"> +미미'+_mimi+'+ </span>'
       widthBars = _bars.join(_sep)+
-        '<span style="margin-left:6px;display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:#7c2d12;color:#fdba74;border:1px solid #c05621;">'+
+        '<span style="margin-left:6px;display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);">'+
           '⚡ '+_nwInfo.nWidth+'폭배폭 점보 '+_nwInfo.jumboWidth.toLocaleString()+'mm'+
           (_nwInfo.prodLength ? ' / 생산 '+_nwInfo.prodLength.toLocaleString()+'m' : '')+
         '</span>'
@@ -10595,7 +10611,7 @@ function renderSimResult(combos, unassigned) {
       widthBars = combo.orders.map(function(o) {
         var dwInfoBar = enrichDoubleWidthInfo(o, _mach)
         var dwSuffix = dwInfoBar._isDoubleWidth
-          ? '<span style="font-size:9px;color:#fb923c;font-weight:600;vertical-align:super;">×2</span>'
+          ? '<span style="font-size:9px;color:var(--badge-dwidth-txt);font-weight:600;vertical-align:super;">×2</span>'
           : ''
         return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
           o.paperWidth.toLocaleString()+'mm'+dwSuffix+'</span>'
@@ -10656,7 +10672,7 @@ function renderSimResult(combos, unassigned) {
 
     // ── 배폭생산 뱃지 ─────────────────────────────────────────
     const dwidthBadge = combo._isDWidth
-      ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:#431407;color:#fdba74;letter-spacing:.3px;border:1px solid #c2410c;">⚡ '+combo._nWidth+'폭배폭'+
+      ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);letter-spacing:.3px;border:1px solid var(--badge-dwidth-brd);">⚡ '+combo._nWidth+'폭배폭'+
         (combo._prodLen ? ' · 생산'+combo._prodLen.toLocaleString()+'m' : '')+
         '</span>'
       : ''
@@ -10676,7 +10692,7 @@ function renderSimResult(combos, unassigned) {
                           : (dl !== null && dl !== undefined && dl <= 0)  ? '#f87171'
                           : (dl !== null && dl !== undefined && dl <= 3)  ? '#fb923c'
                           : (dl !== null && dl !== undefined && dl <= 7)  ? '#fbbf24'
-                          : combo._isDWidth                   ? '#c2410c'
+                          : combo._isDWidth                   ? 'var(--badge-dwidth-brd)'
                           : combo.isZeroLoss                 ? '#166534'
                           : 'var(--border)'
 
@@ -10836,7 +10852,7 @@ function renderSimResult(combos, unassigned) {
               ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;\">밀롤적치 '+milL+'m</span>'
               : '')+
             (isDW2
-              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;\">⚡'+nwCount+'폭배폭 점보 '+
+              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);\">⚡'+nwCount+'폭배폭 점보 '+
                 (dwJW2||'-')+'mm / 생산 '+(dwLen2||'-')+'m</span>'
               : '')+
           '</div>'+
@@ -10922,12 +10938,12 @@ function renderSimResult(combos, unassigned) {
                 widthCellHtml =
                   '<span style="font-weight:700;color:var(--text-main);">'+_oPw.toLocaleString()+'mm</span>'+
                   '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
-                  '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#431407;color:#fdba74;border:1px solid #c2410c;" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
+                  '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
                     '⚡점보 '+_jumboW.toLocaleString()+'mm'+
                   '</span>'+
-                  '<span style="margin-left:4px;display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:#7c2d12;color:#fdba74;">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
-                  (_prodL ? '<div style="font-size:9px;color:#fb923c;margin-top:2px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
-                orderRowBg = 'background:#1c0a00;'
+                  '<span style="margin-left:4px;display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
+                  (_prodL ? '<div style="font-size:9px;color:var(--dwidth-prod-txt);margin-top:2px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
+                orderRowBg = 'background:var(--nwidth-row-bg);'
 
               } else {
                 // ── 단독 1폭 또는 단독 배폭(×2) ─────────────────────
@@ -10940,11 +10956,11 @@ function renderSimResult(combos, unassigned) {
                   widthCellHtml =
                     '<span style="font-weight:700;color:var(--text-main);">'+_oPwD.toLocaleString()+'mm</span>'+
                     '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
-                    '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;" title="배폭생산: 점보롤 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+' / 생산길이 '+(_dwLen ? _dwLen.toLocaleString()+'m' : '-')+'">'+
+                    '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="배폭생산: 점보롤 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+' / 생산길이 '+(_dwLen ? _dwLen.toLocaleString()+'m' : '-')+'">'+
                       '⚡배폭 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+
                     '</span>'+
-                    (_dwLen ? '<div style="font-size:9px;color:#fb923c;margin-top:2px;">생산길이 '+_dwLen.toLocaleString()+'m</div>' : '')
-                  orderRowBg = 'background:#160b00;'
+                    (_dwLen ? '<div style="font-size:9px;color:var(--dwidth-prod-txt);margin-top:2px;">생산길이 '+_dwLen.toLocaleString()+'m</div>' : '')
+                  orderRowBg = 'background:var(--dwidth-row-bg);'
                 } else {
                   // 일반 오더 — 지폭만 표시
                   widthCellHtml =
@@ -11040,27 +11056,27 @@ function renderSimUnassigned(list) {
   function reasonBadgeStyle(reason) {
     // 호기 미지정 / 자재마스터 등록 필요 — 보라
     if (reason.indexOf('호기 미지정') !== -1 || reason.indexOf('자재마스터') !== -1)
-      return 'background:#1e1b4b;color:#c4b5fd;'
+      return 'background:var(--badge-spc-bg);color:var(--badge-spc-txt);'
     // 지폭 정보 없음 — 회보라
     if (reason.indexOf('지폭 정보 없음') !== -1)
-      return 'background:#2e1065;color:#d8b4fe;'
+      return 'background:var(--badge-spc-bg);color:var(--badge-spc-txt);'
     // 지폭 초과 / 호기 변경 필요 — 빨강
     if (reason.indexOf('최대') !== -1 || reason.indexOf('초과') !== -1 || reason.indexOf('호기 변경') !== -1)
-      return 'background:#450a0a;color:#fca5a5;'
-    // 그룹 내 최소지폭 달성불가 — 주황 (진한)
+      return 'background:var(--badge-cancel-bg);color:var(--badge-cancel-txt);'
+    // 그룹 내 최소지폭 달성불가 — 주황
     if (reason.indexOf('달성불가') !== -1)
-      return 'background:#431407;color:#fdba74;'
+      return 'background:var(--badge-excl-bg);color:var(--badge-excl-txt);'
     // 단독 / 협폭 / 묶을 오더 없음 — 인디고
     if (reason.indexOf('협폭') !== -1 || reason.indexOf('묶을 오더 없음') !== -1)
-      return 'background:#1e1b4b;color:#a5b4fc;'
+      return 'background:var(--badge-spc-bg);color:var(--badge-spc-txt);'
     // 최소지폭 미달 (단독/묶을 오더 부족) — 주황 (연한)
     if (reason.indexOf('최소지폭') !== -1 || reason.indexOf('오더 부족') !== -1)
-      return 'background:#3c1a06;color:#fb923c;'
+      return 'background:var(--badge-excl-bg);color:var(--badge-excl-txt);'
     // 지폭 과대 / 소폭 오더 부족 — 노랑
     if (reason.indexOf('과대') !== -1 || reason.indexOf('소폭') !== -1)
-      return 'background:#3d2800;color:#fde68a;'
+      return 'background:var(--badge-done-bg);color:var(--badge-done-txt);'
     // 조합 미배치 — 일반 (회색)
-    return 'background:#1c1917;color:#a8a29e;'
+    return 'background:var(--badge-done-bg);color:var(--badge-done-txt);'
   }
 
   tbody.innerHTML = list.map(function(o) {
@@ -11384,7 +11400,7 @@ function renderJumboOrders(list) {
     if (j.doubleWidthInfo && j.doubleWidthInfo.isDoubleWidth) {
       var dw = j.doubleWidthInfo
       var nwLabel = dw.nWidth && dw.nWidth > 2 ? dw.nWidth+'폭' : '배폭'
-      dwBadgeCell = '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c1917;color:#fb923c;border:1px solid #7c2d12;white-space:nowrap;">⚡'+nwLabel+' '+(dw.jumboWidthDW||'-')+'mm' + (dw.prodLength ? ' / '+dw.prodLength.toLocaleString()+'m' : '') + '</span>'
+      dwBadgeCell = '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);white-space:nowrap;">⚡'+nwLabel+' '+(dw.jumboWidthDW||'-')+'mm' + (dw.prodLength ? ' / '+dw.prodLength.toLocaleString()+'m' : '') + '</span>'
     }
 
     return '<tr>'+
