@@ -9627,9 +9627,15 @@ function runCombinationAlgorithm(orders) {
       // totalW < minW 인 버킷은 무조건 pendingBelowMin으로 격리
       // (더 추가 가능 여부에 관계없이: 이미 BFD 패스가 끝난 후이므로 더 이상 오더가 들어오지 않음)
       if (minW > 0 && totalW < minW) {
-        var pKey = machineNo + '_' + ptCode + '_' + bw
+        // Roll/Sheet 분리를 위해 rollTag 포함: Roll 오더(_isRoll=true)는 'R', Sheet는 'S'
+        var _hasRoll2  = bkt.orders.some(function(o){ return !!o._isRoll })
+        var _hasSheet2 = bkt.orders.some(function(o){ return !o._isRoll })
+        // wjSeparate='no'이면 'X'(혼합허용), 아니면 R/S 분리
+        var _rtag2 = (c.wjSeparate === 'no') ? 'X'
+          : (_hasRoll2 && !_hasSheet2) ? 'R' : (_hasSheet2 && !_hasRoll2) ? 'S' : 'M'
+        var pKey = machineNo + '_' + ptCode + '_' + bw + '_' + _rtag2
         if (!pendingBelowMin[pKey]) {
-          pendingBelowMin[pKey] = { orders: [], maxW: maxW, minW: minW, maxPok: maxPok, fourPokMin: fourPokMin }
+          pendingBelowMin[pKey] = { orders: [], maxW: maxW, minW: minW, maxPok: maxPok, fourPokMin: fourPokMin, rollTag: _rtag2 }
         }
         bkt.orders.forEach(function(o) { pendingBelowMin[pKey].orders.push(o) })
         return
@@ -9697,7 +9703,13 @@ function runCombinationAlgorithm(orders) {
 
     poorIdx.forEach(function(pi) {
       var pc = combos[pi]
-      var key     = pc.machineNo + '_' + (pc.paperTypeCode || '') + '_' + pc.basisWeight
+      // Roll/Sheet 타입 태그를 키에 포함하여 혼합 방지
+      var _pcRollTag = (c.wjSeparate !== 'no')
+        ? (pc.orders.some(function(o){ return !!o._isRoll }) && !pc.orders.some(function(o){ return !o._isRoll }) ? 'R'
+          : pc.orders.some(function(o){ return !o._isRoll }) && !pc.orders.some(function(o){ return !!o._isRoll }) ? 'S'
+          : 'M')
+        : 'X'
+      var key     = pc.machineNo + '_' + (pc.paperTypeCode || '') + '_' + pc.basisWeight + '_' + _pcRollTag
       var maxW2   = pc.maxWidth
       var minW2   = pc.minWidth || 0
       var maxPok2 = pc.machineNo === '2' ? c.m2MaxPok : c.m3MaxPok
@@ -9716,6 +9728,16 @@ function runCombinationAlgorithm(orders) {
           if (gc.machineNo !== pc.machineNo) return
           if ((gc.paperTypeCode || '') !== (pc.paperTypeCode || '')) return
           if (gc.basisWeight !== pc.basisWeight) return
+          // Roll/Sheet 혼합 방지: 오더 단위로도 체크
+          if (c.wjSeparate !== 'no') {
+            var _gcHasRoll = gc.orders.some(function(o){ return !!o._isRoll })
+            var _orderIsRoll = !!order._isRoll
+            if (_gcHasRoll !== _orderIsRoll) return
+          }
+          // Roll/Sheet 혼합 방지: 타입이 다르면 합치지 않음
+          var _gcIsRoll = gc.orders.some(function(o){ return !!o._isRoll })
+          var _pcIsRoll = pc.orders.some(function(o){ return !!o._isRoll })
+          if (c.wjSeparate !== 'no' && _gcIsRoll !== _pcIsRoll) return
           if (gc.pokCount >= maxPok2) return
           var newTotalW  = gc.widthSum + mimi2 + (order._pw || order.paperWidth)
           var newPokCnt  = gc.pokCount + 1
@@ -9786,7 +9808,12 @@ function runCombinationAlgorithm(orders) {
       var machNo    = keyParts2[0]
       var ptCode2   = keyParts2[1]
       var bw2       = Number(keyParts2[2])
-      var pl2       = Number(keyParts2[3] || '0')  // 지장 (0=Roll)
+      // keyParts2[3]은 rollTag('R'/'S'/'M'/'X') — 숫자가 아님
+      // pl2(지장)는 오더들에서 직접 추출 (Roll이면 0, Sheet이면 양수)
+      var _rollTag2 = keyParts2[3] || 'X'
+      var pl2       = (orders2.length > 0 && orders2[0].paperLength != null)
+                        ? (Number(orders2[0].paperLength) || 0)
+                        : 0
 
       orders2.sort(function(a, b) { return b._pw - a._pw })
 
@@ -10639,12 +10666,12 @@ function renderSimResult(combos, unassigned) {
       // N폭 배폭 조합: 각 지폭 + 미미 표시 + 그룹 뱃지
       var _mimi = _nwInfo.mimi != null ? _nwInfo.mimi : 30
       var _bars = _nwInfo.widths.map(function(w, idx) {
-        return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--badge-dwidth-bg);border:1px solid var(--badge-dwidth-brd);border-radius:4px;font-size:11px;font-weight:700;color:var(--badge-dwidth-txt);">'+
+        return '<span style="display:inline-block;padding:5px 12px;margin:2px;background:var(--badge-dwidth-bg);border:1px solid var(--badge-dwidth-brd);border-radius:6px;font-size:13px;font-weight:800;color:var(--badge-dwidth-txt);">'+
           w.toLocaleString()+'mm</span>'
       })
-      var _sep = '<span style="color:var(--badge-dwidth-txt);font-size:11px;font-weight:600;opacity:.7;"> +미미'+_mimi+'+ </span>'
+      var _sep = '<span style="color:var(--badge-dwidth-txt);font-size:12px;font-weight:600;opacity:.7;margin:0 2px;"> +미미'+_mimi+'+ </span>'
       widthBars = _bars.join(_sep)+
-        '<span style="margin-left:6px;display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);">'+
+        '<span style="margin-left:8px;display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);">'+
           '⚡ '+_nwInfo.nWidth+'폭배폭 점보 '+_nwInfo.jumboWidth.toLocaleString()+'mm'+
           (_nwInfo.prodLength ? ' / 생산 '+_nwInfo.prodLength.toLocaleString()+'m' : '')+
         '</span>'
@@ -10653,11 +10680,11 @@ function renderSimResult(combos, unassigned) {
       widthBars = combo.orders.map(function(o) {
         var dwInfoBar = enrichDoubleWidthInfo(o, _mach)
         var dwSuffix = dwInfoBar._isDoubleWidth
-          ? '<span style="font-size:9px;color:var(--badge-dwidth-txt);font-weight:600;vertical-align:super;">×2</span>'
+          ? '<span style="font-size:11px;color:var(--badge-dwidth-txt);font-weight:700;vertical-align:super;">×2</span>'
           : ''
-        return '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:700;color:var(--text-main);">'+
+        return '<span style="display:inline-block;padding:5px 12px;margin:2px;background:var(--bg-input);border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:800;color:var(--text-main);">'+
           o.paperWidth.toLocaleString()+'mm'+dwSuffix+'</span>'
-      }).join('<span style="color:var(--border);font-size:12px;"> + 미미30 + </span>')
+      }).join('<span style="color:var(--text-faint);font-size:13px;font-weight:500;margin:0 4px;"> + 미미30 + </span>')
     }
     const cid = 'combo-check-' + combo.comboId
 
@@ -10790,46 +10817,46 @@ function renderSimResult(combos, unassigned) {
             ? '<span style=\"margin-left:4px;padding:0 5px;border-radius:3px;font-size:9px;background:#1e40af;color:#93c5fd;\">이 오더</span>'
             : ''
           var lenCell = row
-            ? '<b style=\"color:#34d399;font-size:12px;\">'+Number(row.maxLen).toLocaleString()+'m</b>'
+            ? '<b style=\"color:#34d399;font-size:15px;font-weight:800;\">'+Number(row.maxLen).toLocaleString()+'m</b>'
             : '<span style=\"color:var(--text-faint);\">—</span>'
           return '<tr style=\"'+rowStyle+'\">'+
-            '<td style=\"padding:5px 10px;text-align:center;\">'+
+            '<td style=\"padding:9px 12px;text-align:center;font-size:14px;\">'+
               '<span style=\"font-weight:700;color:var(--text-main);\">'+inch+'인치</span>'+activeBadge+
             '</td>'+
-            '<td style=\"padding:5px 10px;text-align:center;\">'+lenCell+'</td>'+
+            '<td style=\"padding:9px 12px;text-align:center;\">'+lenCell+'</td>'+
           '</tr>'
         }).join('')
 
         var inchNotice = inchKeys.length === 0
-          ? '<div style=\"margin-top:6px;font-size:10px;color:#f59e0b;\"><i class=\"fas fa-exclamation-triangle\" style=\"margin-right:4px;\"></i>오더에 인치 정보 없음 — SAP 연동 후 자동 매핑 예정</div>'
+          ? '<div style=\"margin-top:8px;font-size:13px;color:#f59e0b;\"><i class=\"fas fa-exclamation-triangle\" style=\"margin-right:5px;\"></i>오더에 인치 정보 없음 — SAP 연동 후 자동 매핑 예정</div>'
           : ''
         var cacheNotice = cache.length === 0
-          ? '<div style=\"margin-top:6px;font-size:10px;color:#f87171;\"><i class=\"fas fa-exclamation-circle\" style=\"margin-right:4px;\"></i>Roll 길이 기준 캐시 없음 — 시뮬레이션 탭 재진입 시 갱신됨</div>'
+          ? '<div style=\"margin-top:8px;font-size:13px;color:#f87171;\"><i class=\"fas fa-exclamation-circle\" style=\"margin-right:5px;\"></i>Roll 길이 기준 캐시 없음 — 시뮬레이션 탭 재진입 시 갱신됨</div>'
           : ''
 
         lengthInfoHtml =
-          '<div style=\"margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:7px;border:1px solid #1e3a5f;font-size:11px;\">'+
-            '<div style=\"display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap;\">'+
-              '<i class=\"fas fa-scroll\" style=\"color:#38bdf8;font-size:10px;\"></i>'+
-              '<span style=\"font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;\">원지 생산 길이 기준 ('+bw2+'g/m²)</span>'+
-              '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#0c1a2e;color:#38bdf8;\">Roll (무한)</span>'+
-              '<span style=\"font-size:10px;color:var(--text-faint);\">인치별 최대 권취 길이</span>'+
+          '<div style=\"margin-top:10px;padding:12px 14px;background:var(--bg-base);border-radius:8px;border:1px solid #1e3a5f;font-size:13px;\">'+
+            '<div style=\"display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;\">'+
+              '<i class=\"fas fa-scroll\" style=\"color:#38bdf8;font-size:13px;\"></i>'+
+              '<span style=\"font-size:13px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;\">원지 생산 길이 기준 ('+bw2+'g/m²)</span>'+
+              '<span style=\"padding:3px 10px;border-radius:5px;font-size:13px;font-weight:700;background:#0c1a2e;color:#38bdf8;\">Roll (무한)</span>'+
+              '<span style=\"font-size:13px;color:var(--text-faint);\">인치별 최대 권취 길이</span>'+
             '</div>'+
             (cache.length > 0
               ? '<table style=\"width:100%;border-collapse:collapse;font-size:11px;\">'+
                   '<thead>'+
                     '<tr style=\"border-bottom:1px solid var(--border);\">'+
-                      '<th style=\"padding:4px 10px;text-align:center;font-weight:600;color:var(--text-faint);\">관경(인치)</th>'+
-                      '<th style=\"padding:4px 10px;text-align:center;font-weight:600;color:var(--text-faint);\">최대 길이</th>'+
+                      '<th style=\"padding:7px 12px;text-align:center;font-weight:600;font-size:13px;color:var(--text-faint);\">관경(인치)</th>'+
+                      '<th style=\"padding:7px 12px;text-align:center;font-weight:600;font-size:13px;color:var(--text-faint);\">최대 길이</th>'+
                     '</tr>'+
                   '</thead>'+
                   '<tbody>'+rollRows+'</tbody>'+
                 '</table>'
-              : '<div style=\"color:var(--text-faint);font-size:11px;padding:4px 0;\">캐시 로딩 중...</div>')+
+              : '<div style=\"color:var(--text-faint);font-size:13px;padding:6px 0;\">캐시 로딩 중...</div>')+
             inchNotice+
             cacheNotice+
-            '<div style=\"margin-top:6px;font-size:10px;color:var(--text-faint);\">'+
-              '<i class=\"fas fa-info-circle\" style=\"color:#38bdf8;margin-right:4px;\"></i>'+
+            '<div style=\"margin-top:8px;font-size:12px;color:var(--text-faint);\">'+
+              '<i class=\"fas fa-info-circle\" style=\"color:#38bdf8;margin-right:5px;\"></i>'+
               '인치 정보는 SAP 오더 연동 시 자동 매핑 · 현재 기준 테이블 표시'+
             '</div>'+
           '</div>'
@@ -10875,86 +10902,99 @@ function renderSimResult(combos, unassigned) {
 
       var plVal  = combo.paperLength || 0
       var plLabel = plVal > 0
-        ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1c2b1c;color:#86efac;border:1px solid #166534;\">✂ 절단 '+plVal.toLocaleString()+'mm</span>'
-        : '<span style=\"font-size:10px;color:#38bdf8;\">Roll(원지/무한)</span>'
+        ? '<span style=\"padding:3px 10px;border-radius:5px;font-size:13px;font-weight:700;background:#1c2b1c;color:#86efac;border:1px solid #166534;\">✂ 절단 '+plVal.toLocaleString()+'mm</span>'
+        : '<span style=\"font-size:13px;font-weight:700;color:#38bdf8;\">Roll(원지/무한)</span>'
 
       var pct = ll2.maxLen > 0 ? Math.min(100, Math.round((ll2.minLen / ll2.maxLen) * 100)) : 0
 
       lengthInfoHtml =
-        '<div style=\"margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:7px;border:1px solid var(--border);font-size:11px;\">'+
-          '<div style=\"display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;\">'+
-            '<i class=\"fas fa-ruler-horizontal\" style=\"color:#a78bfa;font-size:10px;\"></i>'+
-            '<span style=\"font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;\">생산 길이 기준 ('+combo.basisWeight+'g/m²)</span>'+
+        '<div style=\"margin-top:10px;padding:12px 14px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border);\">'+
+          '<div style=\"display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;\">'+
+            '<i class=\"fas fa-ruler-horizontal\" style=\"color:#a78bfa;font-size:13px;\"></i>'+
+            '<span style=\"font-size:13px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;\">생산 길이 기준 ('+combo.basisWeight+'g/m²)</span>'+
             plLabel+
             '<span style=\"color:var(--border);\">|</span>'+
-            '<span style=\"font-size:11px;color:#60a5fa;\">최소 <b>'+minL+'m</b></span>'+
+            '<span style=\"font-size:14px;color:#60a5fa;\">최소 <b style=\"font-size:15px;\">'+minL+'</b>m</span>'+
             '<span style=\"color:var(--text-faint);\">~</span>'+
-            '<span style=\"font-size:11px;color:#34d399;\">최대 <b>'+maxL+'m</b></span>'+
+            '<span style=\"font-size:14px;color:#34d399;\">최대 <b style=\"font-size:15px;\">'+maxL+'</b>m</span>'+
             (milL
-              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#1e1b4b;color:#c4b5fd;\">밀롤적치 '+milL+'m</span>'
+              ? '<span style=\"padding:3px 10px;border-radius:5px;font-size:13px;font-weight:700;background:#1e1b4b;color:#c4b5fd;\">밀롤적치 <b>'+milL+'</b>m</span>'
               : '')+
             (isDW2
-              ? '<span style=\"padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);\">⚡'+nwCount+'폭배폭 점보 '+
-                (dwJW2||'-')+'mm / 생산 '+(dwLen2||'-')+'m</span>'
+              ? '<span style=\"padding:3px 10px;border-radius:5px;font-size:13px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);\">⚡'+nwCount+'폭배폭 점보 '+
+                (dwJW2||'-')+'mm / 생산 <b>'+(dwLen2||'-')+'</b>m</span>'
               : '')+
           '</div>'+
-          '<div style=\"position:relative;height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;border:1px solid var(--border);\">'+
-            '<div style=\"position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:#374151;border-radius:4px 0 0 4px;\"></div>'+
-            '<div style=\"position:absolute;left:'+pct+'%;top:0;height:100%;width:'+(100-pct)+'%;background:linear-gradient(90deg,#34d399,#059669);border-radius:0 4px 4px 0;\"></div>'+
+          '<div style=\"position:relative;height:10px;background:var(--bg-input);border-radius:5px;overflow:hidden;border:1px solid var(--border);\">'+
+            '<div style=\"position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:#374151;border-radius:5px 0 0 5px;\"></div>'+
+            '<div style=\"position:absolute;left:'+pct+'%;top:0;height:100%;width:'+(100-pct)+'%;background:linear-gradient(90deg,#34d399,#059669);border-radius:0 5px 5px 0;\"></div>'+
             (milL && ll2.maxLen > 0
               ? '<div style=\"position:absolute;top:0;height:100%;width:2px;background:#c4b5fd;left:'+Math.min(99,Math.round(ll2.milrolLen/ll2.maxLen*100))+'%;\" title=\"밀롤 적치용\"></div>'
               : '')+
           '</div>'+
-          '<div style=\"display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--text-faint);\">'+
+          '<div style=\"display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--text-faint);\">'+
             '<span>0</span>'+
-            '<span style=\"color:#60a5fa;\">'+minL+'m (최소)</span>'+
-            (milL ? '<span style=\"color:#c4b5fd;\">'+milL+'m (밀롤)</span>' : '')+
-            '<span style=\"color:#34d399;\">'+maxL+'m (최대)</span>'+
+            '<span style=\"color:#60a5fa;font-weight:600;\">'+minL+'m <span style=\"font-weight:400;\">(최소)</span></span>'+
+            (milL ? '<span style=\"color:#c4b5fd;font-weight:600;\">'+milL+'m <span style=\"font-weight:400;\">(밀롤)</span></span>' : '')+
+            '<span style=\"color:#34d399;font-weight:600;\">'+maxL+'m <span style=\"font-weight:400;\">(최대)</span></span>'+
           '</div>'+
         '</div>'
     })()
 
-    return '<div id="combo-card-'+combo.comboId+'" style="border:2px solid '+cardBorderColor+';border-radius:10px;margin-bottom:10px;background:var(--bg-input);overflow:hidden;transition:border-color .15s;">'+
-      '<!-- header -->'+
-      '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-wrap:wrap;">'+
-        '<!-- checkbox -->'+
-        '<label style="display:flex;align-items:center;cursor:pointer;gap:0;" title="이 조합 선택">'+
+    return '<div id="combo-card-'+combo.comboId+'" style="border:2px solid '+cardBorderColor+';border-radius:12px;margin-bottom:14px;background:var(--bg-input);overflow:hidden;transition:border-color .15s;box-shadow:0 2px 8px rgba(0,0,0,.25);">'+
+      '<!-- header row 1: ID + 뱃지 + 핵심 수치 -->'+
+      '<div style="display:flex;align-items:center;gap:10px;padding:12px 18px 10px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-wrap:wrap;">'+
+        '<label style="display:flex;align-items:center;cursor:pointer;" title="이 조합 선택">'+
           '<input type="checkbox" id="'+cid+'" checked onchange="onComboCheckChange('+combo.comboId+')" style="width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;" />'+
         '</label>'+
-        '<span style="font-weight:800;font-size:15px;color:#a78bfa;">#'+combo.comboId+'</span>'+
-        zeroLossBadge+
-        dwidthBadge+
-        urgencyBadge+
-        narrowWarn+
-        minWidthWarn+
-        '<span class="machine-badge" style="font-size:13px;padding:3px 12px;">'+combo.machineNo+'호기</span>'+
-        paperTypeBadge(combo.paperTypeCode)+
-        '<span style="font-size:12px;color:var(--text-muted);">평량 <b style="color:var(--text-main);">'+combo.basisWeight+'g/m²</b></span>'+
-        (combo.paperLength > 0
-          ? '<span style="font-size:12px;color:var(--text-muted);">지장 <b style="color:#f59e0b;">'+combo.paperLength.toLocaleString()+'mm</b></span>'
-          : '<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#0c1a2e;color:#38bdf8;">Roll (무한)</span>')+
-        '<span style="font-size:12px;color:var(--text-muted);"><b style="color:var(--text-main);">'+combo.pokCount+'</b>폭</span>'+
-        '<div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">'+
-          '<span style="font-size:12px;color:var(--text-muted);">합계 지폭: <b style="color:'+(combo.belowMinWidth?'#f87171':'var(--text-main)')+';">'+combo.widthSum.toLocaleString()+'mm</b>'+(combo.minWidth?(' <span style="color:var(--text-faint);">(최소 '+combo.minWidth.toLocaleString()+'↑</span>'):'')+'/ '+combo.maxWidth.toLocaleString()+'mm</span>'+
-          '<span style="font-size:13px;color:'+lossColor+';font-weight:800;">Loss '+combo.lossRate+'%</span>'+
-          rollSheetHtml+
-          '<span style="font-size:13px;color:#34d399;font-weight:800;border-left:1px solid var(--border);padding-left:8px;">합계 '+combo.totalTon+'T</span>'+
+        '<span style="font-weight:900;font-size:17px;color:#a78bfa;min-width:36px;">#'+combo.comboId+'</span>'+
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;">'+
+          zeroLossBadge+
+          dwidthBadge+
+          urgencyBadge+
+          narrowWarn+
+          minWidthWarn+
+          '<span class="machine-badge" style="font-size:13px;padding:4px 13px;font-weight:700;">'+combo.machineNo+'호기</span>'+
+          paperTypeBadge(combo.paperTypeCode)+
+          '<span style="font-size:13px;color:var(--text-muted);">평량 <b style="color:var(--text-main);font-size:14px;">'+combo.basisWeight+'</b><span style="font-size:11px;">g/m²</span></span>'+
+          (combo.paperLength > 0
+            ? '<span style="font-size:13px;color:var(--text-muted);">지장 <b style="color:#f59e0b;font-size:14px;">'+combo.paperLength.toLocaleString()+'</b><span style="font-size:11px;">mm</span></span>'
+            : '<span style="font-size:12px;padding:3px 10px;border-radius:5px;background:#0c1a2e;color:#38bdf8;font-weight:700;">Roll (무한)</span>')+
+          '<span style="font-size:13px;color:var(--text-muted);"><b style="color:var(--text-main);font-size:14px;">'+combo.pokCount+'</b><span style="font-size:11px;">폭</span></span>'+
+        '</div>'+
+        '<!-- 우측 핵심 수치 그룹 -->'+
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-left:10px;border-left:2px solid var(--border);">'+
+          '<div style="text-align:center;min-width:80px;">'+
+            '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">합계 지폭</div>'+
+            '<div style="font-size:15px;font-weight:800;color:'+(combo.belowMinWidth?'#f87171':'var(--text-main)')+';">'+combo.widthSum.toLocaleString()+'<span style="font-size:10px;font-weight:500;">mm</span></div>'+
+            (combo.minWidth ? '<div style="font-size:10px;color:var(--text-faint);">(최소 '+combo.minWidth.toLocaleString()+'~'+combo.maxWidth.toLocaleString()+'mm)</div>' : '')+
+          '</div>'+
+          '<div style="text-align:center;min-width:60px;">'+
+            '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">Loss</div>'+
+            '<div style="font-size:16px;font-weight:900;color:'+lossColor+';">'+combo.lossRate+'<span style="font-size:11px;">%</span></div>'+
+          '</div>'+
+          '<div style="text-align:center;min-width:72px;padding-left:10px;border-left:1px solid var(--border);">'+
+            '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">합계 톤</div>'+
+            '<div style="font-size:16px;font-weight:900;color:#34d399;">'+combo.totalTon+'<span style="font-size:11px;font-weight:500;">T</span></div>'+
+          '</div>'+
         '</div>'+
       '</div>'+
+      // Roll/Sheet 비율 행 (값이 있을 때만)
+      (rollSheetHtml ? '<div style="padding:6px 18px 6px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+rollSheetHtml+'</div>' : '')+
       '<!-- body -->'+
-      '<div style="padding:12px 16px 4px;">'+
-        '<div style="margin-bottom:10px;">'+widthBars+'</div>'+
+      '<div style="padding:14px 18px 8px;">'+
+        '<div style="margin-bottom:12px;">'+widthBars+'</div>'+
         lengthInfoHtml+
-        '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;">'+
-          '<thead style="background:var(--bg-card);">'+
-            '<tr>'+
-              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">오더번호</th>'+
-              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">납품처</th>'+
-              '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">지폭</th>'+
-              '<th style="padding:5px 6px;text-align:right;color:var(--text-muted);">수량</th>'+
-              '<th style="padding:5px 6px;text-align:center;color:var(--text-muted);">포장</th>'+
-              '<th style="padding:5px 6px;text-align:left;color:var(--text-muted);">자재코드</th>'+
-              '<th style="padding:5px 6px;text-align:center;color:var(--text-muted);">납기일</th>'+
+        '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">'+
+          '<thead>'+
+            '<tr style="background:var(--bg-card);border-bottom:2px solid var(--border);">'+
+              '<th style="padding:7px 8px;text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;letter-spacing:.04em;">오더번호</th>'+
+              '<th style="padding:7px 8px;text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;">납품처</th>'+
+              '<th style="padding:7px 8px;text-align:right;color:var(--text-faint);font-weight:600;font-size:11px;">지폭</th>'+
+              '<th style="padding:7px 8px;text-align:right;color:var(--text-faint);font-weight:600;font-size:11px;">수량</th>'+
+              '<th style="padding:7px 8px;text-align:center;color:var(--text-faint);font-weight:600;font-size:11px;">포장</th>'+
+              '<th style="padding:7px 8px;text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;">자재코드</th>'+
+              '<th style="padding:7px 8px;text-align:center;color:var(--text-faint);font-weight:600;font-size:11px;">납기일</th>'+
             '</tr>'+
           '</thead>'+
           '<tbody>'+
@@ -10979,11 +11019,11 @@ function renderSimResult(combos, unassigned) {
                 widthCellHtml =
                   '<span style="font-weight:700;color:var(--text-main);">'+_oPw.toLocaleString()+'mm</span>'+
                   '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
-                  '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
+                  '<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
                     '⚡점보 '+_jumboW.toLocaleString()+'mm'+
                   '</span>'+
-                  '<span style="margin-left:4px;display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
-                  (_prodL ? '<div style="font-size:9px;color:var(--dwidth-prod-txt);margin-top:2px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
+                  '<span style="margin-left:4px;display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
+                  (_prodL ? '<div style="font-size:12px;font-weight:700;color:var(--dwidth-prod-txt);margin-top:3px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
                 orderRowBg = 'background:var(--nwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
 
               } else {
@@ -10996,10 +11036,10 @@ function renderSimResult(combos, unassigned) {
                   widthCellHtml =
                     '<span style="font-weight:700;color:var(--text-main);">'+_oPwD.toLocaleString()+'mm</span>'+
                     '<span style="margin:0 4px;color:var(--text-faint);font-size:10px;">→</span>'+
-                    '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="배폭생산: 점보롤 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+' / 생산길이 '+(_dwLen ? _dwLen.toLocaleString()+'m' : '-')+'">'+
+                    '<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="배폭생산: 점보롤 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+' / 생산길이 '+(_dwLen ? _dwLen.toLocaleString()+'m' : '-')+'">'+
                       '⚡배폭 '+(_dwJW ? _dwJW.toLocaleString()+'mm' : '-')+
                     '</span>'+
-                    (_dwLen ? '<div style="font-size:9px;color:var(--dwidth-prod-txt);margin-top:2px;">생산길이 '+_dwLen.toLocaleString()+'m</div>' : '')
+                    (_dwLen ? '<div style="font-size:12px;font-weight:700;color:var(--dwidth-prod-txt);margin-top:3px;">생산길이 '+_dwLen.toLocaleString()+'m</div>' : '')
                   orderRowBg = 'background:var(--dwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
                 } else {
                   widthCellHtml =
@@ -11011,14 +11051,14 @@ function renderSimResult(combos, unassigned) {
               // 배폭 행은 납품처명도 더 밝게 (var(--text-main) 사용)
               var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
 
-              return '<tr style="'+orderRowBg+'">'+
-                '<td style="padding:5px 6px;font-family:monospace;font-size:11px;font-weight:600;color:var(--sim-order-no-txt);">'+o.sapOrderNo+'</td>'+
-                '<td style="padding:5px 6px;'+customerColor+'">'+o.customerName+'</td>'+
-                '<td style="padding:5px 6px;text-align:right;">'+widthCellHtml+'</td>'+
-                '<td style="padding:5px 6px;text-align:right;font-weight:700;color:var(--sim-qty-txt);">'+q+'</td>'+
-                '<td style="padding:5px 6px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
-                '<td style="padding:5px 6px;font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-                '<td style="padding:5px 6px;text-align:center;font-weight:700;color:'+dc+';">'+o.dueDate+'</td>'+
+              return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
+                '<td style="padding:8px 8px;font-family:monospace;font-size:12px;font-weight:700;color:var(--sim-order-no-txt);white-space:nowrap;">'+o.sapOrderNo+'</td>'+
+                '<td style="padding:8px 8px;font-size:13px;'+customerColor+'">'+o.customerName+'</td>'+
+                '<td style="padding:8px 8px;text-align:right;">'+widthCellHtml+'</td>'+
+                '<td style="padding:8px 8px;text-align:right;font-size:14px;font-weight:800;color:var(--sim-qty-txt);">'+q+'</td>'+
+                '<td style="padding:8px 8px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
+                '<td style="padding:8px 8px;font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+                '<td style="padding:8px 8px;text-align:center;font-size:13px;font-weight:800;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
             }).join('')+
           '</tbody>'+
