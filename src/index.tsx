@@ -9520,6 +9520,7 @@ function runCombinationAlgorithm(orders) {
     }
 
     // ④ 협폭 단독 생산 불가 (noProdLimit 이하인데 그룹에 자기 혼자)
+    if (noprod > 0 && pw <= noprod && grpWidths.length === 1) {
       o._unassignedReason = '협폭 단독 (' + pw + 'mm ≤ ' + noprod + 'mm, 묶을 오더 없음)'
       return
     }
