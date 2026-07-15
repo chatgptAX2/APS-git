@@ -3243,6 +3243,15 @@ const mainHtml = `<!DOCTYPE html>
   --sim-duedate-warn : #fbbf24;   /* 납기 ≤7일 — 노랑 */
   --sim-duedate-over : #f87171;   /* 납기 초과/당일 — 빨강 */
 
+  /* 판매오더 테이블 행 */
+  --tbl-order-no-txt : #60a5fa;   /* 오더번호 */
+  --tbl-item-txt     : #94a3b8;   /* 항목번호 (muted) */
+  --tbl-customer-txt : #e2e8f0;   /* 납품처명 — 밝게 */
+  --tbl-plant-txt    : #c4b5fd;   /* 플랜트 */
+  --tbl-matcode-txt  : #94a3b8;   /* 자재코드 */
+  --tbl-date-txt     : #cbd5e1;   /* 생성일/납품요청일 */
+  --tbl-creator-txt  : #94a3b8;   /* 생성자 */
+
   /* RFC 로딩 */
   --rfc-bg       : #0c2340;
   --rfc-border   : #1e3a5f;
@@ -3360,13 +3369,22 @@ const mainHtml = `<!DOCTYPE html>
   --dwidth-prod-txt  : #c2410c;
 
   /* 시뮬 결과 오더 행 */
-  --sim-order-no-txt : #1d4ed8;   /* 오더번호 — 진한 파랑 (베이지 배경에서 선명) */
-  --sim-qty-txt      : #15803d;   /* 수량 — 진한 초록 */
-  --sim-matcode-txt  : #475569;   /* 자재코드 — 어두운 슬레이트 */
-  --sim-matcode-size : 11px;      /* 자재코드 폰트 크기 */
-  --sim-duedate-near : #c2410c;   /* 납기 ≤3일 — 진한 주황 */
-  --sim-duedate-warn : #b45309;   /* 납기 ≤7일 — 진한 노랑/갈색 */
-  --sim-duedate-over : #dc2626;   /* 납기 초과/당일 — 빨강 */
+  --sim-order-no-txt : #1d4ed8;
+  --sim-qty-txt      : #15803d;
+  --sim-matcode-txt  : #475569;
+  --sim-matcode-size : 11px;
+  --sim-duedate-near : #c2410c;
+  --sim-duedate-warn : #b45309;
+  --sim-duedate-over : #dc2626;
+
+  /* 판매오더 테이블 행 */
+  --tbl-order-no-txt : #1d4ed8;
+  --tbl-item-txt     : #64748b;
+  --tbl-customer-txt : #0f172a;
+  --tbl-plant-txt    : #6d28d9;
+  --tbl-matcode-txt  : #475569;
+  --tbl-date-txt     : #334155;
+  --tbl-creator-txt  : #64748b;
 
   /* RFC 로딩 */
   --rfc-bg       : #dbeafe;
@@ -4018,10 +4036,10 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 @media(max-width:1100px){.dash-grid{grid-template-columns:repeat(2,1fr);}}
 
 /* ── 오더유형 납기일 색상 (다크/라이트 공통) ── */
-.due-overdue{color:#ef4444;}
-.due-urgent {color:#f59e0b;}
-.due-near   {color:#fb923c;}
-.due-normal {color:var(--text-muted);}
+.due-overdue{color:var(--sim-duedate-over);font-weight:700;}
+.due-urgent {color:var(--sim-duedate-near);font-weight:700;}
+.due-near   {color:var(--sim-duedate-warn);font-weight:600;}
+.due-normal {color:var(--tbl-date-txt);}
 
 /* ── AI 채팅 패널 (하단 고정 슬라이드업) ── */
 /* 배경색: 테마 변수 우선, 폴백으로 다크/라이트 명시 */
@@ -6940,11 +6958,11 @@ function renderImportTable(list) {
   tbody.innerHTML = list.map(o =>
     '<tr data-id="'+o.orderId+'">' +
     '<td class="center"><input type="checkbox" class="chk-import" value="'+o.orderId+'" onchange="toggleSelectImport('+o.orderId+',this.checked)"></td>' +
-    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:#a78bfa;">'+(o.plant||'-')+'</span></td>' +
-    '<td style="color:#60a5fa;font-weight:600;font-family:monospace;">'+o.sapOrderNo+'</td>' +
-    '<td style="color:var(--text-muted);">'+o.sapItemNo+'</td>' +
+    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:var(--tbl-plant-txt);">'+(o.plant||'-')+'</span></td>' +
+    '<td style="color:var(--tbl-order-no-txt);font-weight:700;font-family:monospace;font-size:12px;">'+o.sapOrderNo+'</td>' +
+    '<td style="color:var(--tbl-item-txt);font-size:11px;">'+o.sapItemNo+'</td>' +
     '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
-    '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">'+o.customerName+'</td>' +
+    '<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;color:var(--tbl-customer-txt);font-size:12px;font-weight:500;">'+o.customerName+'</td>' +
     '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>' +
     '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>' +
     '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>' +
@@ -6953,10 +6971,10 @@ function renderImportTable(list) {
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>' +
     '<td><span class="badge b-'+(o.unit==='TON'?'ton':o.unit==='R'?'r':'sok')+'">'+o.unit+'</span></td>' +
     '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>' +
-    '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
-    '<td style="color:var(--text-muted);font-size:11px;">'+o.orderDate+'</td>' +
-    '<td style="color:var(--text-muted);font-size:11px;">'+o.createdBy+'</td>' +
-    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:11px;font-weight:600;">'+o.dueDate+'</td>' +
+    '<td style="font-family:monospace;font-size:11px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
+    '<td style="color:var(--tbl-date-txt);font-size:11px;font-weight:500;">'+o.orderDate+'</td>' +
+    '<td style="color:var(--tbl-creator-txt);font-size:11px;">'+o.createdBy+'</td>' +
+    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:12px;font-weight:700;">'+o.dueDate+'</td>' +
     '<td>'+renderStatusBadge(o.status)+'</td>' +
     '<td class="center">'+(o.isExcluded?'<span class="badge b-excl"><i class="fas fa-exclamation-triangle"></i> 예외</span>':'')+'</td>' +
     '</tr>'
@@ -7092,11 +7110,11 @@ function renderListTable(list) {
   tbody.innerHTML = list.map((o,i) =>
     '<tr style="'+(o.isExcluded?'opacity:.5;':'')+'">'+
     '<td class="center" style="color:var(--text-faint);font-size:11px;">'+(i+1)+'</td>'+
-    '<td style="color:#60a5fa;font-weight:700;font-family:monospace;">'+o.sapOrderNo+'</td>'+
-    '<td style="color:var(--text-muted);font-size:11px;">'+o.sapItemNo+'</td>'+
+    '<td style="color:var(--tbl-order-no-txt);font-weight:700;font-family:monospace;font-size:12px;">'+o.sapOrderNo+'</td>'+
+    '<td style="color:var(--tbl-item-txt);font-size:11px;">'+o.sapItemNo+'</td>'+
     '<td>'+renderOrderTypeBadge(o.orderType)+'</td>'+
-    '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:12px;">'+o.customerName+'</td>'+
-    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:#a78bfa;">'+(o.plant||'-')+'</span></td>'+
+    '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:500;color:var(--tbl-customer-txt);">'+o.customerName+'</td>'+
+    '<td class="center"><span style="font-family:monospace;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:var(--tbl-plant-txt);">'+(o.plant||'-')+'</span></td>'+
     '<td class="center"><span class="machine-badge">'+o.machineNo+'호기</span></td>'+
     '<td class="num" style="font-weight:700;">'+o.basisWeight+'</td>'+
     '<td class="num" style="font-weight:700;">'+o.paperWidth.toLocaleString()+'</td>'+
@@ -7104,8 +7122,8 @@ function renderListTable(list) {
     '<td class="num">'+(o.orderQtyR!=null   ? '<span class="badge b-r">'+o.orderQtyR.toLocaleString()+'</span>'   : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
-    '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:11px;font-weight:600;">'+o.dueDate+'</td>'+
+    '<td style="font-family:monospace;font-size:11px;color:var(--tbl-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
+    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:12px;font-weight:700;">'+o.dueDate+'</td>'+
     '<td>'+renderStatusBadge(o.status)+'</td>'+
     '<td class="center">'+(o.isExcluded?'<span class="badge b-excl" style="font-size:10px;"><i class="fas fa-ban"></i> 예외</span>':'')+'</td>'+
     '<td class="center">'+(o.isExcluded
