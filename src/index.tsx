@@ -4286,24 +4286,22 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
     <!-- 결과 그리드 -->
     <div class="section-card" style="overflow:hidden;">
-      <div class="card-header">
-        <div class="card-label">
+      <div class="card-header" style="justify-content:flex-start;gap:12px;flex-wrap:wrap;">
+        <div class="card-label" style="flex-shrink:0;">
           <i class="fas fa-table" style="color:#3b82f6;"></i>
           RFC 조회 결과
           <span class="count-badge" id="import-count">0 건</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <!-- DB 저장 현황 배지 -->
-          <div id="saved-count-banner" style="display:none;padding:3px 10px;border-radius:5px;background:#34d39920;border:1px solid #34d39966;font-size:12px;font-weight:700;color:#34d399;white-space:nowrap;">
-            <i class="fas fa-database"></i> DB저장: <span id="saved-count-num">0</span>건
-          </div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text-subtle);cursor:pointer;">
-            <input type="checkbox" id="chk-all-import" onchange="toggleAllImport(this.checked)"> 전체선택
-          </label>
-          <button class="btn btn-success btn-sm" onclick="saveSelected()" id="btn-save" disabled>
-            <i class="fas fa-save"></i> 선택항목 DB저장
-          </button>
+        <!-- DB 저장 현황 배지 -->
+        <div id="saved-count-banner" style="display:none;padding:3px 10px;border-radius:5px;background:#34d39920;border:1px solid #34d39966;font-size:12px;font-weight:700;color:#34d399;white-space:nowrap;flex-shrink:0;">
+          <i class="fas fa-database"></i> DB저장: <span id="saved-count-num">0</span>건
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text-subtle);cursor:pointer;flex-shrink:0;">
+          <input type="checkbox" id="chk-all-import" onchange="toggleAllImport(this.checked)"> 전체선택
+        </label>
+        <button class="btn btn-success btn-sm" onclick="saveSelected()" id="btn-save" disabled style="flex-shrink:0;">
+          <i class="fas fa-save"></i> 선택항목 DB저장
+        </button>
       </div>
       <!-- RFC 결과 필터 바 -->
       <div id="import-filter-bar" style="display:none;padding:10px 16px 10px;border-bottom:1px solid var(--border);background:var(--bg-input);">
