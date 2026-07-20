@@ -3033,7 +3033,7 @@ app.post('/klean-aps-api/ai-recombine-parse', async (c) => {
     '  "description": "한 줄 요약",',
     '  "filters": {',
     '    "machineNo": "2" or "3" or null,',
-    '    "maxDaysLeft": 숫자 or null (미사용, 무시됨)',,
+    '    "maxDaysLeft": 숫자 or null (미사용, 무시됨)',
     '    "minDaysLeft": 숫자 or null,',
     '    "basisWeight": 숫자 or null,',
     '    "paperTypeCode": "S11" or null,',
@@ -10680,17 +10680,6 @@ function renderSimResult(combos, unassigned) {
     const minWidthWarn = combo.belowMinWidth
       ? '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#450a0a;color:#fca5a5;letter-spacing:.3px;">⛔ 최소지폭미달 ('+(combo.minWidth||0).toLocaleString()+'mm)</span>'
       : ''
-
-    // ── 카드 테두리 색 (배폭 > Zero-loss > 긴급도 > 최소지폭미달) ──
-    const cardBorderColor = combo.belowMinWidth               ? '#ef4444'
-                          : (dl !== null && dl !== undefined && dl <= 0)  ? '#f87171'
-                          : (dl !== null && dl !== undefined && dl <= 3)  ? '#fb923c'
-                          : (dl !== null && dl !== undefined && dl <= 7)  ? '#fbbf24'
-                          : combo._isDWidth                   ? 'var(--badge-dwidth-brd)'
-                          : combo.isZeroLoss                 ? '#166534'
-                          : 'var(--border)'
-
-    }
 
     // ── 생산 길이 정보 바 ────────────────────────────────────
     var lengthInfoHtml = ''
