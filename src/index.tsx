@@ -10941,12 +10941,13 @@ function renderSimResult(combos, unassigned) {
 
     return '<div id="combo-card-'+combo.comboId+'" style="border:2px solid '+cardBorderColor+';border-radius:12px;margin-bottom:14px;background:var(--bg-input);overflow:hidden;transition:border-color .15s;box-shadow:0 2px 8px rgba(0,0,0,.25);">'+
       '<!-- header row 1: ID + 뱃지 + 핵심 수치 -->'+
-      '<div style="display:flex;align-items:center;gap:10px;padding:12px 18px 10px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-wrap:wrap;">'+
+      '<div style="overflow-x:auto;background:var(--bg-card);border-bottom:1px solid var(--border);">'+
+      '<div style="display:flex;align-items:center;gap:10px;padding:12px 18px 10px;flex-wrap:nowrap;min-width:max-content;">'+
         '<label style="display:flex;align-items:center;cursor:pointer;" title="이 조합 선택">'+
           '<input type="checkbox" id="'+cid+'" checked onchange="onComboCheckChange('+combo.comboId+')" style="width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;" />'+
         '</label>'+
         '<span style="font-weight:900;font-size:17px;color:#a78bfa;min-width:36px;">#'+combo.comboId+'</span>'+
-        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0;">'+
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
           zeroLossBadge+
           dwidthBadge+
           urgencyBadge+
@@ -10961,13 +10962,13 @@ function renderSimResult(combos, unassigned) {
           '<span style="font-size:13px;color:var(--text-muted);"><b style="color:var(--text-main);font-size:14px;">'+combo.pokCount+'</b><span style="font-size:11px;">폭</span></span>'+
         '</div>'+
         '<!-- 우측 핵심 수치 그룹 -->'+
-        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-left:10px;border-left:2px solid var(--border);flex-shrink:0;">'+
-          '<div style="text-align:center;min-width:90px;">'+
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;padding-left:10px;border-left:2px solid var(--border);flex-shrink:0;overflow:visible;">'+
+          '<div style="text-align:center;min-width:90px;flex-shrink:0;">'+
             '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">합계 지폭</div>'+
             '<div style="font-size:15px;font-weight:800;white-space:nowrap;color:'+(combo.belowMinWidth?'#f87171':'var(--text-main)')+';">'+combo.widthSum.toLocaleString()+'<span style="font-size:10px;font-weight:500;">mm</span></div>'+
             (combo.minWidth ? '<div style="font-size:10px;color:var(--text-faint);">(최소 '+combo.minWidth.toLocaleString()+'~'+combo.maxWidth.toLocaleString()+'mm)</div>' : '')+
           '</div>'+
-          '<div style="text-align:center;min-width:70px;">'+
+          '<div style="text-align:center;min-width:70px;flex-shrink:0;">'+
             '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">Loss</div>'+
             '<div style="font-size:16px;font-weight:900;white-space:nowrap;color:'+lossColor+';">'+combo.lossRate+'<span style="font-size:11px;">%</span></div>'+
           '</div>'+
@@ -10976,6 +10977,7 @@ function renderSimResult(combos, unassigned) {
             '<div style="font-size:16px;font-weight:900;color:#34d399;white-space:nowrap;">'+combo.totalTon+'<span style="font-size:11px;font-weight:500;">T</span></div>'+
           '</div>'+
         '</div>'+
+      '</div>'+
       '</div>'+
       // Roll/Sheet 비율 행 (값이 있을 때만)
       (rollSheetHtml ? '<div style="padding:6px 18px 6px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+rollSheetHtml+'</div>' : '')+
