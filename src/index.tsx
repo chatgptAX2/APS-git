@@ -10988,7 +10988,7 @@ function renderSimResult(combos, unassigned) {
         '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">'+
           '<thead>'+
             '<tr style="background:var(--bg-card);border-bottom:2px solid var(--border);">'+
-              '<th style="padding:7px 8px;text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;letter-spacing:.04em;">오더번호</th>'+
+              '<th style="padding:7px 8px;text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;letter-spacing:.04em;">오더번호<span style="display:block;font-size:10px;font-weight:500;letter-spacing:0;margin-top:1px;opacity:.7;">항목</span></th>'+
               '<th style="padding:7px 8px;text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;">납품처</th>'+
               '<th style="padding:7px 8px;text-align:right;color:var(--text-faint);font-weight:600;font-size:11px;">지폭</th>'+
               '<th style="padding:7px 8px;text-align:right;color:var(--text-faint);font-weight:600;font-size:11px;">수량</th>'+
@@ -11068,8 +11068,12 @@ function renderSimResult(combos, unassigned) {
               // 오더번호: 배폭 행(파란 어두운 배경)에서는 밝은 하늘색으로 대비 확보
               var orderNoColor  = orderRowBg ? '#93c5fd' : 'var(--sim-order-no-txt)'
 
+              var _itemDisp = o.sapItemNo ? String(o.sapItemNo).replace(/^0+/, '') || o.sapItemNo : null
               return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
-                '<td style="padding:8px 8px;font-family:monospace;font-size:14px;font-weight:800;color:'+orderNoColor+';white-space:nowrap;letter-spacing:0.06em;">'+o.sapOrderNo+'</td>'+
+                '<td style="padding:8px 8px;white-space:nowrap;">'+
+                  '<div style="font-family:monospace;font-size:14px;font-weight:800;color:'+orderNoColor+';letter-spacing:0.06em;">'+o.sapOrderNo+'</div>'+
+                  (_itemDisp ? '<div style="font-family:monospace;font-size:11px;font-weight:600;color:'+(orderRowBg?'#7dd3fc':'var(--text-faint)')+';letter-spacing:0.04em;margin-top:2px;">항목 '+_itemDisp+'</div>' : '')+
+                '</td>'+
                 '<td style="padding:8px 8px;font-size:13px;'+customerColor+'">'+o.customerName+'</td>'+
                 '<td style="padding:8px 8px;text-align:right;">'+widthCellHtml+'</td>'+
                 '<td style="padding:8px 8px;text-align:right;font-size:14px;font-weight:800;color:var(--sim-qty-txt);">'+q+'</td>'+
