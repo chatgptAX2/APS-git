@@ -11067,12 +11067,12 @@ function renderSimResult(combos, unassigned) {
               var orderNoColor  = orderRowBg ? '#93c5fd' : 'var(--sim-order-no-txt)'
 
               return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
-                '<td style="padding:8px 8px;font-family:monospace;font-size:13px;font-weight:800;color:'+orderNoColor+';white-space:nowrap;letter-spacing:0.05em;">'+o.sapOrderNo+'</td>'+
+                '<td style="padding:8px 8px;font-family:monospace;font-size:14px;font-weight:800;color:'+orderNoColor+';white-space:nowrap;letter-spacing:0.06em;">'+o.sapOrderNo+'</td>'+
                 '<td style="padding:8px 8px;font-size:13px;'+customerColor+'">'+o.customerName+'</td>'+
                 '<td style="padding:8px 8px;text-align:right;">'+widthCellHtml+'</td>'+
                 '<td style="padding:8px 8px;text-align:right;font-size:14px;font-weight:800;color:var(--sim-qty-txt);">'+q+'</td>'+
                 '<td style="padding:8px 8px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
-                '<td style="padding:8px 8px;font-family:monospace;font-size:var(--sim-matcode-size);font-weight:700;color:'+matcodeColor+';white-space:nowrap;letter-spacing:0.07em;">'+(o.matCode||'-')+'</td>'+
+                '<td style="padding:8px 8px;font-family:monospace;font-size:14px;font-weight:700;color:'+matcodeColor+';white-space:nowrap;letter-spacing:0.07em;">'+(o.matCode||'-')+'</td>'+
                 '<td style="padding:8px 8px;text-align:center;font-size:13px;font-weight:800;color:'+dc+';">'+o.dueDate+'</td>'+
                 '</tr>'
             }).join('')+
@@ -11546,9 +11546,9 @@ function renderOrderTypeBadge(t) {
 }
 function renderPackBadge(packCode) {
   // packCode: '0'=Roll / 'B'=Bulk / 'A'=속포장 / ''=미상
-  if (packCode === '0') return '<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;">Roll</span>'
-  if (packCode === 'B') return '<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#1a2e1a;color:#86efac;border:1px solid #16a34a;">Bulk</span>'
-  if (packCode === 'A') return '<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#2d1f3d;color:#c4b5fd;border:1px solid #7c3aed;">속포장</span>'
+  if (packCode === '0') return '<span style="font-size:13px;font-weight:800;padding:3px 10px;border-radius:5px;background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;white-space:nowrap;">Roll</span>'
+  if (packCode === 'B') return '<span style="font-size:13px;font-weight:800;padding:3px 10px;border-radius:5px;background:#1a2e1a;color:#86efac;border:1px solid #16a34a;white-space:nowrap;">Bulk</span>'
+  if (packCode === 'A') return '<span style="font-size:13px;font-weight:800;padding:3px 10px;border-radius:5px;background:#2d1f3d;color:#c4b5fd;border:1px solid #7c3aed;white-space:nowrap;">속포장</span>'
   return '<span style="color:var(--border);">-</span>'
 }
 function renderStatusBadge(s) {
