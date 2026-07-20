@@ -2504,8 +2504,6 @@ app.get('/klean-aps-api/sales-orders', (c) => {
   const status      = c.req.query('status') || ''
   const dateFrom    = c.req.query('dateFrom') || ''
   const dateTo      = c.req.query('dateTo') || ''
-  const dueFrom     = c.req.query('dueFrom') || ''
-  const dueTo       = c.req.query('dueTo') || ''
   const createdBy   = c.req.query('createdBy') || ''
   const customerName    = c.req.query('customerName') || ''
   const sapOrderNo      = c.req.query('sapOrderNo') || ''
@@ -2521,8 +2519,6 @@ app.get('/klean-aps-api/sales-orders', (c) => {
     if (customerName && !o.customerName.includes(customerName)) return false
     if (dateFrom     && o.orderDate < dateFrom) return false
     if (dateTo       && o.orderDate > dateTo) return false
-    if (dueFrom      && o.dueDate < dueFrom) return false
-    if (dueTo        && o.dueDate > dueTo) return false
     if (q && !o.sapOrderNo.includes(q) && !o.customerName.includes(q)) return false
     if (excludedFilter === 'true'  && !o.isExcluded) return false
     if (excludedFilter === 'false' &&  o.isExcluded) return false
@@ -2783,8 +2779,6 @@ app.post('/klean-aps-api/sim-sessions', async (c) => {
     plant           : body.plant        || '',
     machineNo       : body.machineNo    || '',
     basisWeight     : body.basisWeight  || 0,
-    dueFrom         : body.dueFrom      || '',
-    dueTo           : body.dueTo        || '',
     targetOrders    : body.targetOrders || 0,
     excludedOrders  : body.excludedOrders || 0,
     combosTotal     : body.combosTotal  || confirmedCount,  // 전체 생성 조합 수
@@ -3039,7 +3033,7 @@ app.post('/klean-aps-api/ai-recombine-parse', async (c) => {
     '  "description": "한 줄 요약",',
     '  "filters": {',
     '    "machineNo": "2" or "3" or null,',
-    '    "maxDaysLeft": 숫자 or null,',
+    '    "maxDaysLeft": 숫자 or null (미사용, 무시됨)',,
     '    "minDaysLeft": 숫자 or null,',
     '    "basisWeight": 숫자 or null,',
     '    "paperTypeCode": "S11" or null,',
@@ -3060,7 +3054,7 @@ app.post('/klean-aps-api/ai-recombine-parse', async (c) => {
     '규칙:',
     '- null 값은 현재 기본값 유지를 의미',
     '- machineNo는 "2" 또는 "3" (문자열)',
-    '- maxDaysLeft: N일 이하 납기 (D-N 이내), 예: 3 → 납기 3일 이하만',
+
     '- includeUnassigned: 미배치 오더도 함께 재조합할지 (기본 false)',
     '- onlyUnassigned: 미배치 오더만 재조합할지',
     ctxSummary
@@ -3239,9 +3233,6 @@ const mainHtml = `<!DOCTYPE html>
   --sim-qty-txt      : #4ade80;   /* 수량 — 초록색 */
   --sim-matcode-txt  : #e2e8f0;   /* 자재코드 — 밝은 흰색 */
   --sim-matcode-size : 13px;      /* 자재코드 폰트 크기 */
-  --sim-duedate-near : #fb923c;   /* 납기 ≤3일 — 주황 */
-  --sim-duedate-warn : #fbbf24;   /* 납기 ≤7일 — 노랑 */
-  --sim-duedate-over : #f87171;   /* 납기 초과/당일 — 빨강 */
 
   /* 판매오더 테이블 행 */
   --tbl-order-no-txt : #60a5fa;   /* 오더번호 */
@@ -4201,12 +4192,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
         <div><label class="field-label">생성자</label>
           <input class="inp" id="fi-createdBy" placeholder="예: 홍길동">
         </div>
-        <div><label class="field-label">납품요청일 From</label>
-          <input class="inp" id="fi-dueFrom" type="date">
-        </div>
-        <div><label class="field-label">납품요청일 To</label>
-          <input class="inp" id="fi-dueTo" type="date">
-        </div>
         <div><label class="field-label">상태</label>
           <select class="inp" id="fi-status">
             <option value="">전체</option>
@@ -4358,16 +4343,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
           <div style="display:flex;flex-direction:column;gap:3px;">
             <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">생성일 To</label>
             <input type="date" class="inp" id="rf-dateTo" onchange="applyImportFilter()"
-              style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">납품요청일 From</label>
-            <input type="date" class="inp" id="rf-dueFrom" onchange="applyImportFilter()"
-              style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:12px;color:var(--filter-label-txt);letter-spacing:.04em;font-weight:500;">납품요청일 To</label>
-            <input type="date" class="inp" id="rf-dueTo" onchange="applyImportFilter()"
               style="width:130px;height:28px;padding:3px 8px;font-size:12px;">
           </div>
           <div style="display:flex;flex-direction:column;gap:3px;">
@@ -5590,14 +5565,6 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <datalist id="bw-list-sim"></datalist>
             </div>
             <div class="form-group">
-              <label class="form-label">납기일 From</label>
-              <input type="date" class="form-input" id="sim-dueFrom">
-            </div>
-            <div class="form-group">
-              <label class="form-label">납기일 To</label>
-              <input type="date" class="form-input" id="sim-dueTo">
-            </div>
-            <div class="form-group">
               <label class="form-label">오더 상태</label>
               <select class="form-select" id="sim-orderStatus">
                 <option value="OPEN">OPEN</option>
@@ -5730,7 +5697,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
                 <tr>
                   <th>오더번호</th><th>납품처</th><th>호기</th><th>지종</th>
                   <th>평량</th><th>지폭</th><th>수량</th><th>자재코드</th>
-                  <th>납기일</th><th>미배치 사유</th>
+                  <th>미배치 사유</th>
                 </tr>
               </thead>
               <tbody id="sim-unassigned-tbody"></tbody>
@@ -5801,7 +5768,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
               <thead>
                 <tr>
                   <th style="width:32px;"></th>
-                  <th>오더번호</th><th>납품처</th><th class="center">호기</th><th class="center">평량</th><th class="center">지폭</th><th class="center">수량</th><th class="center">포장</th><th>자재코드</th><th>납기일</th><th>유형</th><th>예외</th>
+                  <th>오더번호</th><th>납품처</th><th class="center">호기</th><th class="center">평량</th><th class="center">지폭</th><th class="center">수량</th><th class="center">포장</th><th>자재코드</th><th>유형</th><th>예외</th>
                 </tr>
               </thead>
               <tbody id="sim-order-tbody">
@@ -5847,7 +5814,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       <div id="ai-chat-empty" style="text-align:center;padding:28px 0 16px;color:var(--text-muted);font-size:12px;">
         <i class="fas fa-lightbulb" style="color:#a78bfa;font-size:24px;margin-bottom:10px;display:block;"></i>
         시뮬레이션 결과 또는 제지 생산 계획에 대해 자유롭게 질문하세요.<br>
-        <span style="color:var(--text-subtle);font-size:11px;">Loss 분석 · 조합 최적화 · 납기 우선순위 · 호기 부하 등 무엇이든 질문 가능</span>
+        <span style="color:var(--text-subtle);font-size:11px;">Loss 분석 · 조합 최적화 · 호기 부하 등 무엇이든 질문 가능</span>
       </div>
     </div>
 
@@ -5862,18 +5829,14 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
       <button class="ai-quick-btn" onclick="sendAiQuick('현재 조합에서 오더를 재배치하여 더 효율적인 조합을 만들 수 있는지 분석해주세요.')">
         <i class="fas fa-random"></i> 조합 최적화
       </button>
-      <button class="ai-quick-btn" onclick="sendAiQuick('납기일 기준으로 우선순위가 높은 오더를 분석하고, 생산 순서를 추천해주세요.')">
-        <i class="fas fa-calendar-check"></i> 납기 우선순위
-      </button>
+
       <button class="ai-quick-btn" onclick="sendAiQuick('2호기와 3호기의 부하 분산이 적절한지 분석하고 개선안을 제시해주세요.')">
         <i class="fas fa-balance-scale"></i> 호기 부하분산
       </button>
       <!-- 재조합 전용 빠른버튼 -->
       <div style="width:100%;height:1px;background:var(--border);margin:4px 0 2px;"></div>
       <span style="font-size:10px;font-weight:700;color:#34d399;letter-spacing:.4px;align-self:center;"><i class="fas fa-sync-alt" style="margin-right:3px;"></i>재조합</span>
-      <button class="ai-quick-btn" style="border-color:#34d39944;color:#34d399;" onclick="sendAiRecombineQuick('납기 D-3 이하 오더만 우선 재조합해줘')">
-        <i class="fas fa-fire"></i> 긴급 D-3 재조합
-      </button>
+
       <button class="ai-quick-btn" style="border-color:#34d39944;color:#34d399;" onclick="sendAiRecombineQuick('2호기 오더만 다시 재조합해줘')">
         <i class="fas fa-industry"></i> 2호기만 재조합
       </button>
@@ -5907,7 +5870,7 @@ input[type=checkbox]{accent-color:#3b82f6;width:14px;height:14px;cursor:pointer;
 
     <!-- 입력창 -->
     <div style="display:flex;gap:8px;align-items:flex-end;">
-      <textarea id="ai-input" placeholder="재조합 조건을 자유롭게 입력하세요 (예: 납기 D-3 이하만, 2호기만, 미배치 포함 등) — Shift+Enter: 줄바꿈 / Enter: 전송"
+      <textarea id="ai-input" placeholder="재조합 조건을 자유롭게 입력하세요 (예: 2호기만, 미배치 포함, Loss 5% 이하 등) — Shift+Enter: 줄바꿈 / Enter: 전송"
         style="flex:1;resize:none;height:44px;max-height:160px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:13px;font-family:inherit;line-height:1.5;outline:none;overflow-y:hidden;"
         onkeydown="aiInputKeydown(event)" oninput="aiInputResize(this)"></textarea>
       <button id="ai-send-btn" onclick="sendAiMessage()" style="height:44px;padding:0 20px;border-radius:8px;border:none;background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity .2s;">
@@ -6796,7 +6759,7 @@ async function loadDashboard() {
 ══════════════════════════════════════ */
 function resetImportFilter() {
   ['fi-plant','fi-orderType','fi-sapOrderNo','fi-machineNo',
-   'fi-dateFrom','fi-dateTo','fi-createdBy','fi-dueFrom','fi-dueTo',
+   'fi-dateFrom','fi-dateTo','fi-createdBy',
    'fi-status','fi-customerName','fi-basisWeight'].forEach(id => {
     const el = document.getElementById(id)
     if (el) el.value = ''
@@ -6813,8 +6776,6 @@ function applyImportFilter() {
   const bw           = Number(document.getElementById('rf-basisWeight')?.value) || 0
   const dateFrom     = (document.getElementById('rf-dateFrom')?.value     || '')
   const dateTo       = (document.getElementById('rf-dateTo')?.value       || '')
-  const dueFrom      = (document.getElementById('rf-dueFrom')?.value      || '')
-  const dueTo        = (document.getElementById('rf-dueTo')?.value        || '')
   const createdBy    = (document.getElementById('rf-createdBy')?.value    || '').trim()
   const excluded     = (document.getElementById('rf-excluded')?.value     || '')
 
@@ -6827,8 +6788,6 @@ function applyImportFilter() {
     if (bw           && o.basisWeight !== bw)                  return false
     if (dateFrom     && o.orderDate < dateFrom)                return false
     if (dateTo       && o.orderDate > dateTo)                  return false
-    if (dueFrom      && o.dueDate < dueFrom)                   return false
-    if (dueTo        && o.dueDate > dueTo)                     return false
     if (createdBy    && !o.createdBy.includes(createdBy))      return false
     if (excluded === '1' && !o.isExcluded)                     return false
     if (excluded === '0' &&  o.isExcluded)                     return false
@@ -6839,7 +6798,7 @@ function applyImportFilter() {
 
 function resetImportResultFilter() {
   ['rf-sapOrderNo','rf-orderType','rf-customerName','rf-plant','rf-machineNo',
-   'rf-basisWeight','rf-dateFrom','rf-dateTo','rf-dueFrom','rf-dueTo',
+   'rf-basisWeight','rf-dateFrom','rf-dateTo',
    'rf-createdBy','rf-excluded'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = ''
   })
@@ -6876,8 +6835,6 @@ async function runRfcSync() {
     dateFrom    : document.getElementById('fi-dateFrom').value,
     dateTo      : document.getElementById('fi-dateTo').value,
     createdBy   : document.getElementById('fi-createdBy').value,
-    dueFrom     : document.getElementById('fi-dueFrom').value,
-    dueTo       : document.getElementById('fi-dueTo').value,
     status      : document.getElementById('fi-status').value,
     customerName: document.getElementById('fi-customerName').value,
     basisWeight : Number(document.getElementById('fi-basisWeight')?.value) || 0,
@@ -6978,7 +6935,7 @@ function renderImportTable(list) {
     '<td style="font-size:13px;font-weight:500;color:var(--tbl-matcode-txt);letter-spacing:0.04em;white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
     '<td style="color:var(--tbl-date-txt);font-size:13px;font-weight:500;">'+o.orderDate+'</td>' +
     '<td style="color:var(--tbl-creator-txt);font-size:12px;">'+o.createdBy+'</td>' +
-    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:13px;font-weight:700;">'+o.dueDate+'</td>' +
+    '<td style="font-size:13px;font-weight:700;color:var(--tbl-date-txt);">'+o.dueDate+'</td>' +
     '<td>'+renderStatusBadge(o.status)+'</td>' +
     '<td class="center">'+(o.isExcluded?'<span class="badge b-excl"><i class="fas fa-exclamation-triangle"></i> 예외</span>':'')+'</td>' +
     '</tr>'
@@ -7127,7 +7084,7 @@ function renderListTable(list) {
     '<td class="num">'+(o.orderQtySok!=null ? '<span class="badge b-sok">'+o.orderQtySok.toLocaleString()+'</span>' : '<span style="color:var(--border);">-</span>')+'</td>'+
     '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
     '<td style="font-size:13px;font-weight:500;color:var(--tbl-matcode-txt);letter-spacing:0.04em;white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-    '<td class="'+dueDateClass(o.dueDate)+'" style="font-size:13px;font-weight:700;">'+o.dueDate+'</td>'+
+    '<td style="font-size:13px;font-weight:700;color:var(--tbl-date-txt);">'+o.dueDate+'</td>' +
     '<td>'+renderStatusBadge(o.status)+'</td>'+
     '<td class="center">'+(o.isExcluded?'<span class="badge b-excl" style="font-size:12px;"><i class="fas fa-ban"></i> 예외</span>':'')+'</td>'+
     '<td class="center">'+(o.isExcluded
@@ -9121,21 +9078,6 @@ function applyMoqFilter(orders) {
 // ═══════════════════════════════════════════════════════════════
 function runCombinationAlgorithm(orders) {
   var c   = getConstraints()
-  var today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  // ── 납기 긴급도 점수 ──────────────────────────────────────────
-  function urgencyScore(o) {
-    if (!o.dueDate) return 0
-    var due = new Date(o.dueDate)
-    due.setHours(0, 0, 0, 0)
-    var daysLeft = Math.floor((due - today) / 86400000)
-    if (daysLeft <= 0)  return 1000
-    if (daysLeft <= 3)  return 500
-    if (daysLeft <= 7)  return 200
-    if (daysLeft <= 14) return 100
-    return Math.max(0, 50 - daysLeft)
-  }
 
   // ── 지폭 파싱 보완: paperWidth 없으면 matCode에서 추출 ───────
   function getEffectivePaperWidth(o) {
@@ -9247,10 +9189,8 @@ function runCombinationAlgorithm(orders) {
     var rule889    = c.rule889 || 'single'
     var mimi = c.mimi
 
-    // ── 오더 유효 지폭 갱신 + 정렬: 긴급도 DESC → 지폭 DESC ────
+    // ── 오더 유효 지폭 갱신 + 정렬: 지폭 DESC ──────────────────
     var sorted = grpOrders.slice().sort(function(a, b) {
-      var ud = urgencyScore(b) - urgencyScore(a)
-      if (ud !== 0) return ud
       return b._pw - a._pw
     })
 
@@ -9604,11 +9544,6 @@ function runCombinationAlgorithm(orders) {
       var loss     = Math.max(0, maxW - totalW)
       var lossRate = maxW > 0 ? (loss / maxW * 100) : 0
       var totalTon = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
-      var maxUrgency = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
-      var daysArr = bkt.orders
-        .filter(function(o) { return !!o.dueDate })
-        .map(function(o) { return Math.floor((new Date(o.dueDate).setHours(0,0,0,0) - today) / 86400000) })
-      var minDaysLeft = daysArr.length ? Math.min.apply(null, daysArr) : null
       var isZeroLoss  = (loss === 0)
       combos.push({
         comboId        : comboIdx++,
@@ -9624,12 +9559,10 @@ function runCombinationAlgorithm(orders) {
         lossRate       : lossRate.toFixed(1),
         totalTon       : totalTon.toFixed(3),
         pokCount       : bkt.orders.length,
-        urgency        : maxUrgency,
-        minDaysLeft    : minDaysLeft,
         isSingleNarrow : false,
         belowMinWidth  : minW > 0 && totalW < minW,
         isZeroLoss     : isZeroLoss,
-        algoTag        : 'DWIDTH',      // 배폭 버킷 태그
+        algoTag        : 'DWIDTH',
         _nWidth        : bkt._nWidth,
         _isDWidth      : true,
         _prodLen       : bkt._prodLen
@@ -9665,11 +9598,6 @@ function runCombinationAlgorithm(orders) {
       }
 
       var belowMinWidth = false  // 이 시점에서는 totalW >= minW 보장됨
-      var maxUrgency = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
-      var daysArr = bkt.orders
-        .filter(function(o) { return !!o.dueDate })
-        .map(function(o) { return Math.floor((new Date(o.dueDate).setHours(0,0,0,0) - today) / 86400000) })
-      var minDaysLeft = daysArr.length ? Math.min.apply(null, daysArr) : null
 
       // Zero-loss 여부 태그
       var isZeroLoss = (loss === 0)
@@ -9679,7 +9607,7 @@ function runCombinationAlgorithm(orders) {
         machineNo     : machineNo,
         paperTypeCode : ptCode,
         basisWeight   : bw,
-        paperLength   : pl,       // 절단 길이 (0=Roll/무한, >0=Sheet 지장mm)
+        paperLength   : pl,
         orders        : bkt.orders.slice(),
         widthSum      : totalW,
         maxWidth      : maxW,
@@ -9688,12 +9616,10 @@ function runCombinationAlgorithm(orders) {
         lossRate      : lossRate.toFixed(1),
         totalTon      : totalTon.toFixed(3),
         pokCount      : bkt.orders.length,
-        urgency       : maxUrgency,
-        minDaysLeft   : minDaysLeft,
         isSingleNarrow: isSingleNarrow,
         belowMinWidth : belowMinWidth,
         isZeroLoss    : isZeroLoss,
-        algoTag       : isZeroLoss ? 'ZERO-LOSS' : 'BFD+DUE'
+        algoTag       : isZeroLoss ? 'ZERO-LOSS' : 'BFD'
       })
     })
   })
@@ -9799,8 +9725,6 @@ function runCombinationAlgorithm(orders) {
           if (gc2.isZeroLoss) gc2.algoTag = 'ZERO-LOSS'
           gc2.totalTon      = (parseFloat(gc2.totalTon) + (order.orderQtyTon || 0)).toFixed(3)
           gc2.belowMinWidth = (gc2.minWidth || 0) > 0 && gc2.widthSum < (gc2.minWidth || 0)
-          var inU = urgencyScore(order)
-          if (inU > (gc2.urgency || 0)) gc2.urgency = inU
         } else {
           repackPool[key].orders.push(order)
         }
@@ -9896,7 +9820,6 @@ function runCombinationAlgorithm(orders) {
         var loss3    = Math.max(0, maxW2 - totalW3)
         var lossR3   = maxW2 > 0 ? loss3 / maxW2 * 100 : 0
         var totTon3  = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
-        var maxUrg3  = Math.max.apply(null, bkt.orders.map(function(o) { return urgencyScore(o) }))
         var isSN3    = bkt.orders.length === 1 && bkt.orders[0]._pw < (c.noprodLimit || 625)
         var isZL3    = (loss3 === 0) && !below3
         newCombos.push({
@@ -9904,7 +9827,7 @@ function runCombinationAlgorithm(orders) {
           machineNo     : machNo,
           paperTypeCode : ptCode2,
           basisWeight   : bw2,
-          paperLength   : pl2,     // 지장 (0=Roll, >0=Sheet)
+          paperLength   : pl2,
           orders        : bkt.orders.slice(),
           widthSum      : totalW3,
           maxWidth      : maxW2,
@@ -9913,8 +9836,6 @@ function runCombinationAlgorithm(orders) {
           lossRate      : lossR3.toFixed(1),
           totalTon      : totTon3.toFixed(3),
           pokCount      : bkt.orders.length,
-          urgency       : maxUrg3,
-          minDaysLeft   : null,
           isSingleNarrow: isSN3,
           belowMinWidth : below3,
           isZeroLoss    : isZL3,
@@ -9931,13 +9852,10 @@ function runCombinationAlgorithm(orders) {
   })()
   // ── repackPass v3 종료 ──────────────────────────────────────
 
-  // ── 최종 정렬: Zero-loss 최상단 → 납기긴급도 → Loss 낮은 순 ──
+  // ── 최종 정렬: Zero-loss 최상단 → Loss 낮은 순 ──────────────
   combos.sort(function(a, b) {
-    // Zero-loss 조합 최상단
     if (a.isZeroLoss && !b.isZeroLoss) return -1
     if (!a.isZeroLoss && b.isZeroLoss) return 1
-    var ud = (b.urgency || 0) - (a.urgency || 0)
-    if (ud !== 0) return ud
     return parseFloat(a.lossRate) - parseFloat(b.lossRate)
   })
   combos.forEach(function(cb, i) { cb.comboId = i + 1 })
@@ -10149,8 +10067,6 @@ async function simGenerate() {
   const plant       = (document.getElementById('sim-plant')||{}).value||''
   const machineNo   = (document.getElementById('sim-machineNo')||{}).value||''
   const basisWeight = (document.getElementById('sim-basisWeight')||{}).value||''
-  const dueFrom     = (document.getElementById('sim-dueFrom')||{}).value||''
-  const dueTo       = (document.getElementById('sim-dueTo')||{}).value||''
   const orderStatus = (document.getElementById('sim-orderStatus')||{}).value||''
 
   // DB저장 오더 중 OPEN 상태만 기본 선적용
@@ -10158,8 +10074,6 @@ async function simGenerate() {
   if (plant)       filtered = filtered.filter(o => o.plant       === plant)
   if (machineNo)   filtered = filtered.filter(o => o.machineNo   === machineNo)
   if (basisWeight) filtered = filtered.filter(o => o.basisWeight === Number(basisWeight))
-  if (dueFrom)     filtered = filtered.filter(o => o.dueDate >= dueFrom)
-  if (dueTo)       filtered = filtered.filter(o => o.dueDate <= dueTo)
   if (orderStatus && orderStatus !== 'OPEN')
                    filtered = filtered.filter(o => o.status    === orderStatus)
 
@@ -10302,7 +10216,6 @@ function renderSimOrderTable(list) {
       '<td class="center">'+qtyStr+'</td>' +
       '<td class="center">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>' +
       '<td style="font-family:monospace;font-size:10px;color:var(--text-muted);white-space:nowrap;">'+(o.matCode||'-')+'</td>' +
-      '<td style="font-size:11px;color:var(--text-muted);">'+o.dueDate+'</td>' +
       '<td>'+renderOrderTypeBadge(o.orderType)+'</td>' +
       '<td class="center">'+(o.isExcluded ? '<i class="fas fa-flag" style="color:#f87171;"></i>' : '')+'</td>' +
       '</tr>'
@@ -10742,22 +10655,11 @@ function renderSimResult(combos, unassigned) {
           : '')
     }
 
-    // ── 납기 긴급도 배지 ──────────────────────────────────────
-    const dl = combo.minDaysLeft
-    let urgencyBadge = ''
-    if (dl !== null && dl !== undefined) {
-      if (dl <= 0) {
-        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;background:#7f1d1d;color:#fca5a5;letter-spacing:.3px;">납기초과 D+'+Math.abs(dl)+'</span>'
-      } else if (dl <= 3) {
-        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;background:#7c2d12;color:#fdba74;letter-spacing:.3px;">긴급 D-'+dl+'</span>'
-      } else if (dl <= 7) {
-        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;background:#713f12;color:#fde68a;letter-spacing:.3px;">주의 D-'+dl+'</span>'
-      } else {
-        urgencyBadge = '<span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--bg-base);color:var(--text-muted);letter-spacing:.3px;">D-'+dl+'</span>'
-      }
-    }
-
-    // ── Zero-loss 배지 ───────────────────────────────────────
+    // ── 카드 테두리 색 (배폭 > Zero-loss > 최소지폭미달) ─────────
+    const cardBorderColor = combo.belowMinWidth  ? '#ef4444'
+                          : combo._isDWidth      ? 'var(--badge-dwidth-brd)'
+                          : combo.isZeroLoss     ? '#166534'
+                          : 'var(--border)'    // ── Zero-loss 배지 ───────────────────────────────────────
     const zeroLossBadge = combo.isZeroLoss
       ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:#052e16;color:#86efac;letter-spacing:.4px;border:1px solid #166534;">✓ ZERO LOSS</span>'
       : ''
@@ -10788,16 +10690,6 @@ function renderSimResult(combos, unassigned) {
                           : combo.isZeroLoss                 ? '#166534'
                           : 'var(--border)'
 
-    // ── 오더별 납기 D-day 색상 ────────────────────────────────
-    function orderDayColor(dueDate) {
-      if (!dueDate) return 'var(--text-muted)'
-      const today2 = new Date(); today2.setHours(0,0,0,0)
-      const due2   = new Date(dueDate); due2.setHours(0,0,0,0)
-      const d = Math.floor((due2 - today2) / 86400000)
-      if (d <= 0) return 'var(--sim-duedate-over)'
-      if (d <= 3) return 'var(--sim-duedate-near)'
-      if (d <= 7) return 'var(--sim-duedate-warn)'
-      return 'var(--text-muted)'
     }
 
     // ── 생산 길이 정보 바 ────────────────────────────────────
@@ -10975,7 +10867,6 @@ function renderSimResult(combos, unassigned) {
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
           zeroLossBadge+
           dwidthBadge+
-          urgencyBadge+
           narrowWarn+
           minWidthWarn+
           '<span class="machine-badge" style="font-size:13px;padding:4px 13px;font-weight:700;">'+combo.machineNo+'호기</span>'+
@@ -11019,14 +10910,11 @@ function renderSimResult(combos, unassigned) {
               '<th style="padding:7px 8px;text-align:right;color:var(--text-faint);font-weight:600;font-size:11px;">수량</th>'+
               '<th style="padding:7px 8px;text-align:center;color:var(--text-faint);font-weight:600;font-size:11px;">포장</th>'+
               '<th style="padding:7px 8px;text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;">자재코드</th>'+
-              '<th style="padding:7px 8px;text-align:center;color:var(--text-faint);font-weight:600;font-size:11px;">납기일</th>'+
             '</tr>'+
           '</thead>'+
           '<tbody>'+
             combo.orders.map(o => {
               const q = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
-              const dc = orderDayColor(o.dueDate)
-
               // ── 지폭 + 배폭 정보 표시 ─────────────────────────────
               // 오더의 원래 지폭(paperWidth)은 항상 표시
               // 배폭생산이면 "원래지폭 → 점보롤 지폭" 형태로 표시
@@ -11104,7 +10992,7 @@ function renderSimResult(combos, unassigned) {
                 '<td style="padding:8px 8px;text-align:right;font-size:14px;font-weight:800;color:var(--sim-qty-txt);">'+q+'</td>'+
                 '<td style="padding:8px 8px;text-align:center;">'+renderPackBadge(o.packCode||parsePackCodeFromMatCode(o.matCode||''))+'</td>'+
                 '<td style="padding:8px 8px;font-family:monospace;font-size:14px;font-weight:700;color:'+matcodeColor+';white-space:nowrap;letter-spacing:0.07em;">'+(o.matCode||'-')+'</td>'+
-                '<td style="padding:8px 8px;text-align:center;font-size:13px;font-weight:800;color:'+dc+';">'+o.dueDate+'</td>'+
+
                 '</tr>'
             }).join('')+
           '</tbody>'+
@@ -11211,15 +11099,6 @@ function renderSimUnassigned(list) {
   tbody.innerHTML = list.map(function(o) {
     var pw   = o._pw || o.paperWidth || 0
     var q    = o.orderQtyTon ? o.orderQtyTon.toFixed(3)+'T' : o.orderQtyR ? o.orderQtyR+'R' : '-'
-    var due  = o.dueDate || '-'
-    // 납기 D-day 색상
-    var dueColor = 'var(--text-muted)'
-    if (o.dueDate) {
-      var today2 = new Date(); today2.setHours(0,0,0,0)
-      var dueD   = new Date(o.dueDate); dueD.setHours(0,0,0,0)
-      var daysLeft = Math.floor((dueD - today2) / 86400000)
-      dueColor = daysLeft <= 0 ? 'var(--sim-duedate-over)' : daysLeft <= 3 ? 'var(--sim-duedate-near)' : daysLeft <= 7 ? 'var(--sim-duedate-warn)' : 'var(--text-muted)'
-    }
     var reason = getUnassignedReason(o)
     var ptCode = o.paperTypeCode || (o.matCode && o.matCode.length >= 5 ? o.matCode.substring(2,5) : '-')
     var ptName = PAPER_TYPE_NAMES[ptCode] || ptCode || '-'
@@ -11240,7 +11119,6 @@ function renderSimUnassigned(list) {
       '<td class="num" style="font-weight:700;color:var(--text-main);">'+(pw ? pw.toLocaleString() : '-')+'</td>'+
       '<td class="num" style="font-weight:700;color:var(--sim-qty-txt);">'+q+'</td>'+
       '<td style="font-family:monospace;font-size:var(--sim-matcode-size);color:var(--sim-matcode-txt);white-space:nowrap;">'+(o.matCode||'-')+'</td>'+
-      '<td class="center" style="color:'+dueColor+';font-size:11px;font-weight:700;">'+due+'</td>'+
       '<td><span style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;'+reasonBadgeStyle(reason)+'">'+reason+'</span></td>'+
       '</tr>'
   }).join('')
@@ -11313,9 +11191,6 @@ async function simConfirm() {
     const plant       = (document.getElementById('sim-plant')||{}).value||''
     const machineNo   = (document.getElementById('sim-machineNo')||{}).value||''
     const basisWeight = (document.getElementById('sim-basisWeight')||{}).value||''
-    const dueFrom     = (document.getElementById('sim-dueFrom')||{}).value||''
-    const dueTo       = (document.getElementById('sim-dueTo')||{}).value||''
-
     const sessRes  = await fetch(API+'/klean-aps-api/sim-sessions', {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -11323,8 +11198,6 @@ async function simConfirm() {
         plant,
         machineNo      : machineNo,
         basisWeight    : basisWeight ? Number(basisWeight) : 0,
-        dueFrom,
-        dueTo,
         targetOrders   : simOrders.length,
         excludedOrders : simExcluded.length,
         combosTotal    : simCombos.length,          // 전체 생성 조합 수
@@ -11393,8 +11266,7 @@ async function simSendOrder() {
     // 연결 판매오더번호
     const sourceOrderNos = combo.orders.map(o => o.sapOrderNo)
     // 납기일 중 가장 이른 것으로 planEndDate 설정
-    const dueDates = combo.orders.map(o => o.dueDate).filter(Boolean).sort()
-    const planEndDate = dueDates[0] || todayStr
+    const planEndDate = todayStr
 
     // 배폭생산 정보 빌드
     var doubleWidthInfo = null
@@ -11586,14 +11458,6 @@ function renderStatusBadge(s) {
   const m = {OPEN:'b-open',ASSIGNED:'b-assigned',COMPLETED:'b-complete',CANCELLED:'b-cancel'}
   const l = {OPEN:'OPEN',ASSIGNED:'배정완료',COMPLETED:'생산완료',CANCELLED:'취소'}
   return '<span class="badge '+(m[s]||'b-open')+'" style="font-size:10px;">'+(l[s]||s)+'</span>'
-}
-function dueDateClass(d) {
-  if (!d) return 'due-normal'
-  const diff = (new Date(d) - new Date()) / 86400000
-  if (diff < 0)  return 'due-overdue'
-  if (diff < 3)  return 'due-urgent'
-  if (diff < 7)  return 'due-near'
-  return 'due-normal'
 }
 
 /* ══════════════════════════════════════
