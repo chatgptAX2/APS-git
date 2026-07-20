@@ -3226,13 +3226,13 @@ const mainHtml = `<!DOCTYPE html>
   --badge-r-bg      : #14532d; --badge-r-txt      : #6ee7b7;
   --badge-sok-bg    : #3b0764; --badge-sok-txt    : #d8b4fe;
 
-  /* 배폭(배폭생산) 뱃지/행 */
-  --badge-dwidth-bg  : #7c2d12; --badge-dwidth-txt  : #fed7aa;
-  --badge-dwidth-brd : #ea580c;
-  --badge-nw-sub-bg  : #9a3412; --badge-nw-sub-txt  : #ffedd5;
-  --dwidth-row-bg    : #3b1506;
-  --nwidth-row-bg    : #3a1304;
-  --dwidth-prod-txt  : #fb923c;
+  /* 배폭(배폭생산) 뱃지/행 — 청록/파랑 계열 (오류 느낌 제거) */
+  --badge-dwidth-bg  : #0c2a4a; --badge-dwidth-txt  : #7dd3fc;
+  --badge-dwidth-brd : #0ea5e9;
+  --badge-nw-sub-bg  : #0f3460; --badge-nw-sub-txt  : #bae6fd;
+  --dwidth-row-bg    : #071a2e;
+  --nwidth-row-bg    : #061628;
+  --dwidth-prod-txt  : #38bdf8;
 
   /* 시뮬 결과 오더 행 */
   --sim-order-no-txt : #60a5fa;   /* 오더번호 — 파란색 (다크: 충분히 밝음) */
@@ -3362,13 +3362,13 @@ const mainHtml = `<!DOCTYPE html>
   --badge-r-bg      : #dcfce7; --badge-r-txt      : #166534;
   --badge-sok-bg    : #f3e8ff; --badge-sok-txt    : #6d28d9;
 
-  /* 배폭(배폭생산) 뱃지/행 */
-  --badge-dwidth-bg  : #fff7ed; --badge-dwidth-txt  : #c2410c;
-  --badge-dwidth-brd : #fb923c;
-  --badge-nw-sub-bg  : #fed7aa; --badge-nw-sub-txt  : #9a3412;
-  --dwidth-row-bg    : #fff7ed;
-  --nwidth-row-bg    : #fff3e0;
-  --dwidth-prod-txt  : #c2410c;
+  /* 배폭(배폭생산) 뱃지/행 — 청록/파랑 계열 (라이트모드) */
+  --badge-dwidth-bg  : #e0f2fe; --badge-dwidth-txt  : #0369a1;
+  --badge-dwidth-brd : #0ea5e9;
+  --badge-nw-sub-bg  : #bae6fd; --badge-nw-sub-txt  : #075985;
+  --dwidth-row-bg    : #f0f9ff;
+  --nwidth-row-bg    : #e0f2fe;
+  --dwidth-prod-txt  : #0284c7;
 
   /* 시뮬 결과 오더 행 */
   --sim-order-no-txt : #1d4ed8;
@@ -11061,9 +11061,9 @@ function renderSimResult(combos, unassigned) {
               // ── orderRowBg 확정 후 색상 계산 ──────────────────────
               // 배폭 행은 납품처명도 더 밝게
               var customerColor = orderRowBg ? 'color:var(--text-main);font-weight:600;' : 'color:var(--text-muted);'
-              // 배폭 행(어두운 배경)일 때 자재코드는 황금색, 일반 행은 CSS 변수 사용
-              var matcodeColor  = orderRowBg ? '#fde68a' : 'var(--sim-matcode-txt)'
-              // 오더번호: 배폭 행(어두운 배경)에서는 더 밝은 하늘색으로 대비 확보
+              // 배폭 행(파란 어두운 배경)일 때 자재코드는 밝은 하늘색, 일반 행은 CSS 변수 사용
+              var matcodeColor  = orderRowBg ? '#7dd3fc' : 'var(--sim-matcode-txt)'
+              // 오더번호: 배폭 행(파란 어두운 배경)에서는 밝은 하늘색으로 대비 확보
               var orderNoColor  = orderRowBg ? '#93c5fd' : 'var(--sim-order-no-txt)'
 
               return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
