@@ -9255,18 +9255,20 @@ function runCombinationAlgorithm(orders) {
     })
 
     // ════════════════════════════════════════════════════════════
-    //  배폭 전처리 패스 (0단계)
+    //  배폭 전처리 패스 (0단계) — 배폭 우선 전략
     //  규칙:
-    //   - 동일 지폭 + 동일 평량 + 동일 호기 + 동일 지종 오더끼리만 배폭
-    //   - 협폭(≤ noProdLim) 또는 889mm 이하 오더 → 배폭 필수
+    //   [필수배폭] 협폭(≤ noProdLim) 또는 889mm 이하(rule889='single')
+    //     → 동일지폭 파트너 없으면 미배치
+    //   [선택배폭] 일반폭(> noProdLim)
+    //     → 동일지폭 오더 2개 이상이면 배폭으로 묶어 생산성 향상
+    //     → 홀수 남은 오더는 BFD(1단계)로 넘겨 다른 오더와 혼합 조합
     //   - N폭 배폭: 점보롤 지폭 = pw×N + mimi×(N-1) ≤ maxW
-    //   - 생산 길이 = maxLen ÷ N (getLengthLimit 사용)
-    //   - 배폭 버킷 생성 후 해당 오더를 remaining에서 제외
+    //   - 생산 길이 = maxLen ÷ N
     // ════════════════════════════════════════════════════════════
     var dwidthLocked = []  // 배폭 확정 버킷
 
     ;(function buildDoubleWidthBuckets() {
-      // 동일 지폭 서브그룹 구성
+      // 동일 지폭 서브그룹 구성 — orderId 또는 sapOrderNo+sapItemNo 복합키로 중복 방지
       var pwMap = {}  // pw → orders[]
       sorted.forEach(function(o) {
         var pw = o._pw
@@ -9274,103 +9276,126 @@ function runCombinationAlgorithm(orders) {
         pwMap[pw].push(o)
       })
 
-      Object.keys(pwMap).forEach(function(pwStr) {
-        var pw = Number(pwStr)
-        var pwOrders = pwMap[pwStr]
+      // 배폭 버킷에 들어간 오더 ID 추적 (중복 방지)
+      var dwidthIds = {}
 
-        // 배폭 필요 여부 판단
-        var needDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
-        if (!needDouble) return  // 배폭 불필요 → 기존 BFD로 처리
+      // pw 내림차순 처리: 큰 폭 먼저 (조합 다양성 확보)
+      var pwKeys = Object.keys(pwMap).map(Number).sort(function(a,b){ return b - a })
+
+      pwKeys.forEach(function(pw) {
+        var pwOrders = pwMap[pw]
+
+        // 이미 배폭 확정된 오더 제외
+        var available = pwOrders.filter(function(o) {
+          return !dwidthIds[o.orderId || (o.sapOrderNo + '_' + (o.sapItemNo||''))]
+        })
+        if (available.length < 2) {
+          // 필수배폭 폭이면 단독 오더를 미배치로
+          if ((pw <= noProdLim) || (rule889 === 'single' && pw <= 889)) {
+            available.forEach(function(o) {
+              o._unassignedReason = o._unassignedReason ||
+                (pw <= noProdLim
+                  ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 ('+pw+'mm)'
+                  : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 ('+pw+'mm)')
+            })
+          }
+          // 선택배폭은 BFD로 넘김 (아무것도 안 함)
+          return
+        }
 
         // 최대 폭 수 계산: pw×N + mimi×(N-1) ≤ maxW
-        // → N ≤ (maxW + mimi) / (pw + mimi)
         var maxN = Math.floor((maxW + mimi) / (pw + mimi))
-        maxN = Math.min(maxN, maxPok, 4)  // 최대 4폭 제한
-        if (maxN < 2) return  // 2폭도 안 되면 단독으로 남김 (미배치 처리됨)
+        maxN = Math.min(maxN, maxPok, 4)
+        if (maxN < 2) {
+          // 배폭 자체가 불가 → 필수배폭이면 미배치, 일반폭이면 BFD로
+          if ((pw <= noProdLim) || (rule889 === 'single' && pw <= 889)) {
+            available.forEach(function(o) {
+              o._unassignedReason = o._unassignedReason ||
+                '점보롤 지폭 초과 — 배폭 불가 ('+pw+'mm × 2 + '+mimi+'mm > '+maxW+'mm)'
+            })
+          }
+          return
+        }
 
         // 2호기 4폭 조건: fourPokMin 이상이어야 함
         if (fourPokMin > 0 && pw < fourPokMin) {
-          maxN = Math.min(maxN, maxPok - 1)  // 4폭은 제외
+          maxN = Math.min(maxN, maxPok - 1)
           if (maxN < 2) return
         }
 
-        // 889mm 이하 2폭 5톤 제한 체크
-        // → 오더 N개를 배폭으로 묶을 때 총 톤수 확인
-        // → 초과하면 더 작은 N 시도
+        // 기계 객체 찾기 (생산 길이 계산용)
+        var mObj = null
+        for (var mi2 = 0; mi2 < (_machinesCache||[]).length; mi2++) {
+          if ((_machinesCache[mi2].machineNo) === machineNo) { mObj = _machinesCache[mi2]; break }
+        }
 
-        // 납기 긴급도 DESC 정렬된 pwOrders 순서로 N개씩 묶기
-        var pool = pwOrders.slice()
+        // 납기 긴급도 DESC로 pool 구성 후 N개씩 묶기
+        var pool = available.slice()
+        var mustDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
+
         while (pool.length >= 2) {
-          // 현재 pool에서 최적 N 결정
           var bestN = maxN
-          // 889mm 이하 2폭 톤 체크: 2폭으로 묶을 때만 적용
+
+          // 889mm 이하 2폭 톤 제한 체크
           if (pw <= 889 && bestN >= 2) {
-            // pool 앞에서 bestN개의 총 톤
             var checkOrds = pool.slice(0, bestN)
             var totalTonCheck = checkOrds.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
-            // 5톤 초과이고 bestN=2이면 배폭 불가 → 단독 처리
             if (bestN === 2 && totalTonCheck > limit889) {
-              // 단독으로는 889mm 이하라 생산 불가 → 미배치로 남김
-              break
+              if (mustDouble) break  // 필수배폭이면 미배치
+              else break             // 선택배폭이면 BFD로 넘김
             }
-            // bestN>2일 때는 제한 없음 (2폭 기준 규칙이므로)
           }
 
-          // N개를 배폭 버킷으로 확정
-          var taken = pool.splice(0, bestN)
-          var jumboW = pw * bestN + mimi * (bestN - 1)
+          // bestN개가 남아있지 않으면 남은 수로 묶기 (단, 최소 2개)
+          var takeN = Math.min(bestN, pool.length)
+          if (takeN < 2) break
 
-          // 기계 객체 찾기 (생산 길이 계산용)
-          var mObj = null
-          for (var mi2 = 0; mi2 < (_machinesCache||[]).length; mi2++) {
-            if ((_machinesCache[mi2].machineNo) === machineNo) { mObj = _machinesCache[mi2]; break }
-          }
+          var taken = pool.splice(0, takeN)
+          var jumboW = pw * takeN + mimi * (takeN - 1)
           var prodLen = null
           if (mObj) {
             var ll = getLengthLimit(mObj, bw)
             if (ll) {
               var baseL = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
-              prodLen = Math.floor(baseL / bestN)
+              prodLen = Math.floor(baseL / takeN)
             }
           }
 
-          var totalTonBkt = taken.reduce(function(s,o){ return s + (o.orderQtyTon||0) }, 0)
-          var rawW = pw * bestN
-          var totalW = jumboW
-
+          // 버킷 등록 + ID 추적
+          taken.forEach(function(o) {
+            dwidthIds[o.orderId || (o.sapOrderNo + '_' + (o.sapItemNo||''))] = true
+          })
           dwidthLocked.push({
             orders    : taken,
-            rawWidth  : rawW,
+            rawWidth  : pw * takeN,
             locked    : true,
-            _nWidth   : bestN,
+            _nWidth   : takeN,
             _jumboW   : jumboW,
             _prodLen  : prodLen,
             _isDWidth : true
           })
         }
 
-        // pool에 남은 오더(묶이지 않은 나머지)는 sorted에서 제거 → 미배치로 넘어감
-        // (홀수일 때 마지막 1개가 남는 경우)
-        pool.forEach(function(o) {
-          o._unassignedReason = o._unassignedReason ||
-            (pw <= noProdLim
-              ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 ('+pw+'mm)'
-              : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 ('+pw+'mm)')
-        })
+        // pool에 남은 오더 처리
+        if (pool.length > 0) {
+          if (mustDouble) {
+            // 필수배폭: 파트너 없음 → 미배치
+            pool.forEach(function(o) {
+              o._unassignedReason = o._unassignedReason ||
+                (pw <= noProdLim
+                  ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 ('+pw+'mm)'
+                  : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 ('+pw+'mm)')
+            })
+          }
+          // 선택배폭: 남은 홀수 오더 → sorted에 그대로 남겨 BFD 처리
+        }
       })
 
       // 배폭 버킷에 들어간 오더를 sorted에서 제거
-      var dwidthIds = {}
-      dwidthLocked.forEach(function(bkt) {
-        bkt.orders.forEach(function(o) {
-          dwidthIds[o.orderId || o.sapOrderNo] = true
-        })
-      })
-      // sorted 필터링 (배폭에 들어간 오더 제거)
-      var origLen = sorted.length
       for (var si = sorted.length - 1; si >= 0; si--) {
         var so = sorted[si]
-        if (dwidthIds[so.orderId || so.sapOrderNo]) {
+        var soId = so.orderId || (so.sapOrderNo + '_' + (so.sapItemNo||''))
+        if (dwidthIds[soId]) {
           sorted.splice(si, 1)
         }
       }
