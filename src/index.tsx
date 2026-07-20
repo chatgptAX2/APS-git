@@ -10946,7 +10946,7 @@ function renderSimResult(combos, unassigned) {
           '<input type="checkbox" id="'+cid+'" checked onchange="onComboCheckChange('+combo.comboId+')" style="width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;" />'+
         '</label>'+
         '<span style="font-weight:900;font-size:17px;color:#a78bfa;min-width:36px;">#'+combo.comboId+'</span>'+
-        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;">'+
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0;">'+
           zeroLossBadge+
           dwidthBadge+
           urgencyBadge+
@@ -10961,7 +10961,7 @@ function renderSimResult(combos, unassigned) {
           '<span style="font-size:13px;color:var(--text-muted);"><b style="color:var(--text-main);font-size:14px;">'+combo.pokCount+'</b><span style="font-size:11px;">폭</span></span>'+
         '</div>'+
         '<!-- 우측 핵심 수치 그룹 -->'+
-        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-left:10px;border-left:2px solid var(--border);">'+
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-left:10px;border-left:2px solid var(--border);flex-shrink:0;">'+
           '<div style="text-align:center;min-width:90px;">'+
             '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">합계 지폭</div>'+
             '<div style="font-size:15px;font-weight:800;white-space:nowrap;color:'+(combo.belowMinWidth?'#f87171':'var(--text-main)')+';">'+combo.widthSum.toLocaleString()+'<span style="font-size:10px;font-weight:500;">mm</span></div>'+
@@ -10971,7 +10971,7 @@ function renderSimResult(combos, unassigned) {
             '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">Loss</div>'+
             '<div style="font-size:16px;font-weight:900;white-space:nowrap;color:'+lossColor+';">'+combo.lossRate+'<span style="font-size:11px;">%</span></div>'+
           '</div>'+
-          '<div style="text-align:center;min-width:100px;padding-left:10px;border-left:1px solid var(--border);">'+
+          '<div style="text-align:center;min-width:100px;padding-left:10px;border-left:1px solid var(--border);flex-shrink:0;">'+
             '<div style="font-size:10px;color:var(--text-faint);margin-bottom:2px;letter-spacing:.04em;">합계 톤</div>'+
             '<div style="font-size:16px;font-weight:900;color:#34d399;white-space:nowrap;">'+combo.totalTon+'<span style="font-size:11px;font-weight:500;">T</span></div>'+
           '</div>'+
