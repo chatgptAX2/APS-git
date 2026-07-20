@@ -10970,7 +10970,7 @@ function renderSimResult(combos, unassigned) {
               // 오더번호: 배폭 행(파란 어두운 배경)에서는 밝은 하늘색으로 대비 확보
               var orderNoColor  = orderRowBg ? '#93c5fd' : 'var(--sim-order-no-txt)'
 
-              var _itemDisp = o.sapItemNo ? String(o.sapItemNo).replace(/^0+/, '') || o.sapItemNo : null
+              var _itemDisp = o.sapItemNo ? String(o.sapItemNo) : null
               return '<tr style="'+orderRowBg+'border-bottom:1px solid var(--border);">'+
                 '<td style="padding:8px 8px;white-space:nowrap;">'+
                   '<div style="font-family:monospace;font-size:14px;font-weight:800;color:'+orderNoColor+';letter-spacing:0.06em;">'+o.sapOrderNo+'</div>'+
