@@ -9271,10 +9271,11 @@ function runCombinationAlgorithm(orders) {
 
         // pool 구성 후 N개씩 묶기
         // ─ 리와인드 세트 규칙 ─────────────────────────────────────
-        //   점보롤 1개 = 최대 maxPok(4)폭 × maxSets(7)세트 = 28개 오더
-        //   pool이 28개를 초과하면 다음 점보롤(새 콤보)로 분리
+        //   점보롤 1개 = bestN폭 × 세트(자연수)
+        //   세트 수 상한: MAX_SETS = 7
+        //   오더가 적으면 세트 수도 적음 (꼭 7세트일 필요 없음)
+        //   세트 수 7 초과분은 다음 점보롤(새 콤보)로 자동 분리
         var MAX_SETS = 7
-        var maxOrdersPerJumbo = maxN * MAX_SETS  // 예: 4 × 7 = 28
         var pool = available.slice()
         var mustDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
 
@@ -9286,35 +9287,27 @@ function runCombinationAlgorithm(orders) {
             var checkOrds = pool.slice(0, bestN)
             var totalTonCheck = checkOrds.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
             if (bestN === 2 && totalTonCheck > limit889) {
-              if (mustDouble) break  // 필수배폭이면 미배치
-              else break             // 선택배폭이면 BFD로 넘김
+              if (mustDouble) break
+              else break
             }
           }
 
-          // 이번 점보롤에 묶을 오더 수 결정
-          // ① 현재 pool에서 최대 maxOrdersPerJumbo개까지만 대상
-          // ② 그 중 bestN개씩 묶어 세트 구성 → 세트가 MAX_SETS에 도달하면 중단
-          var jumboPool  = pool.splice(0, maxOrdersPerJumbo)  // 최대 28개 추출
-          var setCount   = 0
+          // 이번 점보롤에 들어갈 오더를 bestN개씩 세트로 구성
+          // 세트 수는 pool 크기에 따라 1~MAX_SETS 사이에서 자동 결정됨
           var jumboTaken = []
+          var setCount   = 0
 
-          while (jumboPool.length >= 2 && setCount < MAX_SETS) {
-            var takeN = Math.min(bestN, jumboPool.length)
+          while (pool.length >= 2 && setCount < MAX_SETS) {
+            var takeN = Math.min(bestN, pool.length)
             if (takeN < 2) break
-            var setSlice = jumboPool.splice(0, takeN)
+            var setSlice = pool.splice(0, takeN)
             setSlice.forEach(function(o) { jumboTaken.push(o) })
             setCount++
           }
 
-          // jumboPool에 남은 오더(홀수 잔여 등)는 pool 앞에 돌려넣어 다음 루프에서 처리
-          for (var ri = jumboPool.length - 1; ri >= 0; ri--) {
-            pool.unshift(jumboPool[ri])
-          }
-
           if (jumboTaken.length < 2) break
 
-          var takeN = jumboTaken.length  // 이 점보롤의 총 오더 수 (폭 수 아님)
-          // 실제 지폭 조합은 bestN(최대폭)으로 고정: 점보롤 지폭 = pw×bestN + mimi×(bestN-1)
+          // 점보롤 지폭 = pw × bestN + mimi × (bestN-1)  — 세트 수 무관
           var jumboW = pw * bestN + mimi * (bestN - 1)
           var prodLen = null
           if (mObj) {
@@ -9333,8 +9326,8 @@ function runCombinationAlgorithm(orders) {
             orders    : jumboTaken,
             rawWidth  : pw * bestN,
             locked    : true,
-            _nWidth   : bestN,      // 폭 수 (1세트당 자르는 수)
-            _setCount : setCount,   // 실제 세트 수
+            _nWidth   : bestN,      // 1세트당 폭 수
+            _setCount : setCount,   // 실제 세트 수 (1 ~ MAX_SETS)
             _jumboW   : jumboW,
             _prodLen  : prodLen,
             _isDWidth : true
