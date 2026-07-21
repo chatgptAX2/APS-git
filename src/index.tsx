@@ -9582,6 +9582,74 @@ function runCombinationAlgorithm(orders) {
       }
     })
 
+    // ════════════════════════════════════════════════════════════
+    //  BFD 세트 묶음 (2.5단계)
+    //  같은 폭 조합(widthSignature)을 가진 버킷을 최대 MAX_BFD_SETS=7개까지
+    //  하나의 점보롤 콤보로 통합 → _setCount 부여
+    //
+    //  [세트 조건]
+    //    - 동일 widthSignature: 오더 폭 목록을 정렬한 문자열이 같은 버킷
+    //      예) [900, 840, 800, 790] 버킷 3개 → 1콤보 3세트
+    //    - locked(zero-loss) 버킷끼리도 동일 폭 조합이면 세트로 통합
+    //    - 통합 후 대표 버킷 1개만 남기고 나머지 삭제
+    //    - 점보롤 지폭/loss는 대표 버킷 기준 유지
+    // ════════════════════════════════════════════════════════════
+    ;(function mergeBFDSets() {
+      var MAX_BFD_SETS = 7
+
+      // widthSignature: 버킷 내 오더의 pw를 내림차순 정렬 후 '-' 연결
+      function widthSig(bkt) {
+        return bkt.orders.map(function(o) { return o._pw })
+          .sort(function(a, b) { return b - a })
+          .join('-')
+      }
+
+      // signature → 버킷 인덱스 배열 맵
+      var sigMap = {}  // sig → [idx, ...]
+      buckets.forEach(function(bkt, idx) {
+        if (!bkt.orders.length) return
+        var sig = widthSig(bkt)
+        if (!sigMap[sig]) sigMap[sig] = []
+        sigMap[sig].push(idx)
+      })
+
+      // 각 signature 그룹 처리
+      var removedIdxSet = {}
+      Object.keys(sigMap).forEach(function(sig) {
+        var idxList = sigMap[sig]
+        if (idxList.length < 2) return  // 1개뿐이면 세트 없음
+
+        // MAX_BFD_SETS 단위로 청크 분리
+        // 예) 같은 sig 버킷 10개 → [7개 세트1콤보] + [3개 세트2콤보]
+        var chunks = []
+        for (var ci = 0; ci < idxList.length; ci += MAX_BFD_SETS) {
+          chunks.push(idxList.slice(ci, ci + MAX_BFD_SETS))
+        }
+
+        chunks.forEach(function(chunk) {
+          if (chunk.length < 2) return  // 이 청크는 1개 → 세트 병합 불필요
+          // 대표 버킷: chunk[0]
+          var repBkt = buckets[chunk[0]]
+          var oneSetN = repBkt.orders.length  // 병합 전 1세트 오더 수 확정
+          var mergedOrders = repBkt.orders.slice()
+          // chunk[1..] 의 오더를 대표 버킷에 합산, 해당 버킷은 제거 마킹
+          for (var ci2 = 1; ci2 < chunk.length; ci2++) {
+            var srcBkt = buckets[chunk[ci2]]
+            srcBkt.orders.forEach(function(o) { mergedOrders.push(o) })
+            removedIdxSet[chunk[ci2]] = true
+          }
+          repBkt.orders    = mergedOrders
+          repBkt._setCount = chunk.length
+          repBkt._nWidth   = oneSetN  // 1세트당 폭 수 (병합 전 원래 크기)
+        })
+      })
+
+      // 제거 마킹된 버킷 삭제 (뒤에서부터)
+      for (var ri = buckets.length - 1; ri >= 0; ri--) {
+        if (removedIdxSet[ri]) buckets.splice(ri, 1)
+      }
+    })()
+
     // ── 배폭 버킷 → combos 변환 (0단계 결과) ───────────────────
     dwidthLocked.forEach(function(bkt) {
       if (!bkt.orders.length) return
@@ -9619,7 +9687,15 @@ function runCombinationAlgorithm(orders) {
     buckets.forEach(function(bkt) {
       if (!bkt.orders.length) return
 
-      var totalW   = calcTotalW(bkt.rawWidth, bkt.orders.length)
+      // BFD 세트 묶음 버킷: totalW는 1세트(nWidth개) 기준으로 계산
+      var bfdSetCount = bkt._setCount || 1
+      var bfdNWidth   = bkt._nWidth   || bkt.orders.length
+      // rawWidth: 1세트 오더의 pw 합 (세트 묶음 시 bkt.rawWidth는 누적값이므로 재계산)
+      var oneSetOrders = bkt.orders.slice(0, bfdNWidth)
+      var oneSetRaw    = oneSetOrders.reduce(function(s, o) { return s + (o._pw || 0) }, 0)
+      var totalW   = bfdSetCount > 1
+        ? calcTotalW(oneSetRaw, bfdNWidth)   // 1세트 지폭
+        : calcTotalW(bkt.rawWidth, bkt.orders.length)
       var loss     = Math.max(0, maxW - totalW)
       var lossRate = maxW > 0 ? (loss / maxW * 100) : 0
       var totalTon = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
@@ -9647,6 +9723,8 @@ function runCombinationAlgorithm(orders) {
 
       // Zero-loss 여부 태그
       var isZeroLoss = (loss === 0)
+      // BFD 세트 콤보 여부
+      var isBFDSet   = bfdSetCount > 1
 
       combos.push({
         comboId       : comboIdx++,
@@ -9665,7 +9743,10 @@ function runCombinationAlgorithm(orders) {
         isSingleNarrow: isSingleNarrow,
         belowMinWidth : belowMinWidth,
         isZeroLoss    : isZeroLoss,
-        algoTag       : isZeroLoss ? 'ZERO-LOSS' : 'BFD'
+        algoTag       : isBFDSet ? 'BFD-SET' : (isZeroLoss ? 'ZERO-LOSS' : 'BFD'),
+        _setCount     : isBFDSet ? bfdSetCount : undefined,   // BFD 세트 수 (2~7)
+        _nWidth       : isBFDSet ? bfdNWidth   : undefined,   // 1세트당 폭 수
+        _isBFDSet     : isBFDSet
       })
     })
   })
@@ -10665,6 +10746,20 @@ function renderSimResult(combos, unassigned) {
           ' 점보 '+_nwInfo.jumboWidth.toLocaleString()+'mm'+
           (_nwInfo.prodLength ? ' / 생산 '+_nwInfo.prodLength.toLocaleString()+'m' : '')+
         '</span>'
+    } else if (combo._isBFDSet && combo._nWidth >= 1 && combo._setCount >= 2) {
+      // BFD 세트 조합: 1세트 폭 목록 + 세트 수 표시
+      var _bfdN    = combo._nWidth
+      var _bfdSets = combo._setCount
+      var oneSetW  = combo.orders.slice(0, _bfdN)
+      var _bfdBars = oneSetW.map(function(o) {
+        return '<span style="display:inline-block;padding:5px 12px;margin:2px;background:var(--badge-dwidth-bg);border:1px solid var(--badge-dwidth-brd);border-radius:6px;font-size:13px;font-weight:800;color:var(--badge-dwidth-txt);">'+
+          (o.paperWidth||o._pw||0).toLocaleString()+'mm</span>'
+      })
+      var _bfdSep = '<span style="color:var(--badge-dwidth-txt);font-size:12px;font-weight:600;opacity:.7;margin:0 2px;"> + </span>'
+      widthBars = _bfdBars.join(_bfdSep)+
+        '<span style="margin-left:8px;display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);">'+
+          '🔄 혼폭 '+_bfdSets+'세트(×'+_bfdSets+')'+
+        '</span>'
     } else {
       // 일반 조합 또는 단독 협폭
       widthBars = combo.orders.map(function(o) {
@@ -10724,6 +10819,11 @@ function renderSimResult(combos, unassigned) {
         (combo._setCount && combo._setCount > 1 ? ' · '+combo._setCount+'세트' : '')+
         (combo._prodLen ? ' · 생산'+combo._prodLen.toLocaleString()+'m' : '')+
         '</span>'
+      : ''
+
+    // ── BFD 세트 뱃지 ────────────────────────────────────────
+    const bfdSetBadge = combo._isBFDSet
+      ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);letter-spacing:.3px;border:1px solid var(--badge-dwidth-brd);">🔄 '+combo._nWidth+'폭혼폭 · '+combo._setCount+'세트</span>'
       : ''
 
     // ── 단독 협폭 경고 ────────────────────────────────────────
@@ -10911,6 +11011,7 @@ function renderSimResult(combos, unassigned) {
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
           zeroLossBadge+
           dwidthBadge+
+          bfdSetBadge+
           narrowWarn+
           minWidthWarn+
           '<span class="machine-badge" style="font-size:13px;padding:4px 13px;font-weight:700;">'+combo.machineNo+'호기</span>'+
@@ -11000,6 +11101,23 @@ function renderSimResult(combos, unassigned) {
                     '<span style="margin-left:4px;display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_setLabel+'</span>'+
                   '</div>'+
                   (_prodL ? '<div style="font-size:12px;font-weight:700;color:var(--dwidth-prod-txt);margin-top:3px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
+                orderRowBg = 'background:var(--nwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
+
+              } else if (combo._isBFDSet && combo._nWidth >= 1) {
+                // ── BFD 세트 혼폭 조합: 세트 번호 + 번폭 표시
+                var _bAbsIdx = combo.orders.indexOf(o)
+                var _bNw     = combo._nWidth
+                var _bSetNo  = Math.floor(_bAbsIdx / _bNw) + 1
+                var _bPokNo  = (_bAbsIdx % _bNw) + 1
+                var _bLabel  = _bSetNo+'세트-'+_bPokNo+'번폭'
+
+                widthCellHtml =
+                  origPwLabel +
+                  '<div>' +
+                    '<span style="margin-left:4px;display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);">'+
+                      '🔄 '+_bLabel+
+                    '</span>'+
+                  '</div>'
                 orderRowBg = 'background:var(--nwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
 
               } else {
