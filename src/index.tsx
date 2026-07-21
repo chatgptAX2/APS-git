@@ -9269,7 +9269,12 @@ function runCombinationAlgorithm(orders) {
           if ((_machinesCache[mi2].machineNo) === machineNo) { mObj = _machinesCache[mi2]; break }
         }
 
-        // 납기 긴급도 DESC로 pool 구성 후 N개씩 묶기
+        // pool 구성 후 N개씩 묶기
+        // ─ 리와인드 세트 규칙 ─────────────────────────────────────
+        //   점보롤 1개 = 최대 maxPok(4)폭 × maxSets(7)세트 = 28개 오더
+        //   pool이 28개를 초과하면 다음 점보롤(새 콤보)로 분리
+        var MAX_SETS = 7
+        var maxOrdersPerJumbo = maxN * MAX_SETS  // 예: 4 × 7 = 28
         var pool = available.slice()
         var mustDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
 
@@ -9286,30 +9291,50 @@ function runCombinationAlgorithm(orders) {
             }
           }
 
-          // bestN개가 남아있지 않으면 남은 수로 묶기 (단, 최소 2개)
-          var takeN = Math.min(bestN, pool.length)
-          if (takeN < 2) break
+          // 이번 점보롤에 묶을 오더 수 결정
+          // ① 현재 pool에서 최대 maxOrdersPerJumbo개까지만 대상
+          // ② 그 중 bestN개씩 묶어 세트 구성 → 세트가 MAX_SETS에 도달하면 중단
+          var jumboPool  = pool.splice(0, maxOrdersPerJumbo)  // 최대 28개 추출
+          var setCount   = 0
+          var jumboTaken = []
 
-          var taken = pool.splice(0, takeN)
-          var jumboW = pw * takeN + mimi * (takeN - 1)
+          while (jumboPool.length >= 2 && setCount < MAX_SETS) {
+            var takeN = Math.min(bestN, jumboPool.length)
+            if (takeN < 2) break
+            var setSlice = jumboPool.splice(0, takeN)
+            setSlice.forEach(function(o) { jumboTaken.push(o) })
+            setCount++
+          }
+
+          // jumboPool에 남은 오더(홀수 잔여 등)는 pool 앞에 돌려넣어 다음 루프에서 처리
+          for (var ri = jumboPool.length - 1; ri >= 0; ri--) {
+            pool.unshift(jumboPool[ri])
+          }
+
+          if (jumboTaken.length < 2) break
+
+          var takeN = jumboTaken.length  // 이 점보롤의 총 오더 수 (폭 수 아님)
+          // 실제 지폭 조합은 bestN(최대폭)으로 고정: 점보롤 지폭 = pw×bestN + mimi×(bestN-1)
+          var jumboW = pw * bestN + mimi * (bestN - 1)
           var prodLen = null
           if (mObj) {
             var ll = getLengthLimit(mObj, bw)
             if (ll) {
               var baseL = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
-              prodLen = Math.floor(baseL / takeN)
+              prodLen = Math.floor(baseL / bestN)  // 생산 길이 = maxLen ÷ N폭
             }
           }
 
           // 버킷 등록 + ID 추적
-          taken.forEach(function(o) {
+          jumboTaken.forEach(function(o) {
             dwidthIds[o.orderId || (o.sapOrderNo + '_' + (o.sapItemNo||''))] = true
           })
           dwidthLocked.push({
-            orders    : taken,
-            rawWidth  : pw * takeN,
+            orders    : jumboTaken,
+            rawWidth  : pw * bestN,
             locked    : true,
-            _nWidth   : takeN,
+            _nWidth   : bestN,      // 폭 수 (1세트당 자르는 수)
+            _setCount : setCount,   // 실제 세트 수
             _jumboW   : jumboW,
             _prodLen  : prodLen,
             _isDWidth : true
@@ -9564,6 +9589,7 @@ function runCombinationAlgorithm(orders) {
         isZeroLoss     : isZeroLoss,
         algoTag        : 'DWIDTH',
         _nWidth        : bkt._nWidth,
+        _setCount      : bkt._setCount,   // 리와인드 세트 수 (최대 7)
         _isDWidth      : true,
         _prodLen       : bkt._prodLen
       })
@@ -10275,18 +10301,14 @@ function getOrderTon(o) {
 // basisWeightNum: 평량(g/m²)
 // 반환: { coreInch, basisWeight, maxLen } | null
 // ※ 정확 일치 우선, 없으면 평량 가장 가까운 값 반환
-// ※ coreInch 미지정(null/0) 시 모든 인치 데이터 반환 (인치 미확인 안내용)
+// ※ coreInch 미지정(null/0) 시 12인치(대관) 디폴트 적용
 function getRollLengthLimit(coreInch, basisWeightNum, rollCache) {
   var cache = rollCache || _rollLengthCache || []
   if (!cache.length) return null
   var bw = Number(basisWeightNum) || 0
   if (!bw) return null
-  var inch = coreInch ? Number(coreInch) : 0
-  // 인치 미지정 → 3인치/12인치 모두 반환 (배열)
-  if (!inch) {
-    var all = cache.filter(function(r) { return Number(r.basisWeight) === bw })
-    return all.length ? all : null
-  }
+  // 인치 미지정 → 12인치(대관) 디폴트
+  var inch = coreInch ? Number(coreInch) : 12
   var filtered = cache.filter(function(r) { return r.coreInch === inch })
   if (!filtered.length) return null
   // 정확 일치
@@ -10481,7 +10503,7 @@ function enrichDoubleWidthInfo(order, allMachines) {
 // ── N폭 배폭 그룹에 메타 주입 ─────────────────────────────────
 // orders: 배폭으로 묶은 N개 오더 배열
 // 반환: { ok, nWidth, jumboWidth, prodLength, reason } 오브젝트
-function enrichNWidthGroupInfo(orders, allMachines, constraints) {
+function enrichNWidthGroupInfo(orders, allMachines, constraints, hints) {
   if (!orders || orders.length === 0) return { ok: false, reason: '오더 없음' }
   var mNo = (orders[0]._machineNoResolved || orders[0].machineNo || '')
   var machineObj = null
@@ -10490,19 +10512,29 @@ function enrichNWidthGroupInfo(orders, allMachines, constraints) {
   }
   if (!machineObj) return { ok: false, reason: '기계 정보 없음' }
 
-  var valid = validateNWidthGroup(orders, machineObj, constraints)
+  // hints: { nWidth, setCount } — buildDoubleWidthBuckets 결과의 _nWidth/_setCount
+  // 배폭 콤보는 orders에 setCount×nWidth개 오더가 모두 들어있으므로
+  // "폭 수(nWidth)"와 "세트 수(setCount)"를 힌트로 받아 올바른 값 사용
+  var hintNWidth   = hints && hints.nWidth   ? Number(hints.nWidth)   : 0
+  var hintSetCount = hints && hints.setCount ? Number(hints.setCount) : 0
+
+  // 실제 검증에 사용할 오더 슬라이스: 1세트(nWidth개)만 잘라서 검증
+  var sampleOrders = hintNWidth >= 2 ? orders.slice(0, hintNWidth) : orders
+  var valid = validateNWidthGroup(sampleOrders, machineObj, constraints)
   if (!valid.ok) return { ok: false, reason: valid.reason }
 
-  var n = orders.length
+  var n    = hintNWidth >= 2 ? hintNWidth : orders.length
   var mimi = machineObj.mimi != null ? machineObj.mimi : 30
-  var widths = orders.map(function(o){ return o._pw || o.paperWidth || 0 })
+  // widths: 1세트(n개) 지폭 — 모두 동일지폭이므로 첫 n개 사용
+  var widths   = orders.slice(0, n).map(function(o){ return o._pw || o.paperWidth || 0 })
   var widthSum = widths.reduce(function(a,b){return a+b},0)
-  var jumboW = widthSum + mimi * (n - 1)
-  var prodLen = calcNWidthProdLength(orders, machineObj)
+  var jumboW   = widthSum + mimi * (n - 1)
+  var prodLen  = calcNWidthProdLength(sampleOrders, machineObj)
 
   return {
     ok:         true,
     nWidth:     n,
+    setCount:   hintSetCount || 1,
     jumboWidth: jumboW,
     prodLength: prodLen,
     widths:     widths,
@@ -10596,7 +10628,7 @@ function renderSimResult(combos, unassigned) {
     // 동일 오더가 N개 묶인 경우: 배폭 그룹으로 처리
     // 다른 지폭이 조합된 경우: 각 폭 개별 표시 (단독 협폭은 ×2 뱃지)
     var _mach = _machinesCache || []
-    var _nwInfo = enrichNWidthGroupInfo(combo.orders, _mach, null)
+    var _nwInfo = enrichNWidthGroupInfo(combo.orders, _mach, null, { nWidth: combo._nWidth, setCount: combo._setCount })
     var widthBars
     if (_nwInfo.ok && _nwInfo.nWidth >= 2) {
       // N폭 배폭 조합: 각 지폭 + 미미 표시 + 그룹 뱃지
@@ -10608,7 +10640,9 @@ function renderSimResult(combos, unassigned) {
       var _sep = '<span style="color:var(--badge-dwidth-txt);font-size:12px;font-weight:600;opacity:.7;margin:0 2px;"> +미미'+_mimi+'+ </span>'
       widthBars = _bars.join(_sep)+
         '<span style="margin-left:8px;display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);">'+
-          '⚡ '+_nwInfo.nWidth+'폭배폭 점보 '+_nwInfo.jumboWidth.toLocaleString()+'mm'+
+          '⚡ '+_nwInfo.nWidth+'폭배폭'+
+          (combo._setCount && combo._setCount > 1 ? ' '+combo._setCount+'세트(×'+combo._setCount+')' : '')+
+          ' 점보 '+_nwInfo.jumboWidth.toLocaleString()+'mm'+
           (_nwInfo.prodLength ? ' / 생산 '+_nwInfo.prodLength.toLocaleString()+'m' : '')+
         '</span>'
     } else {
@@ -10667,6 +10701,7 @@ function renderSimResult(combos, unassigned) {
     // ── 배폭생산 뱃지 ─────────────────────────────────────────
     const dwidthBadge = combo._isDWidth
       ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);letter-spacing:.3px;border:1px solid var(--badge-dwidth-brd);">⚡ '+combo._nWidth+'폭배폭'+
+        (combo._setCount && combo._setCount > 1 ? ' · '+combo._setCount+'세트' : '')+
         (combo._prodLen ? ' · 생산'+combo._prodLen.toLocaleString()+'m' : '')+
         '</span>'
       : ''
@@ -10783,7 +10818,7 @@ function renderSimResult(combos, unassigned) {
       var nwCount = 1
       // N폭 배폭 여부 판단 (2폭 이상이면 enrichNWidthGroupInfo로 우선 처리)
       if (combo.orders.length >= 2) {
-        var nwg2 = enrichNWidthGroupInfo(combo.orders, _machinesCache || [], null)
+        var nwg2 = enrichNWidthGroupInfo(combo.orders, _machinesCache || [], null, { nWidth: combo._nWidth, setCount: combo._setCount })
         if (nwg2.ok) {
           isDW2   = true
           dwLen2  = nwg2.prodLength
@@ -10924,10 +10959,16 @@ function renderSimResult(combos, unassigned) {
 
               if (_nwInfo.ok && _nwInfo.nWidth >= 2) {
                 // ── N폭 배폭 조합: 원래 지폭 레이블 위에, 아래 점보/배폭 정보
-                var _oIdx    = combo.orders.indexOf(o) + 1
+                var _absIdx  = combo.orders.indexOf(o)  // 0-base 전체 인덱스
+                var _nw      = _nwInfo.nWidth            // 1세트당 폭 수
+                var _setNo   = Math.floor(_absIdx / _nw) + 1   // 세트 번호 (1~7)
+                var _pokNo   = (_absIdx % _nw) + 1             // 세트 내 번폭 (1~N)
                 var _jumboW  = _nwInfo.jumboWidth
                 var _prodL   = _nwInfo.prodLength
-                var _nwLabel = _nwInfo.nWidth + '폭배폭'
+                var _nwLabel = _nw + '폭배폭'
+                var _setLabel = (_nwInfo.setCount && _nwInfo.setCount > 1)
+                  ? _setNo+'세트-'+_pokNo+'번폭'
+                  : _nw+'폭-'+_pokNo+'번폭'
 
                 widthCellHtml =
                   origPwLabel +
@@ -10936,7 +10977,7 @@ function renderSimResult(combos, unassigned) {
                     '<span style="display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);border:1px solid var(--badge-dwidth-brd);" title="'+_nwLabel+' 점보롤 '+_jumboW.toLocaleString()+'mm / 생산'+(_prodL?_prodL.toLocaleString()+'m':'?')+'">'+
                       '⚡점보 '+_jumboW.toLocaleString()+'mm'+
                     '</span>'+
-                    '<span style="margin-left:4px;display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_nwInfo.nWidth+'폭-'+_oIdx+'번폭</span>'+
+                    '<span style="margin-left:4px;display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:var(--badge-nw-sub-bg);color:var(--badge-nw-sub-txt);">'+_setLabel+'</span>'+
                   '</div>'+
                   (_prodL ? '<div style="font-size:12px;font-weight:700;color:var(--dwidth-prod-txt);margin-top:3px;">생산길이 '+_prodL.toLocaleString()+'m</div>' : '')
                 orderRowBg = 'background:var(--nwidth-row-bg);border-left:3px solid var(--badge-dwidth-brd);'
