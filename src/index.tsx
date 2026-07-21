@@ -9152,10 +9152,9 @@ function runCombinationAlgorithm(orders) {
     // wjSeparate='no'  이면 혼합 허용 → pl만으로 구분
     var wjSep = c.wjSeparate !== 'no'
     var rollTag = wjSep ? (isRoll ? 'R' : 'S') : 'X'
-    // Roll 오더는 리와인드 구조상 동일 지폭끼리만 같은 점보롤에서 처리 가능
-    // → Roll 오더의 그룹 키에 지폭(pw)을 포함하여 지폭별로 분리 그룹화
-    var pwKey = (isRoll && wjSep) ? '_' + pw : ''
-    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '') + '_' + pl + '_' + rollTag + pwKey
+    // Roll 오더: 서로 다른 지폭을 합쳐 점보롤 1개를 만들 수 있음
+    // → 지폭은 그룹 키에 포함하지 않음 (BFD에서 폭 조합 최적화)
+    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '') + '_' + pl + '_' + rollTag
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
@@ -9211,7 +9210,27 @@ function runCombinationAlgorithm(orders) {
     var dwidthLocked = []  // 배폭 확정 버킷
 
     ;(function buildDoubleWidthBuckets() {
-      // 동일 지폭 서브그룹 구성 — orderId 또는 sapOrderNo+sapItemNo 복합키로 중복 방지
+      // ══════════════════════════════════════════════════════════════
+      //  배폭 우선 전략 (시트·Roll 공통)
+      //
+      //  [배폭 개념]
+      //    단일 오더 900mm → 2배폭 생산 → 점보롤 1,830mm(900×2+미미30)
+      //    → 잘라서 900mm 밀롤/시트 2개 생성 (리와인드 1세트)
+      //    → 동일 지폭 오더가 더 있으면 같은 점보롤 사양으로 7세트까지 반복
+      //
+      //  [필수배폭]: 협폭(≤ noProdLim) 또는 889mm 이하 → 반드시 배폭
+      //  [선택배폭]: 일반폭 → 동일지폭 오더 2개 이상이면 배폭 우선
+      //              홀수 남은 오더는 BFD(혼폭 조합)로 넘김
+      //
+      //  [7세트]: 같은 배폭 점보롤 사양을 최대 MAX_SETS=7번 반복
+      //    오더가 적으면 세트 수도 적게 자동 결정 (꼭 7세트 아님)
+      //    세트 수 초과분은 다음 점보롤(새 콤보)로 분리
+      //
+      //  [혼폭]: 배폭 처리 후 남은 오더는 BFD에서 서로 다른 지폭끼리 조합
+      // ══════════════════════════════════════════════════════════════
+      var MAX_SETS = 7
+
+      // 동일 지폭 서브그룹 구성
       var pwMap = {}  // pw → orders[]
       sorted.forEach(function(o) {
         var pw = o._pw
@@ -9222,7 +9241,7 @@ function runCombinationAlgorithm(orders) {
       // 배폭 버킷에 들어간 오더 ID 추적 (중복 방지)
       var dwidthIds = {}
 
-      // pw 내림차순 처리: 큰 폭 먼저 (조합 다양성 확보)
+      // pw 내림차순 처리: 큰 폭 먼저
       var pwKeys = Object.keys(pwMap).map(Number).sort(function(a,b){ return b - a })
 
       pwKeys.forEach(function(pw) {
@@ -9232,39 +9251,52 @@ function runCombinationAlgorithm(orders) {
         var available = pwOrders.filter(function(o) {
           return !dwidthIds[o.orderId || (o.sapOrderNo + '_' + (o.sapItemNo||''))]
         })
-        if (available.length < 2) {
-          // 필수배폭 폭이면 단독 오더를 미배치로
-          if ((pw <= noProdLim) || (rule889 === 'single' && pw <= 889)) {
-            available.forEach(function(o) {
-              o._unassignedReason = o._unassignedReason ||
-                (pw <= noProdLim
-                  ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 ('+pw+'mm)'
-                  : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 ('+pw+'mm)')
-            })
-          }
-          // 선택배폭은 BFD로 넘김 (아무것도 안 함)
-          return
-        }
 
-        // 최대 폭 수 계산: pw×N + mimi×(N-1) ≤ maxW
+        // 배폭 가능 최대 N 계산: pw×N + mimi×(N-1) ≤ maxW
         var maxN = Math.floor((maxW + mimi) / (pw + mimi))
         maxN = Math.min(maxN, maxPok, 4)
+
+        var mustDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
+
+        // 배폭 불가 판정
         if (maxN < 2) {
-          // 배폭 자체가 불가 → 필수배폭이면 미배치, 일반폭이면 BFD로
-          if ((pw <= noProdLim) || (rule889 === 'single' && pw <= 889)) {
+          if (mustDouble) {
             available.forEach(function(o) {
               o._unassignedReason = o._unassignedReason ||
-                '점보롤 지폭 초과 — 배폭 불가 ('+pw+'mm × 2 + '+mimi+'mm > '+maxW+'mm)'
+                '점보롤 지폭 초과 — 배폭 불가 (' + pw + 'mm × 2 + ' + mimi + 'mm > ' + maxW + 'mm)'
             })
           }
+          // 일반폭은 BFD로 넘김
           return
         }
 
-        // 2호기 4폭 조건: fourPokMin 이상이어야 함
+        // 2호기 4폭 조건
         if (fourPokMin > 0 && pw < fourPokMin) {
           maxN = Math.min(maxN, maxPok - 1)
-          if (maxN < 2) return
+          if (maxN < 2) {
+            if (mustDouble) {
+              available.forEach(function(o) {
+                o._unassignedReason = o._unassignedReason ||
+                  '2호기 4폭 조건 미달 — 배폭 불가 (' + pw + 'mm < ' + fourPokMin + 'mm)'
+              })
+            }
+            return
+          }
         }
+
+        // [필수배폭] 오더가 1개뿐이면 배폭 파트너 없음 → 미배치
+        if (mustDouble && available.length < 2) {
+          available.forEach(function(o) {
+            o._unassignedReason = o._unassignedReason ||
+              (pw <= noProdLim
+                ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 (' + pw + 'mm)'
+                : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 (' + pw + 'mm)')
+          })
+          return
+        }
+
+        // [선택배폭] 오더가 1개뿐이면 BFD로 넘김 (혼폭 조합 후보)
+        if (!mustDouble && available.length < 2) return
 
         // 기계 객체 찾기 (생산 길이 계산용)
         var mObj = null
@@ -9272,15 +9304,9 @@ function runCombinationAlgorithm(orders) {
           if ((_machinesCache[mi2].machineNo) === machineNo) { mObj = _machinesCache[mi2]; break }
         }
 
-        // pool 구성 후 N개씩 묶기
-        // ─ 리와인드 세트 규칙 ─────────────────────────────────────
-        //   점보롤 1개 = bestN폭 × 세트(자연수)
-        //   세트 수 상한: MAX_SETS = 7
-        //   오더가 적으면 세트 수도 적음 (꼭 7세트일 필요 없음)
-        //   세트 수 7 초과분은 다음 점보롤(새 콤보)로 자동 분리
-        var MAX_SETS = 7
+        // pool에서 bestN개씩 세트로 쌓아 점보롤 1개 구성
+        // 세트 수 상한: MAX_SETS=7 → 초과분은 다음 점보롤(새 콤보)
         var pool = available.slice()
-        var mustDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
 
         while (pool.length >= 2) {
           var bestN = maxN
@@ -9295,8 +9321,7 @@ function runCombinationAlgorithm(orders) {
             }
           }
 
-          // 이번 점보롤에 들어갈 오더를 bestN개씩 세트로 구성
-          // 세트 수는 pool 크기에 따라 1~MAX_SETS 사이에서 자동 결정됨
+          // 이번 점보롤에 들어갈 오더: bestN개씩 × 최대 MAX_SETS세트
           var jumboTaken = []
           var setCount   = 0
 
@@ -9310,14 +9335,14 @@ function runCombinationAlgorithm(orders) {
 
           if (jumboTaken.length < 2) break
 
-          // 점보롤 지폭 = pw × bestN + mimi × (bestN-1)  — 세트 수 무관
+          // 점보롤 지폭 = pw × bestN + mimi × (bestN-1)
           var jumboW = pw * bestN + mimi * (bestN - 1)
           var prodLen = null
           if (mObj) {
             var ll = getLengthLimit(mObj, bw)
             if (ll) {
               var baseL = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
-              prodLen = Math.floor(baseL / bestN)  // 생산 길이 = maxLen ÷ N폭
+              prodLen = Math.floor(baseL / bestN)  // 생산 길이 = maxLen ÷ N배폭
             }
           }
 
@@ -9329,7 +9354,7 @@ function runCombinationAlgorithm(orders) {
             orders    : jumboTaken,
             rawWidth  : pw * bestN,
             locked    : true,
-            _nWidth   : bestN,      // 1세트당 폭 수
+            _nWidth   : bestN,      // 1세트당 배폭 수 (N배폭)
             _setCount : setCount,   // 실제 세트 수 (1 ~ MAX_SETS)
             _jumboW   : jumboW,
             _prodLen  : prodLen,
@@ -9337,22 +9362,21 @@ function runCombinationAlgorithm(orders) {
           })
         }
 
-        // pool에 남은 오더 처리
+        // pool에 남은 홀수 오더 처리
         if (pool.length > 0) {
           if (mustDouble) {
-            // 필수배폭: 파트너 없음 → 미배치
             pool.forEach(function(o) {
               o._unassignedReason = o._unassignedReason ||
                 (pw <= noProdLim
-                  ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 ('+pw+'mm)'
-                  : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 ('+pw+'mm)')
+                  ? '협폭 단독 배폭 불가 — 동일지폭 오더 부족 (' + pw + 'mm)'
+                  : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 (' + pw + 'mm)')
             })
           }
-          // 선택배폭: 남은 홀수 오더 → sorted에 그대로 남겨 BFD 처리
+          // 선택배폭 홀수 잔여: BFD(혼폭 조합)로 넘김 → sorted에 그대로 남김
         }
       })
 
-      // 배폭 버킷에 들어간 오더를 sorted에서 제거
+      // 배폭 확정된 오더를 sorted에서 제거 → 나머지는 BFD 혼폭 조합 대상
       for (var si = sorted.length - 1; si >= 0; si--) {
         var so = sorted[si]
         var soId = so.orderId || (so.sapOrderNo + '_' + (so.sapItemNo||''))
