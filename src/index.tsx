@@ -9152,7 +9152,10 @@ function runCombinationAlgorithm(orders) {
     // wjSeparate='no'  이면 혼합 허용 → pl만으로 구분
     var wjSep = c.wjSeparate !== 'no'
     var rollTag = wjSep ? (isRoll ? 'R' : 'S') : 'X'
-    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '') + '_' + pl + '_' + rollTag
+    // Roll 오더는 리와인드 구조상 동일 지폭끼리만 같은 점보롤에서 처리 가능
+    // → Roll 오더의 그룹 키에 지폭(pw)을 포함하여 지폭별로 분리 그룹화
+    var pwKey = (isRoll && wjSep) ? '_' + pw : ''
+    var key = mn + '_' + ptCode + '_' + (o.basisWeight || '') + '_' + pl + '_' + rollTag + pwKey
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(o)
   })
