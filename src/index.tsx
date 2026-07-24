@@ -9198,67 +9198,83 @@ function runCombinationAlgorithm(orders) {
 
     // ════════════════════════════════════════════════════════════
     //  배폭 전처리 패스 (0단계) — 배폭 우선 전략
-    //  규칙:
-    //   [필수배폭] 협폭(≤ noProdLim) 또는 889mm 이하(rule889='single')
-    //     → 동일지폭 파트너 없으면 미배치
-    //   [선택배폭] 일반폭(> noProdLim)
-    //     → 동일지폭 오더 2개 이상이면 배폭으로 묶어 생산성 향상
-    //     → 홀수 남은 오더는 BFD(1단계)로 넘겨 다른 오더와 혼합 조합
-    //   - N폭 배폭: 점보롤 지폭 = pw×N + mimi×(N-1) ≤ maxW
-    //   - 생산 길이 = maxLen ÷ N
+    //
+    //  [핵심 개념]
+    //    오더 1개(pw=900mm) → N배폭 점보롤(900×2+30=1,830mm) 생산
+    //    → 재단해서 900mm 밀롤/시트 N개 = 1세트
+    //    → 같은 조건 오더가 더 있으면 동일 점보롤 사양 반복 (최대 7세트)
+    //    → 콤보 1개 = 점보롤 1개 사양 (orders N×세트수개, _nWidth=N, _setCount=세트)
+    //
+    //  [필수배폭] 협폭(≤ noProdLim) 또는 889mm 이하
+    //    → 단독 생산 불가 → 동일지폭 파트너 없으면 미배치
+    //  [선택배폭] 일반폭 — 동일지폭 오더 ≥ 1개면 배폭 우선
+    //    → N배폭 가능하면 배폭으로 처리 (오더 1개여도 배폭)
+    //    → 단, maxN < 2이면 BFD로 넘김
+    //
+    //  [생산 길이]
+    //    Roll 오더: getRollLengthLimit(coreInch||12, bw) → maxLen ÷ N
+    //    Sheet 오더: getLengthLimit(machineObj, bw) → milrolLen||maxLen ÷ N
     // ════════════════════════════════════════════════════════════
     var dwidthLocked = []  // 배폭 확정 버킷
 
     ;(function buildDoubleWidthBuckets() {
-      // ══════════════════════════════════════════════════════════════
-      //  배폭 우선 전략 (시트·Roll 공통)
-      //
-      //  [배폭 개념]
-      //    단일 오더 900mm → 2배폭 생산 → 점보롤 1,830mm(900×2+미미30)
-      //    → 잘라서 900mm 밀롤/시트 2개 생성 (리와인드 1세트)
-      //    → 동일 지폭 오더가 더 있으면 같은 점보롤 사양으로 7세트까지 반복
-      //
-      //  [필수배폭]: 협폭(≤ noProdLim) 또는 889mm 이하 → 반드시 배폭
-      //  [선택배폭]: 일반폭 → 동일지폭 오더 2개 이상이면 배폭 우선
-      //              홀수 남은 오더는 BFD(혼폭 조합)로 넘김
-      //
-      //  [7세트]: 같은 배폭 점보롤 사양을 최대 MAX_SETS=7번 반복
-      //    오더가 적으면 세트 수도 적게 자동 결정 (꼭 7세트 아님)
-      //    세트 수 초과분은 다음 점보롤(새 콤보)로 분리
-      //
-      //  [혼폭]: 배폭 처리 후 남은 오더는 BFD에서 서로 다른 지폭끼리 조합
-      // ══════════════════════════════════════════════════════════════
       var MAX_SETS = 7
 
+      // 기계 객체 캐시
+      var mObj = null
+      for (var mi2 = 0; mi2 < (_machinesCache||[]).length; mi2++) {
+        if (_machinesCache[mi2].machineNo === machineNo) { mObj = _machinesCache[mi2]; break }
+      }
+
+      // 점보롤 생산 길이 계산: Roll/Sheet 구분
+      function calcProdLen(nWidth) {
+        var isRollGroup = sorted.length > 0 && sorted[0]._isRoll
+        var baseL = null
+        if (isRollGroup) {
+          // Roll 오더: coreInch 기반 길이 (없으면 12인치 디폴트)
+          var sampleCoreInch = null
+          for (var si = 0; si < sorted.length; si++) {
+            if (sorted[si].coreInch) { sampleCoreInch = sorted[si].coreInch; break }
+          }
+          var rl = getRollLengthLimit(sampleCoreInch || 12, bw, _rollLengthCache)
+          if (rl) baseL = rl.maxLen
+        }
+        // Sheet 또는 Roll 길이 테이블 없을 때 → 기계 길이 테이블 사용
+        if (!baseL && mObj) {
+          var ll = getLengthLimit(mObj, bw)
+          if (ll) baseL = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
+        }
+        if (!baseL) return null
+        return nWidth > 1 ? Math.floor(baseL / nWidth) : baseL
+      }
+
       // 동일 지폭 서브그룹 구성
-      var pwMap = {}  // pw → orders[]
+      var pwMap = {}
       sorted.forEach(function(o) {
         var pw = o._pw
         if (!pwMap[pw]) pwMap[pw] = []
         pwMap[pw].push(o)
       })
 
-      // 배폭 버킷에 들어간 오더 ID 추적 (중복 방지)
       var dwidthIds = {}
 
-      // pw 내림차순 처리: 큰 폭 먼저
+      // pw 내림차순 처리
       var pwKeys = Object.keys(pwMap).map(Number).sort(function(a,b){ return b - a })
 
       pwKeys.forEach(function(pw) {
         var pwOrders = pwMap[pw]
-
-        // 이미 배폭 확정된 오더 제외
         var available = pwOrders.filter(function(o) {
           return !dwidthIds[o.orderId || (o.sapOrderNo + '_' + (o.sapItemNo||''))]
         })
+        if (!available.length) return
 
-        // 배폭 가능 최대 N 계산: pw×N + mimi×(N-1) ≤ maxW
+        // 배폭 가능 최대 N 계산
         var maxN = Math.floor((maxW + mimi) / (pw + mimi))
         maxN = Math.min(maxN, maxPok, 4)
 
         var mustDouble = (pw <= noProdLim) || (rule889 === 'single' && pw <= 889)
 
-        // 배폭 불가 판정
+        // 배폭 자체가 불가
         if (maxN < 2) {
           if (mustDouble) {
             available.forEach(function(o) {
@@ -9266,8 +9282,7 @@ function runCombinationAlgorithm(orders) {
                 '점보롤 지폭 초과 — 배폭 불가 (' + pw + 'mm × 2 + ' + mimi + 'mm > ' + maxW + 'mm)'
             })
           }
-          // 일반폭은 BFD로 넘김
-          return
+          return  // 일반폭은 BFD로
         }
 
         // 2호기 4폭 조건
@@ -9284,7 +9299,8 @@ function runCombinationAlgorithm(orders) {
           }
         }
 
-        // [필수배폭] 오더가 1개뿐이면 배폭 파트너 없음 → 미배치
+        // 필수배폭: 오더가 1개도 없으면 (위에서 return됐을 것이므로 여기선 ≥1 보장)
+        // 필수배폭인데 오더 1개 → 미배치 (파트너 없음)
         if (mustDouble && available.length < 2) {
           available.forEach(function(o) {
             o._unassignedReason = o._unassignedReason ||
@@ -9295,74 +9311,70 @@ function runCombinationAlgorithm(orders) {
           return
         }
 
-        // [선택배폭] 오더가 1개뿐이면 BFD로 넘김 (혼폭 조합 후보)
-        if (!mustDouble && available.length < 2) return
+        // 선택배폭: 오더 1개여도 배폭 가능 (N배폭으로 점보롤 1개 생산)
+        // 단, maxN < 2이면 이미 위에서 return됨
 
-        // 기계 객체 찾기 (생산 길이 계산용)
-        var mObj = null
-        for (var mi2 = 0; mi2 < (_machinesCache||[]).length; mi2++) {
-          if ((_machinesCache[mi2].machineNo) === machineNo) { mObj = _machinesCache[mi2]; break }
-        }
-
-        // pool에서 bestN개씩 세트로 쌓아 점보롤 1개 구성
-        // 세트 수 상한: MAX_SETS=7 → 초과분은 다음 점보롤(새 콤보)
+        // ── pool에서 N개씩 세트로 묶어 점보롤 콤보 구성 ──────────
+        // 오더가 1개인 경우에도 bestN=maxN으로 배폭 1세트 처리
         var pool = available.slice()
 
-        while (pool.length >= 2) {
+        while (pool.length >= 1) {
           var bestN = maxN
 
-          // 889mm 이하 2폭 톤 제한 체크
+          // 889mm 이하 2폭 톤 제한
           if (pw <= 889 && bestN >= 2) {
-            var checkOrds = pool.slice(0, bestN)
-            var totalTonCheck = checkOrds.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
-            if (bestN === 2 && totalTonCheck > limit889) {
+            var checkOrds2 = pool.slice(0, Math.min(bestN, pool.length))
+            var totalTonCheck2 = checkOrds2.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
+            if (totalTonCheck2 > limit889) {
               if (mustDouble) break
               else break
             }
           }
 
-          // 이번 점보롤에 들어갈 오더: bestN개씩 × 최대 MAX_SETS세트
+          // ── 이번 점보롤(1콤보): bestN개씩 × 최대 MAX_SETS세트 ──
           var jumboTaken = []
           var setCount   = 0
 
-          while (pool.length >= 2 && setCount < MAX_SETS) {
+          while (pool.length >= 1 && setCount < MAX_SETS) {
+            // 남은 오더가 bestN보다 적으면 남은 것만 1세트로 처리
             var takeN = Math.min(bestN, pool.length)
-            if (takeN < 2) break
+            // 단, 필수배폭이 아닌데 takeN=1이면 BFD로 넘김 (파트너 없는 단독)
+            if (takeN < 2 && !mustDouble) {
+              // 이 오더는 sorted에 남겨 BFD에서 처리
+              break
+            }
+            // 필수배폭 단독 1개는 이미 위에서 처리됨
             var setSlice = pool.splice(0, takeN)
             setSlice.forEach(function(o) { jumboTaken.push(o) })
             setCount++
           }
 
-          if (jumboTaken.length < 2) break
+          if (!jumboTaken.length) break
 
-          // 점보롤 지폭 = pw × bestN + mimi × (bestN-1)
-          var jumboW = pw * bestN + mimi * (bestN - 1)
-          var prodLen = null
-          if (mObj) {
-            var ll = getLengthLimit(mObj, bw)
-            if (ll) {
-              var baseL = ll.milrolLen != null ? ll.milrolLen : ll.maxLen
-              prodLen = Math.floor(baseL / bestN)  // 생산 길이 = maxLen ÷ N배폭
-            }
-          }
+          // 실제 사용된 N (첫 세트 오더 수 = bestN or 남은 것)
+          var actualN = setCount > 0 ? Math.ceil(jumboTaken.length / setCount) : bestN
+          actualN = Math.max(1, Math.min(actualN, bestN))
 
-          // 버킷 등록 + ID 추적
+          var jumboW  = pw * actualN + mimi * (actualN - 1)
+          var prodLen = calcProdLen(actualN)
+
           jumboTaken.forEach(function(o) {
             dwidthIds[o.orderId || (o.sapOrderNo + '_' + (o.sapItemNo||''))] = true
           })
+
           dwidthLocked.push({
             orders    : jumboTaken,
-            rawWidth  : pw * bestN,
+            rawWidth  : pw * actualN,
             locked    : true,
-            _nWidth   : bestN,      // 1세트당 배폭 수 (N배폭)
-            _setCount : setCount,   // 실제 세트 수 (1 ~ MAX_SETS)
+            _nWidth   : actualN,     // 1세트당 배폭 수
+            _setCount : setCount,    // 실제 세트 수 (1 ~ MAX_SETS)
             _jumboW   : jumboW,
             _prodLen  : prodLen,
             _isDWidth : true
           })
         }
 
-        // pool에 남은 홀수 오더 처리
+        // pool에 남은 오더 처리
         if (pool.length > 0) {
           if (mustDouble) {
             pool.forEach(function(o) {
@@ -9372,11 +9384,11 @@ function runCombinationAlgorithm(orders) {
                   : '889mm 이하 배폭 필요 — 동일지폭 파트너 부족 (' + pw + 'mm)')
             })
           }
-          // 선택배폭 홀수 잔여: BFD(혼폭 조합)로 넘김 → sorted에 그대로 남김
+          // 선택배폭 단독 잔여 → sorted에 그대로 남겨 BFD
         }
       })
 
-      // 배폭 확정된 오더를 sorted에서 제거 → 나머지는 BFD 혼폭 조합 대상
+      // 배폭 확정된 오더를 sorted에서 제거
       for (var si = sorted.length - 1; si >= 0; si--) {
         var so = sorted[si]
         var soId = so.orderId || (so.sapOrderNo + '_' + (so.sapItemNo||''))
@@ -9658,6 +9670,8 @@ function runCombinationAlgorithm(orders) {
       var lossRate = maxW > 0 ? (loss / maxW * 100) : 0
       var totalTon = bkt.orders.reduce(function(s, o) { return s + (o.orderQtyTon || 0) }, 0)
       var isZeroLoss  = (loss === 0)
+      // pokCount = 1세트당 폭 수 (_nWidth). 세트×폭 전체 orders.length 아님
+      var onePokCount = bkt._nWidth || bkt.orders.length
       combos.push({
         comboId        : comboIdx++,
         machineNo      : machineNo,
@@ -9671,7 +9685,7 @@ function runCombinationAlgorithm(orders) {
         loss           : loss,
         lossRate       : lossRate.toFixed(1),
         totalTon       : totalTon.toFixed(3),
-        pokCount       : bkt.orders.length,
+        pokCount       : onePokCount,   // 1세트당 폭 수 (점보롤 폭 수)
         isSingleNarrow : false,
         belowMinWidth  : minW > 0 && totalW < minW,
         isZeroLoss     : isZeroLoss,
@@ -9739,13 +9753,13 @@ function runCombinationAlgorithm(orders) {
         loss          : loss,
         lossRate      : lossRate.toFixed(1),
         totalTon      : totalTon.toFixed(3),
-        pokCount      : bkt.orders.length,
+        pokCount      : isBFDSet ? bfdNWidth : bkt.orders.length,  // 1세트당 폭 수
         isSingleNarrow: isSingleNarrow,
         belowMinWidth : belowMinWidth,
         isZeroLoss    : isZeroLoss,
         algoTag       : isBFDSet ? 'BFD-SET' : (isZeroLoss ? 'ZERO-LOSS' : 'BFD'),
-        _setCount     : isBFDSet ? bfdSetCount : undefined,   // BFD 세트 수 (2~7)
-        _nWidth       : isBFDSet ? bfdNWidth   : undefined,   // 1세트당 폭 수
+        _setCount     : isBFDSet ? bfdSetCount : undefined,
+        _nWidth       : isBFDSet ? bfdNWidth   : undefined,
         _isBFDSet     : isBFDSet
       })
     })
@@ -10814,10 +10828,18 @@ function renderSimResult(combos, unassigned) {
       : ''
 
     // ── 배폭생산 뱃지 ─────────────────────────────────────────
+    var _dwidthProdLen = combo._prodLen
+    if (!_dwidthProdLen && combo._isDWidth && combo._nWidth) {
+      // _prodLen 미계산 시 Roll 12인치 기준으로 실시간 계산
+      var _dwBw = Number(combo.basisWeight) || 0
+      var _dwNw = combo._nWidth || 1
+      var _dwRl = getRollLengthLimit(12, _dwBw, _rollLengthCache)
+      if (_dwRl) _dwidthProdLen = Math.floor(_dwRl.maxLen / _dwNw)
+    }
     const dwidthBadge = combo._isDWidth
       ? '<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;background:var(--badge-dwidth-bg);color:var(--badge-dwidth-txt);letter-spacing:.3px;border:1px solid var(--badge-dwidth-brd);">⚡ '+combo._nWidth+'폭배폭'+
         (combo._setCount && combo._setCount > 1 ? ' · '+combo._setCount+'세트' : '')+
-        (combo._prodLen ? ' · 생산'+combo._prodLen.toLocaleString()+'m' : '')+
+        (_dwidthProdLen ? ' · 생산'+_dwidthProdLen.toLocaleString()+'m' : '')+
         '</span>'
       : ''
 
@@ -10887,7 +10909,7 @@ function renderSimResult(combos, unassigned) {
         }).join('')
 
         var inchNotice = inchKeys.length === 0
-          ? '<div style=\"margin-top:8px;font-size:13px;color:#f59e0b;\"><i class=\"fas fa-exclamation-triangle\" style=\"margin-right:5px;\"></i>오더에 인치 정보 없음 — SAP 연동 후 자동 매핑 예정</div>'
+          ? '<div style=\"margin-top:8px;font-size:13px;color:#f59e0b;\"><i class=\"fas fa-exclamation-triangle\" style=\"margin-right:5px;\"></i>오더에 인치 정보 없음 — <b>12인치(대관) 기준</b>으로 생산 길이 적용</div>'
           : ''
         var cacheNotice = cache.length === 0
           ? '<div style=\"margin-top:8px;font-size:13px;color:#f87171;\"><i class=\"fas fa-exclamation-circle\" style=\"margin-right:5px;\"></i>Roll 길이 기준 캐시 없음 — 시뮬레이션 탭 재진입 시 갱신됨</div>'
@@ -11020,7 +11042,11 @@ function renderSimResult(combos, unassigned) {
           (combo.paperLength > 0
             ? '<span style="font-size:13px;color:var(--text-muted);">지장 <b style="color:#f59e0b;font-size:14px;">'+combo.paperLength.toLocaleString()+'</b><span style="font-size:11px;">mm</span></span>'
             : '<span style="font-size:12px;padding:3px 10px;border-radius:5px;background:#0c1a2e;color:#38bdf8;font-weight:700;">Roll (무한)</span>')+
-          '<span style="font-size:13px;color:var(--text-muted);"><b style="color:var(--text-main);font-size:14px;">'+combo.pokCount+'</b><span style="font-size:11px;">폭</span></span>'+
+          '<span style="font-size:13px;color:var(--text-muted);"><b style="color:var(--text-main);font-size:14px;">'+combo.pokCount+'</b><span style="font-size:11px;">폭</span>'+
+          ((combo._setCount && combo._setCount > 1)
+            ? ' <b style="color:#f59e0b;font-size:14px;">×'+combo._setCount+'</b><span style="font-size:11px;">세트</span>'
+            : '')+
+          '</span>'+
         '</div>'+
         '<!-- 우측 핵심 수치 그룹 -->'+
         '<div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;padding-left:10px;border-left:2px solid var(--border);flex-shrink:0;overflow:visible;">'+
